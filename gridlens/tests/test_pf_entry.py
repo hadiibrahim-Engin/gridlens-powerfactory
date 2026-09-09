@@ -10,7 +10,7 @@ DEPLOYMENT = Path(__file__).resolve().parents[2] / "powerfactory"
 if str(DEPLOYMENT) not in sys.path:
     sys.path.insert(0, str(DEPLOYMENT))
 
-from gridlens_pf import entry  # noqa: E402
+from gridlens_pf import entry
 
 
 class Named:
@@ -44,6 +44,32 @@ def test_no_snapshot_means_no_multi_case_run():
             return [Named("ElmRes", "Quasi-Dynamic Simulation AC")]
 
     assert entry.load_snapshots(Case()) == []
+
+
+def test_report_rejects_snapshots_without_atomic_run_metadata():
+    class Case:
+        def GetContents(self, pattern, *args):
+            return [Named("ElmRes", "GridLens_REF")]
+
+    with pytest.raises(RuntimeError, match="unvollständig|Metadaten|Runner"):
+        entry.run_report_mode(SimpleNamespace(), Case(), report=None)
+
+
+def test_report_rejects_an_incomplete_snapshot_run():
+    snapshot = Named("ElmRes", "GridLens_REF")
+    snapshot.desc = [
+        "GridLensMeta.id=REF",
+        "GridLensMeta.run_id=run-ohne-abschluss",
+        "GridLensMeta.run_state=in_progress",
+        "GridLensMeta.expected_cases=REF",
+    ]
+
+    class Case:
+        def GetContents(self, pattern, *args):
+            return [snapshot]
+
+    with pytest.raises(RuntimeError, match="unvollständig|Runner"):
+        entry.run_report_mode(SimpleNamespace(), Case(), report=None)
 
 
 def test_report_parent_selects_report_mode():
@@ -90,10 +116,20 @@ def test_entry_file_purges_stale_submodules():
     sys.modules["gridlens_pf.__probe__"] = object()
     namespace = {"__file__": str(DEPLOYMENT / "gridlens_report.py"),
                  "__name__": "not_main"}
+    # The purge replaces every gridlens_pf module object. Other test modules
+    # still hold references to the old generation, so the originals are put
+    # back afterwards; otherwise patching a config value in one module would
+    # no longer be seen by code holding the other generation.
+    preserved = {name: module for name, module in sys.modules.items()
+                 if name == "gridlens_pf" or name.startswith("gridlens_pf.")}
     try:
         exec(compile(source, "gridlens_report.py", "exec"), namespace)
         assert "gridlens_pf.__probe__" not in sys.modules
     finally:
+        for name in [n for n in sys.modules
+                     if n == "gridlens_pf" or n.startswith("gridlens_pf.")]:
+            del sys.modules[name]
+        sys.modules.update(preserved)
         sys.modules.pop("gridlens_pf.__probe__", None)
 
 

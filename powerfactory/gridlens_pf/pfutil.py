@@ -1,5 +1,6 @@
 """Duck-typed Zugriffe auf PowerFactory-Objekte und Zahlenumwandlung."""
 
+import hashlib
 import math
 
 from .config import CLASS_CATEGORIES, VARIABLES
@@ -11,6 +12,22 @@ def safe_attr(obj, name, default=None):
         return default if value is None else value
     except Exception:
         return default
+
+
+def clip_text(value, limit):
+    """Shorten a report string to `limit` characters, keeping it unique.
+
+    A truncated name would otherwise merge two different elements into one
+    row or one chart series, so the clipped value carries a short stable
+    marker derived from the full text.
+    """
+    text = str(value)
+    if len(text) <= limit:
+        return text
+    marker = "~" + hashlib.sha256(
+        text.encode("utf-8")).hexdigest()[:6]
+    keep = max(0, limit - len(marker))
+    return text[:keep] + marker[:limit]
 
 
 def object_key(obj):
@@ -57,14 +74,15 @@ def result_category(obj, variable):
 
 
 def finite_number(value):
-    """Convert a PowerFactory result value to float or return None."""
+    """Convert a single PowerFactory value to float or return None.
+
+    Sequences are rejected on purpose. A PowerFactory call that returns a
+    ``(code, value)`` pair must be normalised by ``return_code`` or
+    ``result_value`` first, so that an error code can never be mistaken for a
+    measured quantity.
+    """
     if isinstance(value, (tuple, list)):
-        if len(value) >= 2:
-            value = value[1]
-        elif value:
-            value = value[0]
-        else:
-            return None
+        return None
     if value is None or type(value) is bool:
         return None
     if isinstance(value, str):
@@ -80,9 +98,35 @@ def finite_number(value):
     return result if math.isfinite(result) else None
 
 
+def return_code(value):
+    """Normalise the return value of a PowerFactory command to an error code.
+
+    ``None`` is the usual success shape of a command that returns nothing.
+    A sequence is read as ``(code, ...)``. An unreadable return value yields
+    ``None`` so that callers fail closed instead of assuming success.
+    """
+    if value is None:
+        return 0.0
+    if isinstance(value, (tuple, list)):
+        if not value:
+            return None
+        value = value[0]
+    if isinstance(value, (tuple, list)):
+        return None
+    return finite_number(value)
+
+
 def result_value(elmres, row, column):
+    """Read one ElmRes cell and reject non-zero PowerFactory error codes."""
     try:
-        return finite_number(elmres.GetValue(row, column))
+        raw = elmres.GetValue(row, column)
     except Exception:
         return None
-
+    if isinstance(raw, (tuple, list)):
+        if len(raw) < 2:
+            return None
+        error_code = finite_number(raw[0])
+        if error_code is None or error_code != 0.0:
+            return None
+        raw = raw[1]
+    return finite_number(raw)

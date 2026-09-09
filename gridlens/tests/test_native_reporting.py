@@ -15,7 +15,7 @@ DEPLOYMENT = Path(__file__).resolve().parents[2] / "powerfactory"
 if str(DEPLOYMENT) not in sys.path:
     sys.path.insert(0, str(DEPLOYMENT))
 
-import gridlens_pf as native  # noqa: E402
+import gridlens_pf as native
 
 
 class PFObject:
@@ -161,6 +161,37 @@ def prepared_payload(active_model):
         app, study, result, series, labels, plot_times, time_unit)
 
 
+def test_result_without_an_explicit_time_column_is_rejected():
+    result = ElmRes()
+    result.columns = result.columns[1:]
+    result.values = tuple(row[1:] for row in result.values)
+    with pytest.raises(RuntimeError, match="Zeit|time"):
+        native.collect_series(result)
+
+
+def test_result_cell_with_nonzero_error_code_is_rejected():
+    result = ElmRes()
+    original = result.GetValue
+
+    def get_value(row, column):
+        if row == 1 and column == 1:
+            return 7, 0.0
+        return original(row, column)
+
+    result.GetValue = get_value
+    with pytest.raises(RuntimeError, match="Zelle|GetValue|Ergebniswert"):
+        native.collect_series(result)
+
+
+def test_partial_result_series_is_rejected_instead_of_silently_shortened():
+    result = ElmRes()
+    rows = [list(row) for row in result.values]
+    rows[1][1] = None
+    result.values = tuple(tuple(row) for row in rows)
+    with pytest.raises(RuntimeError, match="Zelle|Ergebniswert"):
+        native.collect_series(result)
+
+
 def test_runtime_package_is_self_contained_and_has_no_mock_input():
     """The deployment must run on the standard library plus powerfactory."""
     entry = DEPLOYMENT / "gridlens_report.py"
@@ -171,7 +202,7 @@ def test_runtime_package_is_self_contained_and_has_no_mock_input():
         "MASTER_GRIDLENS.mrt", "README.md", "gridlens_report.py"
     }
 
-    allowed = {"math", "os", "sys", "datetime", "powerfactory"}
+    allowed = {"hashlib", "math", "os", "sys", "datetime", "powerfactory"}
     for path in [entry] + sorted(package.glob("*.py")):
         source = path.read_text(encoding="utf-8")
         assert "mock-payload" not in source, path
@@ -186,9 +217,9 @@ def test_runtime_package_is_self_contained_and_has_no_mock_input():
                 root = (node.module or "").split(".")[0]
                 assert root in allowed | {"gridlens_pf"}, (path, node.module)
 
-    assert native.PUBLISHER_VERSION == "4.0.0"
-    assert native.TEMPLATE_VERSION == "2.1.0"
-    assert native.DATA_CONTRACT_VERSION == "2.1"
+    assert native.PUBLISHER_VERSION == "4.1.0"
+    assert native.TEMPLATE_VERSION == "2.2.0"
+    assert native.DATA_CONTRACT_VERSION == "2.2"
 
 
 def test_mrt_sources_match_embedded_table_contract():
@@ -256,7 +287,6 @@ def test_active_elmres_is_selected_and_statistics_are_built(active_model):
     assert {row["series_role"] for row in payload["ScriptedPlotData"]} == {"AKTIV"}
     assert all("Auslastung" in row["plot_title"] or "Spannungsbetrag" in row["plot_title"]
                for row in payload["ScriptedPlots"])
-    assert payload["ScriptedReferenceComparison"] == []
     assert payload["ScriptedLineLoadingBars"][0]["element_name"] == "Line A"
     assert payload["ScriptedTransformerLoadingBars"][0]["max_loading"] == 110.0
     assert {row["element_name"] for row in payload["ScriptedVoltageMagnitudeBars"]} == {
@@ -279,7 +309,7 @@ def test_native_publish_and_mrt_sql_read_active_values(active_model):
     report = SQLiteReport()
     try:
         native.publish_report(report, payload)
-        assert len(report.tables) == 18
+        assert len(report.tables) == len(native.TABLES)
         value = report.connection.execute(
             'SELECT max_loading FROM "ScriptedLineStatistics"'
         ).fetchone()[0]
@@ -332,6 +362,7 @@ def test_plot_sampling_keeps_endpoints_and_extrema():
 
 def test_noncritical_series_are_omitted_from_report(active_model):
     _, _, result = active_model
+    result.columns = result.columns[:6]
     result.values = (
         (0.0, 90.0, 60.0, 80.0, 1.00, 1.01),
         (1.0, 99.0, 70.0, 95.0, 0.95, 1.05),
@@ -340,7 +371,7 @@ def test_noncritical_series_are_omitted_from_report(active_model):
     payload = prepared_payload(active_model)
     for table in (
         "ScriptedLineStatistics", "ScriptedTransformerStatistics",
-        "ScriptedVoltageStatistics", "ScriptedReferenceComparison",
+        "ScriptedVoltageStatistics",
         "ScriptedScenarioComparison", "ScriptedRankings",
         "ScriptedRelevantTimePoints", "ScriptedPlots", "ScriptedPlotData",
         "ScriptedLineLoadingBars", "ScriptedTransformerLoadingBars",
@@ -408,10 +439,11 @@ def test_external_compython_entry_point(active_model, monkeypatch):
     )
     try:
         native.main()
-        assert len(report.tables) == 18
-        assert "GridLens publisher: 4.0.0" in messages
+        assert len(report.tables) == len(native.TABLES)
+        assert "GridLens publisher: " + native.PUBLISHER_VERSION in messages
         assert "GridLens mode: report" in messages
-        assert messages[-1] == "GridLens: 18 Tabellen publiziert."
+        assert messages[-1] == "GridLens: {} Tabellen publiziert.".format(
+            len(native.TABLES))
         assert result.loaded is False
     finally:
         report.connection.close()
@@ -549,3 +581,341 @@ def test_bar_charts_are_labelled_with_the_case_id():
     for series in bars:
         argument = series.findtext("ArgumentDataColumn") or ""
         assert argument.endswith(".bar_label"), argument
+
+
+def test_every_contract_table_declares_its_required_fields():
+    """GL-PR-012: the contract must state what may never be empty."""
+    declared = {name for name, _ in native.TABLES}
+    assert set(native.REQUIRED_FIELDS) == declared
+    for name, fields in native.TABLES:
+        known = {field for field, _ in fields}
+        assert set(native.REQUIRED_FIELDS[name]) <= known, name
+
+
+def test_a_missing_required_field_is_rejected_before_reset(active_model):
+    payload = prepared_payload(active_model)
+    del payload["ScriptedLineStatistics"][0]["element_name"]
+    report = SQLiteReport()
+    try:
+        with pytest.raises(ValueError, match="element_name"):
+            native.publish_report(report, payload)
+        assert report.resets == 0
+    finally:
+        report.connection.close()
+
+
+def test_a_null_required_field_is_rejected_before_reset(active_model):
+    payload = prepared_payload(active_model)
+    payload["ScriptedLineStatistics"][0]["max_loading"] = None
+    report = SQLiteReport()
+    try:
+        with pytest.raises(ValueError, match="max_loading"):
+            native.publish_report(report, payload)
+        assert report.resets == 0
+    finally:
+        report.connection.close()
+
+
+def test_an_empty_required_string_is_rejected(active_model):
+    payload = prepared_payload(active_model)
+    payload["ScriptedScenarios"][0]["scenario_id"] = "   "
+    report = SQLiteReport()
+    try:
+        with pytest.raises(ValueError, match="scenario_id"):
+            native.publish_report(report, payload)
+    finally:
+        report.connection.close()
+
+
+def test_an_absent_reference_value_stays_allowed(active_model):
+    """Missing reference data must stay null, never become a fake 0.0."""
+    payload = prepared_payload(active_model)
+    row = payload["ScriptedLineStatistics"][0]
+    row["reference_max_loading"] = None
+    row["delta_max_loading"] = None
+    report = SQLiteReport()
+    try:
+        native.publish_report(report, payload)
+        stored = report.connection.execute(
+            'SELECT reference_max_loading FROM "ScriptedLineStatistics"'
+        ).fetchone()[0]
+        assert stored is None
+    finally:
+        report.connection.close()
+
+
+def test_the_timeseries_chart_labels_its_y_axis_with_the_plot_unit():
+    """GL-PR-015: one chart may show %, p.u. or deg, so the unit must show."""
+    root = ET.parse(DEPLOYMENT / "MASTER_GRIDLENS.mrt").getroot()
+    charts = [node for node in root.iter("PlotsChart")]
+    assert len(charts) == 1
+    y_axis = charts[0].find("Area/YAxis")
+    title = y_axis.find("Title")
+    assert title is not None
+    assert title.findtext("Text") == "{ScriptedPlots.unit}"
+
+
+def test_the_timeseries_chart_still_labels_its_x_axis():
+    root = ET.parse(DEPLOYMENT / "MASTER_GRIDLENS.mrt").getroot()
+    chart = next(node for node in root.iter("PlotsChart"))
+    assert chart.find("Area/XAxis/Title").findtext("Text") == "Zeit [h]"
+
+
+def test_the_contract_no_longer_declares_an_unrendered_reference_table():
+    """GL-PR-009: a generated table no band binds is a claim without a page."""
+    names = {name for name, _ in native.TABLES}
+    assert "ScriptedReferenceComparison" not in names
+    assert len(native.TABLES) == 17
+
+
+def test_no_payload_carries_the_removed_reference_table():
+    assert "ScriptedReferenceComparison" not in native.empty_payload()
+
+
+def test_the_template_declares_the_versions_the_runtime_expects():
+    """GL-PR-013: template and runtime must name the same release."""
+    text = (DEPLOYMENT / "MASTER_GRIDLENS.mrt").read_text(encoding="utf-8")
+    assert "Template {}; data contract {}.".format(
+        native.TEMPLATE_VERSION, native.DATA_CONTRACT_VERSION) in text
+
+
+def test_the_reference_delta_is_still_rendered_by_the_statistics_tables():
+    """Removing the duplicate must not remove the comparison itself."""
+    text = (DEPLOYMENT / "MASTER_GRIDLENS.mrt").read_text(encoding="utf-8")
+    for expression in (
+        "{ScriptedLineStatistics.delta_max_loading}",
+        "{ScriptedTransformerStatistics.delta_max_loading}",
+    ):
+        assert expression in text
+
+
+class CodeReport(SQLiteReport):
+    """IntReport double that answers one call with a PowerFactory error code."""
+
+    def __init__(self, failing=None, code=1):
+        super().__init__()
+        self.failing = failing
+        self.code = code
+
+    def CreateTable(self, name):
+        super().CreateTable(name)
+        return self.code if self.failing == "CreateTable" else None
+
+    def CreateField(self, table, name, field_type):
+        super().CreateField(table, name, field_type)
+        return self.code if self.failing == "CreateField" else None
+
+    def SetValue(self, table, field, row, value):
+        super().SetValue(table, field, row, value)
+        return self.code if self.failing == "SetValue" else None
+
+
+def test_a_successful_publication_ignores_empty_api_returns(active_model):
+    report = CodeReport()
+    try:
+        native.publish_report(report, prepared_payload(active_model))
+        assert len(report.tables) == len(native.TABLES)
+    finally:
+        report.connection.close()
+
+
+def test_an_object_handle_return_is_not_mistaken_for_an_error(active_model):
+    """CreateTable may hand back the created object, which is not a code."""
+    report = CodeReport(failing="CreateTable", code=object())
+    try:
+        native.publish_report(report, prepared_payload(active_model))
+        assert len(report.tables) == len(native.TABLES)
+    finally:
+        report.connection.close()
+
+
+@pytest.mark.parametrize("call", ["CreateTable", "CreateField", "SetValue"])
+def test_a_non_zero_api_code_stops_the_publication(active_model, call):
+    """The review requires these return codes to be evaluated, not ignored."""
+    report = CodeReport(failing=call, code=1)
+    try:
+        with pytest.raises(RuntimeError, match=call):
+            native.publish_report(report, prepared_payload(active_model))
+        assert report.resets == 2
+    finally:
+        report.connection.close()
+
+
+def test_api_error_code_reads_only_real_numeric_failures():
+    assert native.api_error_code(None) is None
+    assert native.api_error_code(0) is None
+    assert native.api_error_code("Tabelle") is None
+    assert native.api_error_code(1) == 1.0
+    assert native.api_error_code((2, "Fehler")) == 2.0
+
+
+def test_label_and_free_text_fields_have_different_limits():
+    assert native.text_limit("element_name") == native.MAX_LABEL_LENGTH
+    assert native.text_limit("bar_label") == native.MAX_LABEL_LENGTH
+    assert native.text_limit("unit") == native.MAX_LABEL_LENGTH
+    assert native.text_limit("message") == native.MAX_TEXT_LENGTH
+    assert native.text_limit("description") == native.MAX_TEXT_LENGTH
+    assert native.MAX_LABEL_LENGTH < native.MAX_TEXT_LENGTH
+
+
+def test_a_short_name_passes_through_unchanged(active_model):
+    payload = prepared_payload(active_model)
+    report = SQLiteReport()
+    try:
+        native.publish_report(report, payload)
+        name = report.connection.execute(
+            'SELECT element_name FROM "ScriptedLineStatistics"'
+        ).fetchone()[0]
+        assert name == "Line A"
+    finally:
+        report.connection.close()
+
+
+def test_an_overlong_label_is_clipped_before_it_reaches_the_report(active_model):
+    """Unbounded names break the table layout and the chart legend."""
+    payload = prepared_payload(active_model)
+    payload["ScriptedLineStatistics"][0]["element_name"] = "L" * 400
+    native.validate_payload(payload)
+    clipped = payload["ScriptedLineStatistics"][0]["element_name"]
+    assert len(clipped) == native.MAX_LABEL_LENGTH
+
+
+def test_two_different_overlong_names_stay_different(active_model):
+    """Clipping must not merge two physically separate elements."""
+    first = native.clip_text("Leitung " + "A" * 300 + " Nord", 80)
+    second = native.clip_text("Leitung " + "A" * 300 + " Sued", 80)
+    assert first != second
+    assert len(first) == len(second) == 80
+
+
+def test_free_text_keeps_more_room_than_a_label():
+    message = "Meldung " * 200
+    assert len(native.clip_text(message, native.MAX_TEXT_LENGTH)) == (
+        native.MAX_TEXT_LENGTH)
+    assert len(native.clip_text("kurz", native.MAX_TEXT_LENGTH)) == 4
+
+
+CHART_FLAGS = {
+    "LineLoadingBarChartBand": ("has_line_bars", "ScriptedLineLoadingBars"),
+    "TransformerLoadingBarChartBand": (
+        "has_transformer_bars", "ScriptedTransformerLoadingBars"),
+    "VoltageMagnitudeBarChartBand": (
+        "has_voltage_bars", "ScriptedVoltageMagnitudeBars"),
+    "VoltageAngleBarChartBand": ("has_angle_bars", "ScriptedVoltageAngleBars"),
+    "PlotsPageBreakBand": (None, None),
+}
+
+
+def decode_filter(value):
+    """Undo the Stimulsoft XML name encoding used in Filters values."""
+    import re
+    return re.sub(r"_x([0-9A-Fa-f]{4})_",
+                  lambda m: chr(int(m.group(1), 16)), value)
+
+
+def test_report_meta_declares_a_render_flag_for_every_chart():
+    """GL-PR-015: an empty chart must not be drawn as a blank frame."""
+    fields = dict(dict(native.TABLES)["ScriptedReportMeta"])
+    for flag, _ in CHART_FLAGS.values():
+        if flag:
+            assert fields.get(flag) == "string", flag
+
+
+def test_each_chart_band_is_filtered_by_its_own_render_flag():
+    root = ET.parse(DEPLOYMENT / "MASTER_GRIDLENS.mrt").getroot()
+    for band_name, (flag, _) in CHART_FLAGS.items():
+        if not flag:
+            continue
+        band = next(node for node in root.iter(band_name))
+        assert band.findtext("DataSourceName") == "ScriptedReportMeta"
+        values = [decode_filter(v.text) for v in band.findall("Filters/value")]
+        assert values == ['ScriptedReportMeta.{} == "1"'.format(flag)], band_name
+
+
+def test_a_chart_flag_is_one_when_the_table_has_rows(active_model):
+    payload = prepared_payload(active_model)
+    meta = payload["ScriptedReportMeta"][0]
+    assert payload["ScriptedLineLoadingBars"]
+    assert meta["has_line_bars"] == "1"
+
+
+def test_a_chart_flag_is_zero_when_the_table_is_empty(active_model):
+    _, _, result = active_model
+    result.columns = result.columns[:6]
+    result.values = (
+        (0.0, 90.0, 60.0, 80.0, 1.00, 1.01),
+        (1.0, 99.0, 70.0, 95.0, 0.95, 1.05),
+        (2.0, 95.0, 65.0, 99.0, 0.99, 1.02),
+    )
+    payload = prepared_payload(active_model)
+    meta = payload["ScriptedReportMeta"][0]
+    assert payload["ScriptedVoltageAngleBars"] == []
+    assert meta["has_angle_bars"] == "0"
+    assert payload["ScriptedLineLoadingBars"] == []
+    assert meta["has_line_bars"] == "0"
+
+
+def test_the_mrt_source_declares_the_render_flags():
+    root = ET.parse(DEPLOYMENT / "MASTER_GRIDLENS.mrt").getroot()
+    source = next(n for n in root.iter("ScriptedReportMeta")
+                  if n.findtext("Name") == "ScriptedReportMeta")
+    columns = {v.text.split(",", 1)[0] for v in source.findall("Columns/value")}
+    for flag, _ in CHART_FLAGS.values():
+        if flag:
+            assert flag in columns
+
+
+def test_status_and_quality_bands_are_never_filtered():
+    """A failed case must stay visible even when no element is critical.
+
+    The critical-only rule governs which elements reach the limit tables. It
+    must never decide whether the reader learns that a case failed.
+    """
+    root = ET.parse(DEPLOYMENT / "MASTER_GRIDLENS.mrt").getroot()
+    for band_name, source in (
+        ("ScenariosDataBand", "ScriptedScenarios"),
+        ("ModelQualityDataBand", "ScriptedModelQuality"),
+        ("OutagesDataBand", "ScriptedOutages"),
+        ("ScenarioMatrixDataBand", "ScriptedScenarioMatrix"),
+    ):
+        band = next(node for node in root.iter(band_name))
+        assert band.findtext("DataSourceName") == source
+        assert band.findall("Filters/value") == [], band_name
+
+
+def test_a_failed_case_reaches_the_status_tables_without_any_element(active_model):
+    payload = prepared_payload(active_model)
+    payload["ScriptedScenarios"].append({
+        "scenario_id": "S09", "scenario_name": "Abgebrochen",
+        "is_reference": 0, "description": "",
+        "simulation_status": "NICHT KONVERGIERT",
+        "simulation_start": "", "simulation_end": "",
+    })
+    report = SQLiteReport()
+    try:
+        native.publish_report(report, payload)
+        rows = report.connection.execute(
+            'SELECT simulation_status FROM "ScriptedScenarios" '
+            'WHERE scenario_id = "S09"').fetchall()
+        assert [row[0] for row in rows] == ["NICHT KONVERGIERT"]
+    finally:
+        report.connection.close()
+
+
+def test_every_declared_list_count_matches_its_children():
+    """Stimulsoft stores an explicit count on each list; a stale one is a
+    silent inconsistency that XML validity alone never reveals."""
+    root = ET.parse(DEPLOYMENT / "MASTER_GRIDLENS.mrt").getroot()
+    stale = [
+        (node.tag, node.get("count"), len(list(node)))
+        for node in root.iter()
+        if node.get("isList") == "true" and node.get("count") is not None
+        and int(node.get("count")) != len(list(node))
+    ]
+    assert stale == []
+
+
+def test_the_data_source_list_counts_the_contract_tables():
+    root = ET.parse(DEPLOYMENT / "MASTER_GRIDLENS.mrt").getroot()
+    sources = root.find("Dictionary/DataSources")
+    assert int(sources.get("count")) == len(native.TABLES)

@@ -124,7 +124,7 @@ unberührt.
 Die Ausgabe beginnt mit:
 
 ```text
-GridLens publisher: 4.0.0
+GridLens publisher: 4.1.0
 GridLens study case: ...
 GridLens mode: runner
 ```
@@ -133,10 +133,10 @@ Der Reportlauf meldet anschließend:
 
 ```text
 GridLens mode: report
-GridLens: 18 Tabellen publiziert.
+GridLens: 17 Tabellen publiziert.
 ```
 
-Fehlt `GridLens publisher: 4.0.0`, verwendet PowerFactory noch eine ältere
+Fehlt `GridLens publisher: 4.1.0`, verwendet PowerFactory noch eine ältere
 Kopie. Diese Datei dann durch die aktuelle `gridlens_report.py` ersetzen oder
 die externe Verknüpfung korrigieren.
 
@@ -173,7 +173,7 @@ Die MRT liest entsprechend:
 SELECT * FROM "ScriptedLineStatistics"
 ```
 
-Die 18 vom Skript erstellten Designer-Datenquellen sind:
+Die 17 vom Skript erstellten Designer-Datenquellen sind:
 
 - `ScriptedReportMeta`
 - `ScriptedModelQuality`
@@ -187,7 +187,6 @@ Die 18 vom Skript erstellten Designer-Datenquellen sind:
 - `ScriptedTransformerLoadingBars`
 - `ScriptedVoltageMagnitudeBars`
 - `ScriptedVoltageAngleBars`
-- `ScriptedReferenceComparison`
 - `ScriptedScenarioComparison`
 - `ScriptedRankings`
 - `ScriptedRelevantTimePoints`
@@ -239,6 +238,121 @@ Kurve und wenige gleichmäßig verteilte Achsenlabels. Endpunkte sowie exaktes
 Minimum und Maximum bleiben beim Reduzieren immer erhalten. Falls die
 Zeitspalte keine Einheit liefert, steuert `TIME_UNIT_FALLBACK` die Annahme.
 
+## Paketidentität nach dem Kopieren
+
+Runner, Report-Erweiterung und Vorlage werden von Hand kopiert. Ein gemischter
+Stand - eine alte `gridlens_pf/` neben einer neuen Einstiegsdatei oder eine
+Vorlage aus einem anderen Release - importiert sauber und füllt trotzdem die
+Tabellen eines anderen Datenvertrags.
+
+Deshalb prüft die Laufzeit sich beim Start selbst gegen
+`gridlens_pf/manifest.py`:
+
+- Fehlt ein Laufzeitmodul oder weicht seine Prüfsumme ab, **bricht der Lauf ab**.
+- Nennt `MASTER_GRIDLENS.mrt` nicht `Template 2.2.0; data contract 2.2`,
+  **bricht der Lauf ab**.
+- Eine angepasste `gridlens_pf/config.py` ist ein dokumentierter Betriebsfall
+  und erzeugt nur die Warnung `GridLens WARNUNG: ... Projektanpassung wird
+  angenommen.`
+
+Bei einem Abbruch das gesamte Paket erneut aus demselben Release kopieren -
+niemals einzelne Dateien nachziehen. Nach jeder Änderung an der Laufzeit im
+Repository die Prüfsummen neu erzeugen:
+
+```bash
+python3 powerfactory/tools/write_manifest.py
+```
+
+## Wiederanlauf nach einem Abbruch
+
+Ein Lauf besitzt eine eigene Identität. Vor der ersten QDS-Berechnung löscht der
+Runner **alle** vorhandenen `GridLens_*`-Snapshots und legt für jeden erwarteten
+Fall sofort einen Snapshot mit den Metadaten `run_id`, `expected_cases` und
+`run_state=in_progress` an. Erst wenn jeder Fall gerechnet **und** der
+ursprüngliche Projektzustand nachweislich wiederhergestellt ist, werden alle
+Snapshots auf `run_state=complete` gesetzt.
+
+Der Report-Modus liest ausschließlich einen vollständigen Satz desselben Laufs.
+Er verweigert die Arbeit bei fehlenden Metadaten, gemischten `run_id`, einem
+unvollständigen Fallsatz oder `run_state=in_progress`.
+
+| Situation | Vorgehen |
+|---|---|
+| Runner mit Escape, Prozessende oder Fehler abgebrochen | Runner erneut vollständig ausführen. Er räumt die Snapshots des abgebrochenen Laufs selbst ab. Es ist **kein** manuelles Löschen nötig. |
+| Report meldet `Runner-Lauf ist unvollständig` | Runner erneut ausführen, dann den Report. |
+| Report meldet `gemischten Runner-Läufen` | Runner erneut ausführen. Ein Snapshot stammt aus einem älteren Lauf. |
+| Runner meldet `Zustand nicht sicher wiederhergestellt` | **Harter Fehler.** Das aktive Operation Scenario und die Ergebnisbindung von `ComStatsim` von Hand prüfen, bevor ein weiterer Lauf oder eine manuelle QDS-Rechnung erfolgt. Kein Bericht aus diesem Lauf verwenden. |
+
+Der Runner meldet einen nicht wiederhergestellten Zustand als Ausnahme und nicht
+als Warnung: Bliebe `ComStatsim.results` an einen GridLens-Snapshot gebunden,
+würde ein späterer manueller QDS-Lauf unbemerkt in diesen Snapshot schreiben.
+
+## Mindestanforderungen an das Ergebnis
+
+Ein Fall wird nur ausgewertet, wenn er alle folgenden Bedingungen erfüllt.
+Andernfalls erscheint er im Bericht sichtbar als nicht konvergiert oder nicht
+auswertbar - niemals still als `PASS`.
+
+| Anforderung | Verhalten bei Verletzung |
+|---|---|
+| `ComStatsim.Execute()` liefert 0 | Fall nicht konvergiert, Fehlercode im Bericht |
+| Ergebnisobjekt bleibt an den vorbereiteten Snapshot gebunden | Fall wird verworfen; das ursprüngliche `ElmRes` bleibt unberührt |
+| Eindeutige Zeitspalte `b:tnow`, `t` oder `time` | Fall nicht auswertbar |
+| Zeiteinheit `s`, `min`, `h` oder `d` | Fall nicht auswertbar |
+| Streng monoton steigende Zeitachse | Fall nicht auswertbar |
+| Jede Zelle einer verwendeten Reihe lesbar und endlich | Fall nicht auswertbar; Zellen werden **nicht** still übersprungen |
+| Mindestens eine unterstützte Ergebnisreihe | Fall nicht auswertbar |
+| Gleiche Zeitachse wie der Referenzfall | Fall wird als `NICHT AUSWERTBAR` geführt; es werden keine Deltas gebildet |
+
+Erforderlich sind daher aufgezeichnete Ergebnisvariablen für alle bewerteten
+Objekte über den gesamten QDS-Zeitraum mit identischer Schrittweite in allen
+Fällen.
+
+## Größenrahmen
+
+Der Report hält alle Fälle eines Laufs gleichzeitig im Speicher, weil
+Rangfolgen, Referenzdeltas und Diagrammauswahl fallübergreifend gebildet werden.
+Die Grenzen stehen in `gridlens_pf/config.py`:
+
+| Grenze | Vorgabe | Bedeutung |
+|---|---|---|
+| `MAX_CASES` | 12 | Rechenläufe einschließlich `REF` |
+| `MAX_RESULT_ROWS` | 35040 | Zeitschritte je Fall (ein Jahr in 15 Minuten) |
+| `MAX_RESULT_CELLS` | 20000000 | Zeilen × ausgewertete Reihen je Fall |
+| `MAX_RUN_CELLS` | 120000000 | Summe über alle Fälle eines Berichts |
+
+Der Leser hält je Ergebnisreihe nur die Diagrammstichprobe
+(`MAX_PLOT_POINTS`), nicht die volle Zeitreihe; Kennwerte werden vorher über
+die vollständige Spalte gebildet. Der Speicher wächst deshalb mit der Zahl der
+Reihen und nicht mit der Zahl der Zeitschritte.
+
+Richtwerte aus `powerfactory/tools/benchmark_reader.py` (Entwicklerrechner,
+CPython 3.13, spaltenweises Lesen):
+
+| Reihen | Zeitschritte | Zellen | Lesen | Spitzenspeicher |
+|---:|---:|---:|---:|---:|
+| 200 | 8.760 | 1,75 Mio. | 3,1 s | 3,3 MiB |
+| 2.000 | 2.976 | 5,95 Mio. | 8,4 s | 16,6 MiB |
+| 2.000 | 8.760 | 17,5 Mio. | 29,0 s | 17,1 MiB |
+
+Maßgeblich ist damit die Laufzeit, rund 1,7 s je 1.000.000 Zellen. Eine
+Überschreitung ist ein klarer Fehler mit Zahlenangabe und kein blockiertes
+PowerFactory. Für größere Studien die Grenzen bewusst anheben und die Laufzeit
+im Zielsystem messen.
+
+## Vertraulichkeit und Aufbewahrung
+
+Ergebnisdaten, Betriebsmittel- und Szenarionamen, das PowerFactory-Ausgabefenster
+und das erzeugte PDF enthalten Netzdaten und sind vertraulich zu behandeln:
+
+- PDF und Logauszüge nur an den berechtigten Personenkreis weitergeben.
+- Vor einer Weitergabe außerhalb des Projektteams die Klassifizierung des
+  Netzbetreibers anwenden.
+- Der Bericht ist eine technische Vorprüfung. Er ersetzt keine
+  Netzführungsfreigabe, kein Schaltprogramm, keine Topologie- oder
+  Trennstellenprüfung, keine N-1-Bewertung und keine Schutz- oder
+  Kurzschlussprüfung.
+
 ## Fehlerdiagnose
 
 | Meldung | Bedeutung / nächster Schritt |
@@ -246,7 +360,12 @@ Zeitspalte keine Einheit liefert, steuert `TIME_UNIT_FALLBACK` die Annahme.
 | `No module named 'gridlens_pf'` | Den vollständigen Ordner `gridlens_pf/` neben `gridlens_report.py` kopieren. |
 | `No active study case` | Das gewünschte Study Case aktivieren. |
 | `ComStatsim nicht ... gefunden` | Im aktiven Study Case die Quasi-Dynamic Simulation anlegen oder prüfen. |
-| `Operation Scenario blieb ... aktiv` | Der Runner hat den verlangten Zustand nicht sicher hergestellt und den Fall deshalb nicht berechnet. |
+| `Nach Deactivate() ist weiterhin ein Operation Scenario aktiv` | Der Runner hat den verlangten Zustand nicht sicher hergestellt und den Fall deshalb nicht berechnet. |
+| `Laufzeitpaket ... ist nicht konsistent` | Gemischte Auslieferung. Alle drei Bestandteile gemeinsam aus demselben Release neu kopieren. |
+| `Runner-Lauf ist unvollständig` / `gemischten Runner-Läufen` | Runner erneut vollständig ausführen, danach den Report. |
+| `nicht sicher wiederhergestellt` | Harter Fehler; Szenario und `ComStatsim.results` manuell prüfen. Siehe „Wiederanlauf nach einem Abbruch“. |
+| `überschreitet die Grenze von ...` | Zeitbereich, Elementumfang oder Fallzahl reduzieren oder die Grenze in `config.py` bewusst anheben. |
+| `keine eindeutige Zeitspalte` | Im `ElmRes` `b:tnow` aufzeichnen. Ohne Zeitkanal ist der Fall ungültig. |
 | `No ElmRes found` | Ergebnisobjekt im aktiven Study Case prüfen. |
 | `no populated ElmRes` | Simulation zuerst ausführen und Ergebnisse speichern. |
 | `no supported ... columns` | Ergebnisvariablen im `ElmRes` und `VARIABLES` vergleichen. |
@@ -264,7 +383,7 @@ und vor `SetValue` sicher in endliche `float`-Werte umgewandelt.
 DIgSILENT-Logo ist als PNG-Daten in vier `StiImage`-Komponenten eingebettet; zur
 Laufzeit ist daher weder eine zusätzliche Bilddatei noch Internetzugriff nötig.
 Die Vorlage verwendet Segoe UI sowie das DIgSILENT-Burgund `#B5123E`. Version
-2.1.0 enthält ein klickbares Inhaltsverzeichnis, interne Bookmarks, eine
+2.2.0 enthält ein klickbares Inhaltsverzeichnis, interne Bookmarks, eine
 skalierte numerische Zeitachse, rot hervorgehobene Grenzwertverletzungen und
 vier Balkendiagramme. Jedes fachliche Thema beginnt auf einer eigenen Seite.
 Auf dem Deckblatt stehen Ergebnisquelle, Bewertungsumfang und der Status

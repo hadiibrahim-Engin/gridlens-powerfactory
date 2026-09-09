@@ -4,15 +4,21 @@ Der Runner laeuft niemals als Report-Erweiterung. Er veraendert den
 Projektzustand und stellt ihn im finally-Zweig wieder her.
 """
 
+from datetime import datetime
+
 from . import config
 from .discovery import REFERENCE_ID, discover_cases
-from .pfutil import class_name, finite_number, object_key, object_name, safe_attr
+from .pfutil import (
+    class_name, finite_number, object_key, object_name, return_code, safe_attr,
+)
 
 OUTAGE_SEPARATOR = "|"
+OUTAGE_PREFIX = "GridLensOutage."
 OUTAGE_PATTERNS = ("*.ElmLne", "*.ElmTr2", "*.ElmTr3")
 METADATA_PREFIX = "GridLensMeta."
 METADATA_FIELDS = (
     "id", "name", "kind", "description", "status", "error_code", "message",
+    "source_key", "run_id", "run_state", "expected_cases",
 )
 
 
@@ -53,7 +59,7 @@ def snapshot_name(case_id):
 
 
 def collect_outages(app):
-    """Return (class, loc_name) for every switched-off branch element."""
+    """Return class, short name and internal key for every switched-off element."""
     found = []
     seen = set()
     for pattern in OUTAGE_PATTERNS:
@@ -67,19 +73,27 @@ def collect_outages(app):
         for obj in objects:
             if finite_number(safe_attr(obj, "outserv", 0)) != 1.0:
                 continue
-            entry = (class_name(obj), object_name(obj))
-            if entry not in seen:
-                seen.add(entry)
+            key = object_key(obj)
+            entry = (class_name(obj), object_name(obj), key)
+            if key not in seen:
+                seen.add(key)
                 found.append(entry)
     return found
 
 
+def _outage_line(outage):
+    element_class, name = outage[:2]
+    if len(outage) < 3:
+        return "{}{}{}".format(element_class, OUTAGE_SEPARATOR, name)
+    key = outage[2]
+    return "{}{}{}{}{}{}{}".format(
+        OUTAGE_PREFIX, _encode_metadata(element_class), OUTAGE_SEPARATOR,
+        _encode_metadata(name), OUTAGE_SEPARATOR, _encode_metadata(key), "")
+
+
 def write_outages(snapshot, outages):
     """Persist the outage list in the snapshot description."""
-    lines = [
-        "{}{}{}".format(element_class, OUTAGE_SEPARATOR, name)
-        for element_class, name in outages
-    ]
+    lines = [_outage_line(outage) for outage in outages]
     _set_description(snapshot, lines)
 
 
@@ -89,6 +103,11 @@ def read_outages(snapshot):
     for line in _description_lines(snapshot):
         text = str(line).strip()
         if text.startswith(METADATA_PREFIX):
+            continue
+        if text.startswith(OUTAGE_PREFIX):
+            parts = text[len(OUTAGE_PREFIX):].split(OUTAGE_SEPARATOR, 2)
+            if len(parts) == 3 and all(part.strip() for part in parts):
+                result.append(tuple(_decode_metadata(part) for part in parts))
             continue
         if OUTAGE_SEPARATOR not in text:
             continue
@@ -104,10 +123,7 @@ def write_snapshot_record(snapshot, record):
     for field in METADATA_FIELDS:
         lines.append("{}{}={}".format(
             METADATA_PREFIX, field, _encode_metadata(record.get(field))))
-    lines.extend(
-        "{}{}{}".format(element_class, OUTAGE_SEPARATOR, name)
-        for element_class, name in record.get("outages", ())
-    )
+    lines.extend(_outage_line(outage) for outage in record.get("outages", ()))
     if not _set_description(snapshot, lines):
         raise RuntimeError("Snapshot-Metadaten konnten nicht geschrieben werden.")
 
@@ -271,25 +287,104 @@ def _same_object(left, right):
     return object_key(left) == object_key(right)
 
 
+def _active_variations(app):
+    """Return the currently active Network Variations, or None if unknown.
+
+    A variation is an IntScheme and never appears in GetActiveScenario(), so
+    scenario logic cannot verify or restore it. None means the API is not
+    available; callers must then refuse to touch variations at all.
+    """
+    reader = getattr(app, "GetActiveNetworkVariations", None)
+    if reader is None:
+        return None
+    try:
+        found = reader()
+    except Exception:
+        return None
+    if found is None:
+        return []
+    return [item for item in found if item is not None]
+
+
+def _same_set(left, right):
+    return sorted(object_key(item) for item in left) == sorted(
+        object_key(item) for item in right)
+
+
+def _restore_variations(app, original, log):
+    """Restore exactly the variations that were active before the run."""
+    errors = []
+    current = _active_variations(app)
+    if current is None:
+        if original:
+            errors.append(
+                "aktive Network Variations konnten nicht gelesen werden; "
+                "Variationszustand ist unbestimmt")
+        return _report(errors, log)
+    if _same_set(current, original):
+        return _report(errors, log)
+
+    wanted = {object_key(item): item for item in original}
+    for item in current:
+        if object_key(item) in wanted:
+            continue
+        try:
+            code = return_code(item.Deactivate())
+            if code != 0.0:
+                raise RuntimeError("Deactivate() lieferte Fehlercode {}".format(
+                    "unlesbar" if code is None else "{:g}".format(code)))
+        except Exception as exc:
+            errors.append(
+                "Network Variation {} nicht deaktiviert: {}".format(
+                    object_name(item), exc))
+    present = {object_key(item) for item in _active_variations(app) or ()}
+    for key, item in wanted.items():
+        if key in present:
+            continue
+        try:
+            code = return_code(item.Activate())
+            if code != 0.0:
+                raise RuntimeError("Activate() lieferte Fehlercode {}".format(
+                    "unlesbar" if code is None else "{:g}".format(code)))
+        except Exception as exc:
+            errors.append(
+                "Network Variation {} nicht wiederhergestellt: {}".format(
+                    object_name(item), exc))
+    if not errors and not _same_set(_active_variations(app) or [], original):
+        errors.append(
+            "Variationszustand weicht nach der Wiederherstellung weiterhin ab")
+    return _report(errors, log)
+
+
+def _report(errors, log):
+    for message in errors:
+        if log:
+            log("GridLens FEHLER: " + message)
+    return errors
+
+
 def _deactivate_active_scenario(app, log):
     active = _active_scenario(app)
     if active is None:
         return True, ""
     try:
-        code = finite_number(active.Deactivate())
+        code = return_code(active.Deactivate())
     except Exception as exc:
         message = "Deaktivierung fehlgeschlagen: {}".format(exc)
         if log:
             log("GridLens: " + message)
         return False, message
-    if code not in (None, 0.0):
-        message = "Deactivate() lieferte Fehlercode {:g}.".format(code)
+    if code != 0.0:
+        message = "Deactivate() lieferte Fehlercode {}.".format(
+            "unlesbar" if code is None else "{:g}".format(code))
         if log:
             log("GridLens: " + message)
         return False, message
     remaining = _active_scenario(app)
-    if remaining is not None and _same_object(remaining, active):
-        message = "Operation Scenario blieb nach Deactivate() aktiv."
+    if remaining is not None:
+        message = (
+            "Nach Deactivate() ist weiterhin ein Operation Scenario aktiv: "
+            "{}.".format(object_name(remaining)))
         if log:
             log("GridLens: " + message)
         return False, message
@@ -300,20 +395,40 @@ def _activate(app, case, log):
     obj = case["object"]
     if obj is None:
         return True, ""
+    is_variation = case.get("kind") == "variation"
+    if is_variation and _active_variations(app) is None:
+        message = (
+            "Network Variations sind angefordert, aber "
+            "GetActiveNetworkVariations() ist nicht verfügbar. Ohne lesbaren "
+            "Variationszustand wird nicht gerechnet.")
+        if log:
+            log("GridLens: " + message)
+        return False, message
     try:
-        code = finite_number(obj.Activate())
+        code = return_code(obj.Activate())
     except Exception as exc:
         message = "Aktivierung von {} fehlgeschlagen: {}".format(
             case["name"], exc)
         if log:
             log("GridLens: " + message)
         return False, message
-    if code not in (None, 0.0):
-        message = "Activate() für {} lieferte Fehlercode {:g}.".format(
-            case["name"], code)
+    if code != 0.0:
+        message = "Activate() für {} lieferte Fehlercode {}.".format(
+            case["name"], "unlesbar" if code is None else "{:g}".format(code))
         if log:
             log("GridLens: " + message)
         return False, message
+    # A variation is an IntScheme and is verified against the active variation
+    # list; only an Operation Scenario shows up in GetActiveScenario().
+    if is_variation:
+        active = _active_variations(app) or []
+        if not any(_same_object(item, obj) for item in active):
+            message = "{} ist nach Activate() keine aktive Variation.".format(
+                case["name"])
+            if log:
+                log("GridLens: " + message)
+            return False, message
+        return True, ""
     current = _active_scenario(app)
     if not _same_object(current, obj):
         message = "{} ist nach Activate() nicht das aktive Szenario.".format(
@@ -331,16 +446,19 @@ def _discard(snapshot):
         pass
 
 
-def _run_one_case(app, study_case, qds, case, log, result_template=None):
+def _run_one_case(app, study_case, qds, case, log, snapshot=None,
+                  result_template=None, run_context=None):
     record = dict(case)
     record.update({"status": "NICHT KONVERGIERT", "error_code": None,
                    "message": "", "snapshot": None, "outages": []})
+    record.update(run_context or {})
 
     state_ok, state_message = _deactivate_active_scenario(app, log)
     if case["id"] != REFERENCE_ID:
         state_ok, state_message = _activate(app, case, log)
 
-    snapshot = _prepare_snapshot(study_case, case["id"], result_template)
+    if snapshot is None:
+        snapshot = _prepare_snapshot(study_case, case["id"], result_template)
     if not state_ok:
         record["error_code"] = -2
         record["message"] = state_message
@@ -349,6 +467,13 @@ def _run_one_case(app, study_case, qds, case, log, result_template=None):
 
     record["outages"] = collect_outages(app)
     bound = _bind_results(qds, snapshot)
+    if not bound:
+        record["error_code"] = -4
+        record["message"] = (
+            "Ergebnisobjekt konnte nicht sicher an ComStatsim gebunden werden; "
+            "QDS wurde zum Schutz des ursprünglichen ElmRes nicht gestartet.")
+        write_snapshot_record(snapshot, record)
+        return record
 
     try:
         code = int(qds.Execute())
@@ -367,15 +492,13 @@ def _run_one_case(app, study_case, qds, case, log, result_template=None):
         write_snapshot_record(snapshot, record)
         return record
 
-    if not bound:
-        _discard(snapshot)
-        replacement = _copy_into_snapshot(
-            study_case, safe_attr(qds, "results"), case["id"])
-        if replacement is None:
-            record["message"] = (
-                "Ergebnis konnte weder gebunden noch kopiert werden.")
-            return record
-        snapshot = replacement
+    if not _same_object(safe_attr(qds, "results"), snapshot):
+        record["error_code"] = -5
+        record["message"] = (
+            "ComStatsim.results verweist nach Execute() nicht mehr auf den "
+            "vorbereiteten Snapshot; Ergebnis wird nicht ausgewertet.")
+        write_snapshot_record(snapshot, record)
+        return record
 
     record["status"] = "konvergiert"
     record["message"] = "{} Freischaltung(en)".format(len(record["outages"]))
@@ -384,7 +507,68 @@ def _run_one_case(app, study_case, qds, case, log, result_template=None):
     return record
 
 
-def run_cases(app, study_case, log=None, qds=None):
+def _new_run_id():
+    """Create a local run identity using only the standard library."""
+    return datetime.now().astimezone().strftime("%Y%m%dT%H%M%S.%f%z")
+
+
+def _initial_record(case, run_context):
+    record = dict(case)
+    record.update({
+        "status": "NICHT KONVERGIERT",
+        "error_code": None,
+        "message": "Runner-Lauf ist noch nicht vollständig abgeschlossen.",
+        "snapshot": None,
+        "outages": [],
+    })
+    record.update(run_context)
+    return record
+
+
+def _restore_state(app, qds, original_results, original_scenario, log,
+                   original_variations=()):
+    """Restore every mutable PowerFactory state and return hard failures."""
+    errors = []
+    restore_error = None
+    try:
+        qds.results = original_results
+    except Exception as exc:
+        restore_error = exc
+        try:
+            qds.SetAttribute("results", original_results)
+        except Exception as fallback_exc:
+            restore_error = fallback_exc
+    if not _same_object(safe_attr(qds, "results"), original_results):
+        detail = ": {}".format(restore_error) if restore_error else ""
+        errors.append(
+            "ursprüngliches Ergebnisobjekt nicht wiederhergestellt" + detail)
+
+    state_ok, state_message = _deactivate_active_scenario(app, log)
+    if not state_ok:
+        errors.append(state_message)
+    if original_scenario is not None:
+        try:
+            code = return_code(original_scenario.Activate())
+            if code != 0.0:
+                raise RuntimeError(
+                    "Activate() lieferte Fehlercode {}".format(
+                        "unlesbar" if code is None else "{:g}".format(code)))
+            if not _same_object(_active_scenario(app), original_scenario):
+                raise RuntimeError("Szenario ist nach Activate() nicht aktiv")
+        except Exception as exc:
+            errors.append(
+                "ursprüngliches Szenario nicht wiederhergestellt: {}".format(exc))
+    elif _active_scenario(app) is not None:
+        errors.append("nach Wiederherstellung ist unerwartet ein Szenario aktiv")
+
+    _report(errors, log)
+    # Variations are restored separately: they are IntScheme objects and are
+    # reported by their own API, so scenario restoration says nothing about them.
+    errors.extend(_restore_variations(app, list(original_variations), log))
+    return errors
+
+
+def run_cases(app, study_case, log=None, qds=None, original_variations=None):
     """Compute every discovered case into its own snapshot ElmRes."""
     cases = discover_cases(app)
     if qds is None:
@@ -394,51 +578,60 @@ def run_cases(app, study_case, log=None, qds=None):
             qds = None
     if qds is None:
         raise RuntimeError("ComStatsim nicht im aktiven Study Case gefunden.")
-    _remove_obsolete_snapshots(study_case, [case["id"] for case in cases])
-
     original_results = safe_attr(qds, "results")
     try:
         original_scenario = app.GetActiveScenario()
     except Exception:
         original_scenario = None
+    if original_variations is None:
+        original_variations = _active_variations(app) or []
+
+    case_ids = [case["id"] for case in cases]
+    run_context = {
+        "run_id": _new_run_id(),
+        "run_state": "in_progress",
+        "expected_cases": ",".join(case_ids),
+    }
+
+    # Remove every prior generation. Then create every expected marker before
+    # the first QDS call. An abort therefore leaves one coherent, explicitly
+    # incomplete set and can never mix new REF data with an old scenario.
+    _remove_obsolete_snapshots(study_case, [])
+    snapshots = {}
+    for case in cases:
+        snapshot = _prepare_snapshot(
+            study_case, case["id"], result_template=original_results)
+        snapshots[case["id"]] = snapshot
+        write_snapshot_record(snapshot, _initial_record(case, run_context))
 
     records = []
     try:
         for case in cases:
             record = _run_one_case(
-                app, study_case, qds, case, log, result_template=original_results)
+                app, study_case, qds, case, log,
+                snapshot=snapshots[case["id"]],
+                result_template=original_results, run_context=run_context)
             records.append(record)
             if log:
                 log("GridLens: {} {} -> {} ({})".format(
                     record["id"], record["name"], record["status"],
                     record["message"]))
-    finally:
-        # Leaving the QDS command bound to a GridLens snapshot would make every
-        # later manual run write into it unnoticed, and the next report would
-        # read a result the runner never produced.
-        restore_error = None
-        try:
-            qds.results = original_results
-        except Exception as exc:
-            restore_error = exc
-            try:
-                qds.SetAttribute("results", original_results)
-            except Exception as exc:
-                restore_error = exc
-        if not _same_object(safe_attr(qds, "results"), original_results) and log:
-            detail = ": {}".format(restore_error) if restore_error else ""
-            log("GridLens WARNUNG: ursprüngliches Ergebnisobjekt konnte nicht "
-                "wiederhergestellt werden" + detail)
-        _deactivate_active_scenario(app, log)
-        if original_scenario is not None:
-            try:
-                code = finite_number(original_scenario.Activate())
-                if code not in (None, 0.0):
-                    raise RuntimeError("Activate() lieferte Fehlercode {:g}".format(code))
-                if not _same_object(_active_scenario(app), original_scenario):
-                    raise RuntimeError("Szenario ist nach Activate() nicht aktiv")
-            except Exception as exc:
-                if log:
-                    log("GridLens WARNUNG: ursprüngliches Szenario konnte nicht "
-                        "wiederhergestellt werden: {}".format(exc))
+    except BaseException:
+        _restore_state(app, qds, original_results, original_scenario, log,
+                       original_variations)
+        raise
+
+    restore_errors = _restore_state(
+        app, qds, original_results, original_scenario, log,
+        original_variations)
+    if restore_errors:
+        raise RuntimeError(
+            "Runner-Lauf nicht abgeschlossen, weil der ursprüngliche Zustand "
+            "nicht sicher wiederhergestellt wurde: {}".format(
+                "; ".join(restore_errors)))
+
+    # Only a fully executed and safely restored run is reportable.
+    for record in records:
+        record["run_state"] = "complete"
+        write_snapshot_record(snapshots[record["id"]], record)
     return records

@@ -74,5 +74,5 @@ def time_column(elmres, column_count):
                 return column
         except Exception:
             pass
-    return 0
-
+    raise RuntimeError(
+        "ElmRes enthält keine eindeutige Zeitspalte (b:tnow, t oder time).")

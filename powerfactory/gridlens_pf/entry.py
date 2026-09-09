@@ -1,14 +1,17 @@
 """Moduswahl und Programmeinstieg für Runner und IntReport-Publisher."""
 
+import os
+
 from .config import PUBLISHER_VERSION, SNAPSHOT_PREFIX, TIME_UNIT_FALLBACK
 from .discovery import discover_cases
+from .manifest import RELEASE_VERSION, verify_runtime_package
 from .payload import (
     CONVERGED, apply_reference, build_cases_payload, build_payload,
     scenario_result,
 )
 from .pfutil import class_name, object_name
 from .publish import publish_report
-from .results import collect_series, select_result
+from .results import check_run_budget, collect_series, select_result
 from .runner import read_outages, read_snapshot_record, run_cases
 
 
@@ -34,6 +37,62 @@ def load_snapshots(study_case):
     return sorted(snapshots, key=lambda entry: (entry[0] != "REF", entry[0]))
 
 
+def validate_snapshot_set(snapshots):
+    """Reject legacy, partial or mixed runner generations fail-closed."""
+    if not snapshots:
+        return
+    records = [(case_id, read_snapshot_record(elmres))
+               for case_id, elmres in snapshots]
+    required = ("id", "run_id", "run_state", "expected_cases", "status")
+    for case_id, metadata in records:
+        missing = [field for field in required if not metadata.get(field)]
+        if missing:
+            raise RuntimeError(
+                "GridLens-Snapshot {} hat keine vollständigen Runner-Metadaten "
+                "({}). Runner erneut ausführen.".format(
+                    case_id, ", ".join(missing)))
+        if metadata["id"] != case_id:
+            raise RuntimeError(
+                "GridLens-Snapshot {} enthält eine abweichende Fall-ID {}. "
+                "Runner erneut ausführen.".format(case_id, metadata["id"]))
+
+    run_ids = {metadata["run_id"] for _, metadata in records}
+    expected_values = {metadata["expected_cases"] for _, metadata in records}
+    states = {metadata["run_state"] for _, metadata in records}
+    if len(run_ids) != 1 or len(expected_values) != 1:
+        raise RuntimeError(
+            "GridLens-Snapshots stammen aus gemischten Runner-Läufen. "
+            "Runner erneut ausführen.")
+    if states != {"complete"}:
+        raise RuntimeError(
+            "GridLens-Runner-Lauf ist unvollständig. Runner erneut ausführen.")
+
+    expected = [value for value in next(iter(expected_values)).split(",") if value]
+    actual = [case_id for case_id, _ in snapshots]
+    if len(actual) != len(set(actual)) or set(actual) != set(expected):
+        raise RuntimeError(
+            "GridLens-Snapshot-Satz ist unvollständig; erwartet {}, gefunden {}. "
+            "Runner erneut ausführen.".format(
+                ", ".join(expected), ", ".join(actual)))
+
+
+def verify_runtime(root, log=None):
+    """Refuse to run a runtime package that was not delivered as one release.
+
+    Runner, report extension and template are copied by hand. A mixed set can
+    still import cleanly and would then fill the tables of another data
+    contract, so the mismatch has to stop the run rather than the report.
+    """
+    errors, warnings = verify_runtime_package(root)
+    for message in warnings:
+        if log:
+            log("GridLens WARNUNG: " + message)
+    if errors:
+        raise RuntimeError(
+            "GridLens-Laufzeitpaket {} ist nicht konsistent: {}".format(
+                RELEASE_VERSION, " ".join(errors)))
+
+
 def _case_catalog(app):
     """Best-effort names for snapshots produced before metadata was added."""
     try:
@@ -54,7 +113,7 @@ def _snapshot_case(case_id, elmres, catalog):
             "reference" if case_id == "REF" else "scenario"),
         "description": metadata.get("description") or fallback.get(
             "description", "GridLens-Ergebnissnapshot"),
-        "status": metadata.get("status") or CONVERGED,
+        "status": metadata.get("status") or "NICHT KONVERGIERT",
         "error_code": metadata.get("error_code", 0),
         "message": metadata.get("message", ""),
         "outages": read_outages(elmres),
@@ -103,11 +162,13 @@ def run_report_mode(app, study_case, report, log=None):
                 pass
         return publish_report(report, data, log=log)
 
+    validate_snapshot_set(snapshots)
     catalog = _case_catalog(app)
     results = [
         _read_snapshot(case_id, elmres, catalog, log)
         for case_id, elmres in snapshots
     ]
+    check_run_budget(results)
     apply_reference(results)
     try:
         project = app.GetActiveProject()
@@ -135,6 +196,9 @@ def main():
     if study_case is None:
         raise RuntimeError("No active study case.")
 
+    verify_runtime(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        log=app.PrintPlain)
     app.PrintPlain("GridLens publisher: " + PUBLISHER_VERSION)
     app.PrintPlain("GridLens study case: " + object_name(study_case))
 

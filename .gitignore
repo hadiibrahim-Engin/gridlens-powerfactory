@@ -13,3 +13,8 @@ gridlens-mock-payload.json
 .env
 .env.*
 !.env.example
+.agents/*
+docs/*
+gridlens-powerfactory-reporting/*
+skills-lock.json
+Report.pdf

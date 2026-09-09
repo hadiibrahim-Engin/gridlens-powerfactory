@@ -1,7 +1,9 @@
-"""Aufbau der 18 Report-Tabellen aus ausgewerteten Ergebnisreihen."""
+"""Aufbau der 17 Report-Tabellen aus ausgewerteten Ergebnisreihen."""
 
+import hashlib
 from datetime import datetime
 
+from . import config
 from .config import (
     CLASS_CATEGORIES, DATA_CONTRACT_VERSION, LOADING_MAX, MAX_BAR_ITEMS,
     MAX_PLOTS, MAX_PLOT_POINTS, TEMPLATE_NAME, TEMPLATE_VERSION, TOP_N,
@@ -11,7 +13,7 @@ from .pfutil import (
     class_name, finite_number, object_description, object_id, object_key,
     object_name, safe_attr,
 )
-from .results import statistics
+from .results import sampled_plot_points, statistics
 from .tables import TABLES
 from .timeaxis import format_time_step
 
@@ -87,6 +89,7 @@ def voltage_deviation(stats):
 
 REFERENCE_ID = "REF"
 CONVERGED = "konvergiert"
+AXIS_MISMATCH = "NICHT AUSWERTBAR"
 
 # (reference field, delta field, source statistic)
 DELTA_KEYS = (("ref_min", "delta_min", "min"),
@@ -99,7 +102,10 @@ def scenario_result(case, series, labels, plot_times, time_unit):
     by_category = {category: [] for category in VARIABLES}
     stats_by_key = {}
     for item in series:
-        stats = statistics(item)
+        # The reader computes statistics over the full column and then keeps
+        # only the plot sample, so memory does not grow with the number of
+        # time steps. A hand-built series without them is still supported.
+        stats = dict(item.get("statistics") or statistics(item))
         for reference_key, delta_key, _ in DELTA_KEYS:
             stats[reference_key] = None
             stats[delta_key] = None
@@ -131,14 +137,51 @@ def find_reference(results, reference_id=REFERENCE_ID):
     return None
 
 
+def _same_time_axis(anchor, result):
+    if anchor["time_unit"] != result["time_unit"]:
+        return False
+    if anchor["labels"] != result["labels"]:
+        return False
+    left = anchor["plot_times"]
+    right = result["plot_times"]
+    return len(left) == len(right) and all(
+        abs(a - b) <= 1e-9 for a, b in zip(left, right))
+
+
+def enforce_common_time_axis(results, reference_id=REFERENCE_ID):
+    """Drop every converged case that does not share the common time axis.
+
+    Extrema, rankings and deltas are only comparable within one horizon and
+    step width, and the report header states a single simulation period. A
+    deviating case therefore loses its converged status instead of being
+    silently compared against values from another period. The anchor is the
+    converged reference when one exists, so the check also runs for a run
+    whose REF failed or was never computed.
+    """
+    ok = converged(results)
+    if len(ok) < 2:
+        return results
+    anchor = find_reference(results, reference_id) or ok[0]
+    for result in ok:
+        if result is anchor or _same_time_axis(anchor, result):
+            continue
+        result["status"] = AXIS_MISMATCH
+        result["error_code"] = -4
+        result["message"] = (
+            "Zeitachse stimmt nicht mit Fall {} überein; Kennwerte und "
+            "Deltas werden nicht ausgewertet.".format(anchor["id"]))
+    return results
+
+
 def apply_reference(results, reference_id=REFERENCE_ID):
     """Fill reference values and deltas. Never substitutes 0.0 for missing."""
     for result in results:
         result["is_reference"] = 1 if result["id"] == reference_id else 0
+    enforce_common_time_axis(results, reference_id)
     reference = find_reference(results, reference_id)
     if reference is None:
         return results
-    for result in results:
+    for result in converged(results):
         for key, stats in result["stats_by_key"].items():
             reference_stats = reference["stats_by_key"].get(key)
             if reference_stats is None:
@@ -162,19 +205,6 @@ def critical_keys(results, category):
                 keys.add((category, item["key"]))
     return keys
 
-
-def sampled_plot_points(item):
-    """Bound chart size while retaining endpoints and exact extrema."""
-    points = item["points"]
-    if len(points) <= MAX_PLOT_POINTS:
-        return points
-    values = [point[2] for point in points]
-    indices = {0, len(points) - 1,
-               values.index(min(values)), values.index(max(values))}
-    for sample in range(MAX_PLOT_POINTS):
-        indices.add(int(round(sample * (len(points) - 1)
-                              / float(MAX_PLOT_POINTS - 1))))
-    return [points[index] for index in sorted(indices)]
 
 
 def bar_label(case_id, element_name):
@@ -340,36 +370,6 @@ def _scenario_comparison(payload, results):
             })
 
 
-def _reference_comparison(payload, results):
-    reference = find_reference(results)
-    if reference is None:
-        return
-    for result in converged(results):
-        if result["id"] == reference["id"]:
-            continue
-        for category in ("line", "transformer", "voltage"):
-            for _, key in sorted(critical_keys(results, category)):
-                stats = result["stats_by_key"].get((category, key))
-                reference_stats = reference["stats_by_key"].get((category, key))
-                if stats is None or reference_stats is None:
-                    continue
-                item = next(entry[0] for entry in result["by_category"][category]
-                            if entry[0]["key"] == key)
-                payload["ScriptedReferenceComparison"].append({
-                    "scenario_id": result["id"],
-                    "element_id": item["element_id"],
-                    "element_name": item["element_name"],
-                    "element_type": category, "variable": item["variable"],
-                    "unit": item["unit"],
-                    "reference_min": reference_stats["min"],
-                    "scenario_min": stats["min"], "delta_min": stats["delta_min"],
-                    "reference_max": reference_stats["max"],
-                    "scenario_max": stats["max"], "delta_max": stats["delta_max"],
-                    "reference_mean": reference_stats["mean"],
-                    "scenario_mean": stats["mean"],
-                    "delta_mean": stats["delta_mean"],
-                })
-
 
 def _relevant_time_points(payload, results):
     selected = []
@@ -461,10 +461,13 @@ def _model_quality(payload, results):
     ok = converged(results)
     total_series = sum(len(r["by_category"][c]) for r in ok
                        for c, _ in CATEGORY_LABELS)
+    cases_ok = bool(results) and len(ok) == len(results) and all(
+        any(result["by_category"][category] for category, _ in CATEGORY_LABELS)
+        for result in ok)
     payload["ScriptedModelQuality"].append({
         "check_id": "cases",
         "check_name": "Ausgewertete Faelle",
-        "status": "PASS" if ok else "FAIL",
+        "status": "PASS" if cases_ok else "FAIL",
         "message": "{} von {} Faellen konvergiert; {} Ergebnisreihen".format(
             len(ok), len(results), total_series),
         "affected_element": "",
@@ -551,9 +554,89 @@ def _model_quality(payload, results):
     ))
 
 
+def _key_discriminator(key):
+    """Short stable marker for one PowerFactory object, without its path."""
+    digest = hashlib.sha256(str(key).encode("utf-8")).hexdigest()
+    return digest[:6]
+
+
+def outage_identity(results):
+    """Map every switched-off object key to its report id and display name.
+
+    Two different PowerFactory objects may carry the same ``loc_name``. The
+    MRT groups the scenario matrix by ``element_name``, so equal names would
+    merge two physically separate outages into one block and understate how
+    much of the grid is out of service. Only a colliding name is therefore
+    given a short stable discriminator; the full object path is never shown.
+    """
+    keys_by_name = {}
+    for result in results:
+        for outage in result["outages"]:
+            name = outage[1]
+            key = outage[2] if len(outage) > 2 else name
+            bucket = keys_by_name.setdefault(name, [])
+            if key not in bucket:
+                bucket.append(key)
+    identity = {}
+    for name, keys in keys_by_name.items():
+        for key in keys:
+            identity[key] = name if len(keys) == 1 else "{} ({})".format(
+                name, _key_discriminator(key))
+    return identity
+
+
+CHART_FLAGS = (
+    ("has_line_bars", "ScriptedLineLoadingBars"),
+    ("has_transformer_bars", "ScriptedTransformerLoadingBars"),
+    ("has_voltage_bars", "ScriptedVoltageMagnitudeBars"),
+    ("has_angle_bars", "ScriptedVoltageAngleBars"),
+)
+
+
+def _enforce_table_limits(payload):
+    """Cap every table and report each cut as a data quality failure.
+
+    Bars, rankings and plots are already bounded. The appendix statistics and
+    the scenario matrix grow with the number of violating elements times the
+    number of cases, which a badly loaded model can drive arbitrarily high.
+    """
+    for name in sorted(payload):
+        if name == "ScriptedModelQuality":
+            continue
+        rows = payload[name]
+        limit = config.MAX_TABLE_ROWS
+        if len(rows) <= limit:
+            continue
+        total = len(rows)
+        del rows[limit:]
+        payload["ScriptedModelQuality"].append({
+            "check_id": "table_limit_" + name,
+            "check_name": "Tabellengrenze " + name,
+            "status": "FAIL",
+            "message": (
+                "{} Zeilen erzeugt, {} veroeffentlicht. Der Bericht ist "
+                "unvollstaendig; Fallzahl oder Umfang reduzieren "
+                "(MAX_TABLE_ROWS in config.py).".format(total, limit)),
+            "affected_element": "",
+        })
+
+
+def _render_flags(payload):
+    """Tell the template which charts actually have data.
+
+    A chart band bound to the single report-meta row would otherwise always
+    print, and an empty chart reads like a measured result without any
+    violation instead of a missing series.
+    """
+    meta = payload["ScriptedReportMeta"][0]
+    for flag, table in CHART_FLAGS:
+        meta[flag] = "1" if payload[table] else "0"
+
+
 def build_cases_payload(study_case, results, project_name, result_name):
-    """Build all 18 tables from an ordered list of case results."""
+    """Build all 17 tables from an ordered list of case results."""
     payload = empty_payload()
+    enforce_common_time_axis(results)
     ok = converged(results)
     labels = ok[0]["labels"] if ok else (results[0]["labels"] if results else [])
     plot_times = ok[0]["plot_times"] if ok else []
@@ -581,8 +664,12 @@ def build_cases_payload(study_case, results, project_name, result_name):
         "assessment_scope": "{} Fall/Faelle; Referenz: {}".format(
             len(results), reference["id"] if reference else "keine"),
         "assessment_status": "VORPRÜFUNG - KEINE ABSCHLIESSENDE FREIGABE",
+        # Filled in once the chart tables are known; see _render_flags below.
+        "has_line_bars": "0", "has_transformer_bars": "0",
+        "has_voltage_bars": "0", "has_angle_bars": "0",
     })
 
+    identity = outage_identity(results)
     for result in results:
         payload["ScriptedScenarios"].append({
             "scenario_id": result["id"],
@@ -593,17 +680,20 @@ def build_cases_payload(study_case, results, project_name, result_name):
             "simulation_start": result["labels"][0] if result["labels"] else "",
             "simulation_end": result["labels"][-1] if result["labels"] else "",
         })
-        for element_class, name in result["outages"]:
+        for outage in result["outages"]:
+            element_class, name = outage[:2]
+            key = outage[2] if len(outage) > 2 else name
+            label = identity.get(key, name)
             payload["ScriptedOutages"].append({
-                "scenario_id": result["id"], "outage_id": name,
-                "element_id": name, "element_name": name,
+                "scenario_id": result["id"], "outage_id": label,
+                "element_id": label, "element_name": label,
                 "element_type": _element_type(element_class),
                 "start_time": result["labels"][0] if result["labels"] else "",
                 "end_time": result["labels"][-1] if result["labels"] else "",
                 "action": "im Modell ausser Betrieb",
             })
             payload["ScriptedScenarioMatrix"].append({
-                "element_id": name, "element_name": name,
+                "element_id": label, "element_name": label,
                 "element_type": _element_type(element_class),
                 "scenario_id": result["id"],
                 "is_out_of_service": 1, "status_label": "OFF",
@@ -632,9 +722,10 @@ def build_cases_payload(study_case, results, project_name, result_name):
               "Maximale Spannung", "max", "time_max", True,
               predicate=lambda stats: stats["max"] > VOLTAGE_MAX)
     _scenario_comparison(payload, results)
-    _reference_comparison(payload, results)
     _relevant_time_points(payload, results)
     _plots(payload, results)
+    _enforce_table_limits(payload)
+    _render_flags(payload)
     return payload
 
 
@@ -644,7 +735,7 @@ def build_payload(app, study_case, elmres, series, labels, plot_times, time_unit
     outages = []
     for obj in network_elements(app, series):
         if finite_number(safe_attr(obj, "outserv", 0)) == 1.0:
-            outages.append((class_name(obj), object_name(obj)))
+            outages.append((class_name(obj), object_name(obj), object_key(obj)))
     case = {
         "id": scenario_id, "name": scenario_name, "kind": "active",
         "description": description, "status": CONVERGED, "error_code": 0,

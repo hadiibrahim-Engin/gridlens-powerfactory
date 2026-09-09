@@ -9,7 +9,7 @@ DEPLOYMENT = Path(__file__).resolve().parents[2] / "powerfactory"
 if str(DEPLOYMENT) not in sys.path:
     sys.path.insert(0, str(DEPLOYMENT))
 
-from gridlens_pf import config, discovery  # noqa: E402
+from gridlens_pf import config, discovery
 
 
 class Obj:

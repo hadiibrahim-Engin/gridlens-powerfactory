@@ -8,9 +8,12 @@ read a mock payload, write SQLite directly or need third-party packages.
 import os
 import sys
 
+# The runtime directory must win over anything already on sys.path. A stale
+# copy of gridlens_pf earlier in the search order would otherwise be imported
+# while this file still reports the new publisher version.
 _HERE = os.path.dirname(os.path.abspath(__file__))
-if _HERE not in sys.path:
-    sys.path.insert(0, _HERE)
+sys.path = [_HERE] + [p for p in sys.path
+                      if os.path.abspath(p or os.getcwd()) != _HERE]
 
 # PowerFactory keeps sys.modules across script runs. Without this purge an edit
 # to a submodule would not take effect while the entry file still reports the
@@ -23,3 +26,4 @@ from gridlens_pf.entry import main
 
 if __name__ == "__main__":
     main()
+

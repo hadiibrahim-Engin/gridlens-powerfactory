@@ -9,7 +9,7 @@ DEPLOYMENT = Path(__file__).resolve().parents[2] / "powerfactory"
 if str(DEPLOYMENT) not in sys.path:
     sys.path.insert(0, str(DEPLOYMENT))
 
-from gridlens_pf import payload  # noqa: E402
+from gridlens_pf import payload
 
 
 def series_item(key, category, values, unit="%"):
@@ -55,6 +55,19 @@ def test_deltas_are_computed_against_the_reference():
     stats = s01["stats_by_key"][("line", "L1")]
     assert stats["ref_max"] == 82.0
     assert stats["delta_max"] == 36.0
+
+
+def test_incompatible_time_axis_invalidates_case_before_reference_delta():
+    ref = case("REF", [series_item("L1", "line", [80.0, 82.0, 80.0])])
+    s01 = case("S01", [series_item("L1", "line", [110.0, 118.0, 112.0])])
+    s01["labels"] = ["00:00", "12:00", "24:00"]
+    s01["plot_times"] = [0.0, 12.0, 24.0]
+    payload.apply_reference([ref, s01])
+    assert s01["status"] != "konvergiert"
+    assert "Zeitachse" in s01["message"]
+    stats = s01["stats_by_key"][("line", "L1")]
+    assert stats["ref_max"] is None
+    assert stats["delta_max"] is None
 
 
 def test_element_missing_from_the_reference_gets_no_substitute_zero():
@@ -205,3 +218,173 @@ def test_validate_payload_rejects_an_unknown_series_role():
     data["ScriptedPlotData"][0]["series_role"] = "Phantom"
     with pytest.raises(ValueError, match="series_role"):
         publish.validate_payload(data)
+
+
+def case_with_axis(case_id, items, labels, plot_times, status="konvergiert"):
+    record = {
+        "id": case_id, "name": "Fall " + case_id, "kind": "scenario",
+        "description": "", "status": status, "error_code": 0,
+        "message": "", "snapshot": None, "outages": [],
+    }
+    return payload.scenario_result(record, items, labels, plot_times, "h")
+
+
+def test_cases_with_different_axes_are_rejected_without_a_reference():
+    """GL-PR-004: axis consistency must not depend on a converged REF."""
+    a = case_with_axis("S01", [series_item("L1", "line", [118.0, 120.0])],
+                       ["00:00", "01:00"], [0.0, 1.0])
+    b = case_with_axis("S02", [series_item("L1", "line", [119.0, 121.0])],
+                       ["00:00", "24:00"], [0.0, 24.0])
+    result = payload.build_cases_payload(None, [a, b], "Projekt", "GridLens_S01")
+    statuses = {r["scenario_id"]: r["simulation_status"]
+                for r in result["ScriptedScenarios"]}
+    assert statuses["S01"] == "konvergiert"
+    assert statuses["S02"] != "konvergiert"
+
+
+def test_report_metadata_never_mixes_axes_when_the_reference_failed():
+    """GL-PR-004: a failed REF must not leave the axis check switched off."""
+    ref = case_with_axis("REF", [series_item("L1", "line", [80.0, 81.0])],
+                         ["00:00", "01:00"], [0.0, 1.0],
+                         status="NICHT KONVERGIERT")
+    s01 = case_with_axis("S01", [series_item("L1", "line", [118.0, 120.0])],
+                         ["00:00", "01:00"], [0.0, 1.0])
+    s02 = case_with_axis("S02", [series_item("L1", "line", [119.0, 121.0])],
+                         ["00:00", "24:00"], [0.0, 24.0])
+    result = payload.build_cases_payload(
+        None, [ref, s01, s02], "Projekt", "GridLens_REF")
+    statuses = {r["scenario_id"]: r["simulation_status"]
+                for r in result["ScriptedScenarios"]}
+    assert statuses["S02"] != "konvergiert"
+    meta = result["ScriptedReportMeta"][0]
+    assert (meta["simulation_start"], meta["simulation_end"]) == ("00:00", "01:00")
+
+
+def test_two_elements_with_the_same_name_stay_separable_in_the_matrix():
+    """GL-PR-006: identical loc_name must not collapse the outage matrix."""
+    s01 = case("S01", [])
+    s01["outages"] = [
+        ("ElmLne", "Leitung 17", "Netz\\Nord\\Leitung 17.ElmLne"),
+        ("ElmLne", "Leitung 17", "Netz\\Sued\\Leitung 17.ElmLne"),
+    ]
+    result = payload.build_cases_payload(
+        None, [s01], "Projekt", "GridLens_S01")
+    matrix = result["ScriptedScenarioMatrix"]
+    assert len(matrix) == 2
+    assert len({row["element_id"] for row in matrix}) == 2
+    # The MRT groups the matrix by element_name, so that column must separate
+    # the two physical elements as well.
+    assert len({row["element_name"] for row in matrix}) == 2
+    assert all("\\" not in row["element_name"] for row in matrix)
+    assert all(row["element_name"].startswith("Leitung 17") for row in matrix)
+
+
+def test_a_unique_element_name_is_not_decorated():
+    """GL-PR-006: disambiguation must not uglify the normal report."""
+    s01 = case("S01", [])
+    s01["outages"] = [("ElmLne", "Leitung 17", "Netz\\Nord\\Leitung 17.ElmLne")]
+    result = payload.build_cases_payload(
+        None, [s01], "Projekt", "GridLens_S01")
+    row = result["ScriptedScenarioMatrix"][0]
+    assert row["element_name"] == "Leitung 17"
+    assert row["element_id"] == "Leitung 17"
+
+
+class FallbackApp:
+    """Minimal PowerFactory double for the single-state AKTIV fallback."""
+
+    def __init__(self, objects):
+        self._objects = objects
+
+    def GetCalcRelevantObjects(self, pattern, calc_relevant=0):
+        suffix = pattern.split(".")[-1]
+        return [obj for obj in self._objects
+                if obj.GetClassName() == suffix]
+
+    def GetActiveScenario(self):
+        return None
+
+    def GetActiveProject(self):
+        return None
+
+
+class FallbackElement:
+    def __init__(self, name, full_name):
+        self.loc_name = name
+        self.outserv = 1
+        self._full_name = full_name
+
+    def GetClassName(self):
+        return "ElmLne"
+
+    def GetFullName(self):
+        return self._full_name
+
+
+def test_active_fallback_also_separates_equally_named_outages():
+    """GL-PR-006: the AKTIV fallback must not collapse duplicates either."""
+    app = FallbackApp([
+        FallbackElement("Leitung 17", "Netz\\Nord\\Leitung 17.ElmLne"),
+        FallbackElement("Leitung 17", "Netz\\Sued\\Leitung 17.ElmLne"),
+    ])
+    result = payload.build_payload(
+        app, None, None, [], ["00:00"], [0.0], "h")
+    matrix = result["ScriptedScenarioMatrix"]
+    assert len(matrix) == 2
+    assert len({row["element_name"] for row in matrix}) == 2
+
+
+def test_a_run_in_which_every_case_failed_still_publishes():
+    """GL-PR-012: required fields must not block the honest failure report."""
+    from gridlens_pf import publish
+    failed = [case("REF", [], status="NICHT KONVERGIERT"),
+              case("S01", [], status="NICHT KONVERGIERT")]
+    data = build(failed)
+    publish.validate_payload(data)
+    statuses = {r["scenario_id"]: r["simulation_status"]
+                for r in data["ScriptedScenarios"]}
+    assert set(statuses) == {"REF", "S01"}
+    assert any(row["status"] == "FAIL" for row in data["ScriptedModelQuality"])
+
+
+def test_a_table_is_capped_and_the_cut_is_visible():
+    """A runaway model must not produce an unbounded report in silence."""
+    config = payload.config
+    original = config.MAX_TABLE_ROWS
+    config.MAX_TABLE_ROWS = 3
+    try:
+        items = [series_item("L{:03d}".format(index), "line", [118.0 + index])
+                 for index in range(10)]
+        ref = case("REF", items)
+        data = build([ref])
+        assert len(data["ScriptedLineStatistics"]) == 3
+        quality = {row["check_id"]: row for row in data["ScriptedModelQuality"]}
+        assert "table_limit_ScriptedLineStatistics" in quality
+        cut = quality["table_limit_ScriptedLineStatistics"]
+        assert cut["status"] == "FAIL"
+        assert "10" in cut["message"] and "3" in cut["message"]
+    finally:
+        config.MAX_TABLE_ROWS = original
+
+
+def test_a_table_within_the_limit_reports_no_cut():
+    config = payload.config
+    ref = case("REF", [series_item("L1", "line", [118.0])])
+    data = build([ref])
+    assert len(data["ScriptedLineStatistics"]) <= config.MAX_TABLE_ROWS
+    assert not any(row["check_id"].startswith("table_limit_")
+                   for row in data["ScriptedModelQuality"])
+
+
+def test_the_capped_payload_still_satisfies_the_contract():
+    from gridlens_pf import publish
+    config = payload.config
+    original = config.MAX_TABLE_ROWS
+    config.MAX_TABLE_ROWS = 2
+    try:
+        items = [series_item("L{:03d}".format(index), "line", [118.0 + index])
+                 for index in range(8)]
+        data = build([case("REF", items)])
+        publish.validate_payload(data)
+    finally:
+        config.MAX_TABLE_ROWS = original

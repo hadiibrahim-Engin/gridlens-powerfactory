@@ -24,10 +24,10 @@ VOLTAGE_MAX = 1.05
 # hours; change this to "s", "min" or "d" for another project convention.
 TIME_UNIT_FALLBACK = "h"
 
-PUBLISHER_VERSION = "4.0.0"
+PUBLISHER_VERSION = "4.1.0"
 TEMPLATE_NAME = "MASTER_GRIDLENS"
-TEMPLATE_VERSION = "2.1.0"
-DATA_CONTRACT_VERSION = "2.1"
+TEMPLATE_VERSION = "2.2.0"
+DATA_CONTRACT_VERSION = "2.2"
 
 # Candidate variables are ordered by preference. Add a project-specific result
 # variable here when the active ElmRes uses another PowerFactory identifier.
@@ -54,6 +54,35 @@ SCAN_VARIATIONS = False
 
 # Obergrenze der Rechenlaeufe einschliesslich REF.
 MAX_CASES = 12
+
+# Groessengrenzen eines einzelnen ElmRes je Fall. Sie begrenzen Laufzeit und
+# Speicher und machen ein zu grosses Ergebnis zu einem sichtbaren Fehler statt
+# zu einem blockierten PowerFactory. MAX_RESULT_ROWS entspricht einem Jahr in
+# 15-Minuten-Schritten; MAX_RESULT_CELLS begrenzt Zeilen mal ausgewertete
+# Reihen. Fuer groessere Studien hier bewusst anheben und die Laufzeit messen
+# (powerfactory/tools/benchmark_reader.py).
+# Gemessen mit powerfactory/tools/benchmark_reader.py auf einem Entwickler-
+# rechner (CPython 3.13, spaltenweises Lesen): rund 1,7 s je 1.000.000 Zellen.
+# Der Leser haelt je Reihe nur die Diagrammstichprobe (MAX_PLOT_POINTS), nicht
+# die volle Zeitreihe; der Speicher waechst daher mit der Zahl der Reihen und
+# nicht mit der Zahl der Zeitschritte. Massgeblich ist die Laufzeit.
+# 20.000.000 Zellen je Fall entsprechen rund 33 s und decken 1.000 Leitungen
+# plus 1.000 Knoten ueber ein Jahr in Stundenschritten ab.
+MAX_RESULT_ROWS = 35040
+MAX_RESULT_CELLS = 20000000
+
+# Der Report haelt alle Faelle eines Laufs gleichzeitig, weil Rangfolgen,
+# Referenzdeltas und Diagrammauswahl fallübergreifend gebildet werden. Der
+# Vorgabewert entspricht grob 3,5 Minuten Lesezeit und einigen hundert MiB.
+MAX_RUN_CELLS = 120000000
+
+# Obergrenze der Zeilen je publizierter Tabelle. Balken, Rangfolgen und
+# Diagramme sind bereits durch MAX_BAR_ITEMS, TOP_N und MAX_PLOTS begrenzt;
+# die Anhangstabellen und die Szenariomatrix waren es nicht. Ein Modell mit
+# sehr vielen Grenzwertverletzungen erzeugt sonst einen unbrauchbar langen
+# Bericht. Eine Kuerzung ist nie still: sie erscheint als FAIL in
+# ScriptedModelQuality.
+MAX_TABLE_ROWS = 5000
 
 # Namenspraefix der Snapshot-Ergebnisobjekte im Study Case.
 SNAPSHOT_PREFIX = "GridLens_"

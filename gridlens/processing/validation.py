@@ -1,4 +1,16 @@
-"""Data validation.
+"""Data validation of the legacy development library.
+
+LEGACY - NOT the production path. The PowerFactory runtime does not import
+this module; `test_versions.py` enforces that. The rules that actually guard a
+PowerFactory report live in the runtime package:
+
+- `gridlens_pf/results.py`   - time axis, cell readability, series coverage
+- `gridlens_pf/payload.py`   - common time axis across cases
+- `gridlens_pf/publish.py`   - required fields, types, text limits
+- `gridlens_pf/entry.py`     - run completeness and package identity
+
+Change those when a production rule changes. This module stays for the
+offline dataset path only.
 
 Every rule produces an explicit, human-readable finding. Nothing is repaired
 silently: if the input is inconsistent, the engineer must see it rather than

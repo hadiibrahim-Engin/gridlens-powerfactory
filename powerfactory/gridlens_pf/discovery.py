@@ -6,7 +6,7 @@ wertlos.
 """
 
 from . import config
-from .pfutil import finite_number, object_name, safe_attr
+from .pfutil import finite_number, object_key, object_name, safe_attr
 
 REFERENCE_ID = "REF"
 
@@ -68,13 +68,15 @@ def _variation_cases(app):
 
 def _scenario_cases(app):
     scenarios = _contents(_project_folder(app, "scen"), "*.IntScenario")
-    ordered = sorted(scenarios, key=object_name)
+    ordered = sorted(scenarios, key=lambda scenario: (
+        object_name(scenario), object_key(scenario)))
     return [
         {
             "id": "S{:02d}".format(index),
             "name": object_name(scenario),
             "kind": "scenario",
             "object": scenario,
+            "source_key": object_key(scenario),
             "description": "Operation Scenario",
         }
         for index, scenario in enumerate(ordered, 1)

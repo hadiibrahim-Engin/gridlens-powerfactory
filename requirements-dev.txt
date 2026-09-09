@@ -1,0 +1,16 @@
+# Exakt gepinnte Entwicklungs- und Prueftoolchain.
+# Nur fuer Tests und Werkzeuge. Die PowerFactory-Laufzeit benoetigt nichts
+# davon: sie nutzt ausschliesslich die Standardbibliothek und das in
+# PowerFactory verfuegbare Modul `powerfactory`.
+#
+#   python3 -m venv .venv
+#   .venv/bin/pip install -r requirements-dev.txt
+#   .venv/bin/pytest -q
+pytest==9.1.1
+PyYAML==6.0.3
+
+# Transitive Abhaengigkeiten von pytest, mitgepinnt fuer reproduzierbare Laeufe.
+iniconfig==2.3.0
+packaging==26.3
+pluggy==1.6.0
+Pygments==2.21.0

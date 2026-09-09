@@ -10,10 +10,10 @@
         <Name>SQLite</Name>
       </SQLite>
     </Databases>
-    <DataSources isList="true" count="18">
+    <DataSources isList="true" count="17">
       <ScriptedReportMeta Ref="3" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
         <Alias>ScriptedReportMeta</Alias>
-        <Columns isList="true" count="15">
+        <Columns isList="true" count="19">
           <value>study_id,System.String</value>
           <value>study_name,System.String</value>
           <value>study_description,System.String</value>
@@ -29,6 +29,10 @@
           <value>result_name,System.String</value>
           <value>assessment_scope,System.String</value>
           <value>assessment_status,System.String</value>
+          <value>has_line_bars,System.String</value>
+          <value>has_transformer_bars,System.String</value>
+          <value>has_voltage_bars,System.String</value>
+          <value>has_angle_bars,System.String</value>
         </Columns>
         <CommandTimeout>30</CommandTimeout>
         <Dictionary isRef="1" />
@@ -275,33 +279,6 @@
         <Parameters isList="true" count="0" />
         <SqlCommand>SELECT * FROM "ScriptedVoltageAngleBars" ORDER BY "rank"</SqlCommand>
       </ScriptedVoltageAngleBars>
-      <ScriptedReferenceComparison Ref="11" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
-        <Alias>ScriptedReferenceComparison</Alias>
-        <Columns isList="true" count="15">
-          <value>scenario_id,System.String</value>
-          <value>element_id,System.String</value>
-          <value>element_name,System.String</value>
-          <value>element_type,System.String</value>
-          <value>variable,System.String</value>
-          <value>unit,System.String</value>
-          <value>reference_min,System.Double</value>
-          <value>scenario_min,System.Double</value>
-          <value>delta_min,System.Double</value>
-          <value>reference_max,System.Double</value>
-          <value>scenario_max,System.Double</value>
-          <value>delta_max,System.Double</value>
-          <value>reference_mean,System.Double</value>
-          <value>scenario_mean,System.Double</value>
-          <value>delta_mean,System.Double</value>
-        </Columns>
-        <CommandTimeout>30</CommandTimeout>
-        <Dictionary isRef="1" />
-        <Key>f937991ea83ed01f9653757c439f627b</Key>
-        <Name>ScriptedReferenceComparison</Name>
-        <NameInSource>SQLite</NameInSource>
-        <Parameters isList="true" count="0" />
-        <SqlCommand>SELECT * FROM "ScriptedReferenceComparison" ORDER BY "scenario_id", "element_id", "variable"</SqlCommand>
-      </ScriptedReferenceComparison>
       <ScriptedScenarioComparison Ref="12" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
         <Alias>ScriptedScenarioComparison</Alias>
         <Columns isList="true" count="7">
@@ -5455,7 +5432,9 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
           <Conditions isList="true" count="0" />
           <DataSourceName>ScriptedReportMeta</DataSourceName>
           <Expressions isList="true" count="0" />
-          <Filters isList="true" count="0" />
+          <Filters isList="true" count="1">
+            <value>ScriptedReportMeta.has_line_bars_x0020__x003D__x003D__x0020__x0022_1_x0022_</value>
+          </Filters>
           <Name>LineLoadingBarChartBand</Name>
           <Page isRef="169" />
           <Parent isRef="169" />
@@ -5936,7 +5915,9 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
           <Conditions isList="true" count="0" />
           <DataSourceName>ScriptedReportMeta</DataSourceName>
           <Expressions isList="true" count="0" />
-          <Filters isList="true" count="0" />
+          <Filters isList="true" count="1">
+            <value>ScriptedReportMeta.has_transformer_bars_x0020__x003D__x003D__x0020__x0022_1_x0022_</value>
+          </Filters>
           <Name>TransformerLoadingBarChartBand</Name>
           <Page isRef="169" />
           <Parent isRef="169" />
@@ -6446,7 +6427,9 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
           <Conditions isList="true" count="0" />
           <DataSourceName>ScriptedReportMeta</DataSourceName>
           <Expressions isList="true" count="0" />
-          <Filters isList="true" count="0" />
+          <Filters isList="true" count="1">
+            <value>ScriptedReportMeta.has_voltage_bars_x0020__x003D__x003D__x0020__x0022_1_x0022_</value>
+          </Filters>
           <Name>VoltageMagnitudeBarChartBand</Name>
           <Page isRef="169" />
           <Parent isRef="169" />
@@ -7216,7 +7199,9 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
           <Conditions isList="true" count="0" />
           <DataSourceName>ScriptedReportMeta</DataSourceName>
           <Expressions isList="true" count="0" />
-          <Filters isList="true" count="0" />
+          <Filters isList="true" count="1">
+            <value>ScriptedReportMeta.has_angle_bars_x0020__x003D__x003D__x0020__x0022_1_x0022_</value>
+          </Filters>
           <Name>VoltageAngleBarChartBand</Name>
           <Page isRef="169" />
           <Parent isRef="169" />
@@ -7937,6 +7922,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                     <Color>140, 140, 140</Color>
                     <Direction>BottomToTop</Direction>
                     <Font>Segoe UI,12,Bold</Font>
+                    <Text>{ScriptedPlots.unit}</Text>
                   </Title>
                 </YAxis>
                 <YRightAxis Ref="354" type="Stimulsoft.Report.Chart.StiYRightAxis" isKey="true">
@@ -9272,7 +9258,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
   <ReportAuthor>GridLens / DIgSILENT PowerFactory</ReportAuthor>
   <ReportChanged>1/1/2026 12:00:00 AM</ReportChanged>
   <ReportCreated>1/1/2026 12:00:00 AM</ReportCreated>
-  <ReportDescription>GridLens PowerFactory 2026 production template with embedded DIgSILENT branding, multi-scenario reference comparison, separate engineering topics, critical-only limit sections, voltage-angle analysis and correctly bound numeric time series. Template 2.1.0; data contract 2.1.</ReportDescription>
+  <ReportDescription>GridLens PowerFactory 2026 production template with embedded DIgSILENT branding, multi-scenario reference comparison, separate engineering topics, critical-only limit sections, voltage-angle analysis and correctly bound numeric time series. Template 2.2.0; data contract 2.2.</ReportDescription>
   <ReportFile />
   <ReportGuid>a1c4e6f28b7d43109f5c2ad06e3b7841</ReportGuid>
   <ReportName>MASTER_GRIDLENS</ReportName>
