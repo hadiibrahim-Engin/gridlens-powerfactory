@@ -1,0 +1,105 @@
+# GridLens Input Contract
+#
+# Describes what GridLens EXPECTS to receive from upstream modules. GridLens does
+# not produce any of this data: QA results, scenarios, outages and simulation
+# results are all created before the GridLens system boundary.
+#
+#   QA results + Scenario metadata + PowerFactory results
+#        |
+#        v   <-- GridLens starts here
+#   Data Adapter -> Normalization -> Processing
+#
+# The adapter layer may know PowerFactory class names. Everything above the
+# adapter works on the canonical model only.
+
+version: "1.0"
+
+inputs:
+
+  # ---------------------------------------------------------------------------
+  - name: I-QA
+    description: >
+      Model quality results from an upstream QA module. GridLens performs no
+      checks of its own and does not interpret status values.
+    cardinality: multi_row
+    fields:
+      - { name: model_id,         type: string, required: true }
+      - { name: model_version,    type: string, required: true }
+      - { name: check_id,         type: string, required: true }
+      - { name: check_name,       type: string, required: true }
+      - { name: status,           type: string, required: true }
+      - { name: message,          type: string, required: false }
+      - { name: affected_element, type: string, required: false }
+
+  # ---------------------------------------------------------------------------
+  - name: I-SCENARIO
+    description: >
+      Scenario definitions. Exactly one scenario must be flagged as the
+      reference. GridLens does not create scenarios.
+    cardinality: multi_row
+    fields:
+      - { name: study_id,         type: string,  required: true }
+      - { name: scenario_id,      type: string,  required: true }
+      - { name: scenario_name,    type: string,  required: true }
+      - { name: is_reference,     type: integer, required: true }
+      - { name: description,      type: string,  required: false }
+      - { name: simulation_start, type: string,  required: true }
+      - { name: simulation_end,   type: string,  required: true }
+      - { name: simulation_status, type: string, required: true }
+
+  # ---------------------------------------------------------------------------
+  - name: I-OUTAGE
+    description: >
+      Switching actions belonging to a scenario. GridLens neither imports nor
+      generates outages.
+    cardinality: multi_row
+    fields:
+      - { name: outage_id,    type: string, required: true }
+      - { name: scenario_id,  type: string, required: true }
+      - { name: element_id,   type: string, required: true }
+      - { name: element_name, type: string, required: true }
+      - { name: element_type, type: string, required: true }
+      - { name: start_time,   type: string, required: true }
+      - { name: end_time,     type: string, required: true }
+      - { name: action,       type: string, required: true }
+
+  # ---------------------------------------------------------------------------
+  - name: I-RESULT
+    description: >
+      Already computed time series. One row per study, scenario, timestamp,
+      element and variable. GridLens runs no network calculation.
+    cardinality: multi_row
+    fields:
+      - { name: study_id,      type: string, required: true }
+      - { name: scenario_id,   type: string, required: true }
+      - { name: timestamp,     type: string, required: true }
+      - { name: element_id,    type: string, required: true }
+      - { name: element_name,  type: string, required: true }
+      - { name: element_type,  type: string, required: true }
+      - { name: variable,      type: string, required: true }
+      - { name: value,         type: number, required: true }
+      - { name: unit,          type: string, required: true }
+      # Optional metadata, carried through to the report when present.
+      - { name: voltage_level, type: string, required: false }
+      - { name: substation,    type: string, required: false }
+      - { name: area,          type: string, required: false }
+
+# Canonical vocabulary the adapter normalizes onto.
+canonical:
+
+  element_types:
+    line: [line, ElmLne]
+    transformer: [transformer, trafo, ElmTr2, ElmTr3]
+    busbar: [busbar, node, terminal, ElmTerm]
+    other: []
+
+  variables:
+    loading:
+      canonical_unit: "%"
+      aliases: [loading, c:loading, m:loading]
+    voltage:
+      canonical_unit: "p.u."
+      aliases: [voltage, u, m:u, m:u1]
+    voltage_angle:
+      canonical_unit: "deg"
+      aliases: [voltage_angle, angle, m:phiu, m:phiu1]

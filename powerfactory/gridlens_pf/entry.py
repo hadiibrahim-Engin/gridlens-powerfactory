@@ -1,0 +1,153 @@
+"""Moduswahl und Programmeinstieg für Runner und IntReport-Publisher."""
+
+from .config import PUBLISHER_VERSION, SNAPSHOT_PREFIX, TIME_UNIT_FALLBACK
+from .discovery import discover_cases
+from .payload import (
+    CONVERGED, apply_reference, build_cases_payload, build_payload,
+    scenario_result,
+)
+from .pfutil import class_name, object_name
+from .publish import publish_report
+from .results import collect_series, select_result
+from .runner import read_outages, read_snapshot_record, run_cases
+
+
+def select_mode(parent):
+    """Choose mode from the ComPython parent, without a runtime parameter."""
+    return "report" if class_name(parent) == "IntReport" else "runner"
+
+
+def load_snapshots(study_case):
+    """Return ``(case_id, ElmRes)`` snapshots with the reference first."""
+    try:
+        found = study_case.GetContents("*.ElmRes") or []
+    except Exception:
+        return []
+    snapshots = []
+    for item in found:
+        name = object_name(item)
+        if not name.startswith(SNAPSHOT_PREFIX):
+            continue
+        case_id = name[len(SNAPSHOT_PREFIX):]
+        if case_id:
+            snapshots.append((case_id, item))
+    return sorted(snapshots, key=lambda entry: (entry[0] != "REF", entry[0]))
+
+
+def _case_catalog(app):
+    """Best-effort names for snapshots produced before metadata was added."""
+    try:
+        return {case["id"]: case for case in discover_cases(app)}
+    except Exception:
+        return {}
+
+
+def _snapshot_case(case_id, elmres, catalog):
+    metadata = read_snapshot_record(elmres)
+    fallback = catalog.get(case_id, {})
+    return {
+        # The object name is authoritative. A hand-edited desc must never move
+        # a result into another case or create duplicate scenario ids.
+        "id": case_id,
+        "name": metadata.get("name") or fallback.get("name") or object_name(elmres),
+        "kind": metadata.get("kind") or fallback.get("kind") or (
+            "reference" if case_id == "REF" else "scenario"),
+        "description": metadata.get("description") or fallback.get(
+            "description", "GridLens-Ergebnissnapshot"),
+        "status": metadata.get("status") or CONVERGED,
+        "error_code": metadata.get("error_code", 0),
+        "message": metadata.get("message", ""),
+        "outages": read_outages(elmres),
+    }
+
+
+def _read_snapshot(case_id, elmres, catalog, log):
+    case = _snapshot_case(case_id, elmres, catalog)
+    if case["status"] != CONVERGED:
+        return scenario_result(case, [], [], [], TIME_UNIT_FALLBACK)
+    try:
+        elmres.Load()
+        series, labels, plot_times, time_unit = collect_series(elmres)
+        return scenario_result(case, series, labels, plot_times, time_unit)
+    except Exception as exc:
+        case["status"] = "NICHT KONVERGIERT"
+        case["error_code"] = -3
+        case["message"] = "Snapshot {} ist nicht auswertbar: {}".format(
+            object_name(elmres), exc)
+        if log:
+            log("GridLens: " + case["message"])
+        return scenario_result(case, [], [], [], TIME_UNIT_FALLBACK)
+    finally:
+        try:
+            elmres.Release()
+        except Exception:
+            pass
+
+
+def run_report_mode(app, study_case, report, log=None):
+    """Publish stored case snapshots, or one active result as fallback."""
+    snapshots = load_snapshots(study_case)
+    if not snapshots:
+        elmres = select_result(study_case)
+        if log:
+            log("GridLens result: " + object_name(elmres))
+        try:
+            elmres.Load()
+            series, labels, plot_times, time_unit = collect_series(elmres)
+            data = build_payload(
+                app, study_case, elmres, series, labels, plot_times, time_unit)
+        finally:
+            try:
+                elmres.Release()
+            except Exception:
+                pass
+        return publish_report(report, data, log=log)
+
+    catalog = _case_catalog(app)
+    results = [
+        _read_snapshot(case_id, elmres, catalog, log)
+        for case_id, elmres in snapshots
+    ]
+    apply_reference(results)
+    try:
+        project = app.GetActiveProject()
+    except Exception:
+        project = None
+    data = build_cases_payload(
+        study_case,
+        results,
+        object_name(project) if project else "Aktives PowerFactory-Modell",
+        ", ".join(object_name(item) for _, item in snapshots),
+    )
+    return publish_report(report, data, log=log)
+
+
+def main():
+    import powerfactory
+
+    app = powerfactory.GetApplication()
+    if app is None:
+        raise RuntimeError("PowerFactory application is unavailable.")
+    script = app.GetCurrentScript()
+    study_case = app.GetActiveStudyCase()
+    if script is None:
+        raise RuntimeError("No active ComPython script.")
+    if study_case is None:
+        raise RuntimeError("No active study case.")
+
+    app.PrintPlain("GridLens publisher: " + PUBLISHER_VERSION)
+    app.PrintPlain("GridLens study case: " + object_name(study_case))
+
+    parent = script.GetParent()
+    if select_mode(parent) == "runner":
+        app.PrintPlain("GridLens mode: runner")
+        records = run_cases(app, study_case, log=app.PrintPlain)
+        calculated = sum(1 for record in records if record["status"] == CONVERGED)
+        app.PrintPlain(
+            "GridLens: {} von {} Fällen erfolgreich berechnet; Bericht jetzt "
+            "über den IntReport erzeugen.".format(calculated, len(records)))
+        return
+
+    app.PrintPlain("GridLens mode: report")
+    counts = run_report_mode(app, study_case, parent, log=app.PrintPlain)
+    app.PrintPlain("GridLens: {} Tabellen publiziert.".format(len(counts)))

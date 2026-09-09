@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+.pytest_cache/
+gridlens-mock-payload.json
+
+# Local workstation files and configuration
+.DS_Store
+.idea/
+.vscode/
+.env
+.env.*
+!.env.example
