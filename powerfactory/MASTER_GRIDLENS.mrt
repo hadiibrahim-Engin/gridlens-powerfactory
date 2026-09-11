@@ -13,7 +13,7 @@
     <DataSources isList="true" count="17">
       <ScriptedReportMeta Ref="3" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
         <Alias>ScriptedReportMeta</Alias>
-        <Columns isList="true" count="19">
+        <Columns isList="true" count="21">
           <value>study_id,System.String</value>
           <value>study_name,System.String</value>
           <value>study_description,System.String</value>
@@ -23,6 +23,8 @@
           <value>simulation_end,System.String</value>
           <value>simulation_time_step,System.String</value>
           <value>generation_date,System.String</value>
+          <value>generated_by,System.String</value>
+          <value>run_mode,System.String</value>
           <value>template_name,System.String</value>
           <value>template_version,System.String</value>
           <value>data_contract_version,System.String</value>
@@ -59,11 +61,11 @@
         <Parameters isList="true" count="0" />
         <SqlCommand>SELECT * FROM "ScriptedModelQuality"</SqlCommand>
       </ScriptedModelQuality>
-      <ScriptedScenarios Ref="5" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
-        <Alias>ScriptedScenarios</Alias>
+      <ScriptedCases Ref="5" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
+        <Alias>ScriptedCases</Alias>
         <Columns isList="true" count="7">
-          <value>scenario_id,System.String</value>
-          <value>scenario_name,System.String</value>
+          <value>case_id,System.String</value>
+          <value>case_name,System.String</value>
           <value>is_reference,System.Int32</value>
           <value>description,System.String</value>
           <value>simulation_status,System.String</value>
@@ -73,53 +75,56 @@
         <CommandTimeout>30</CommandTimeout>
         <Dictionary isRef="1" />
         <Key>7cb95ee6be79873843b168dedcb43f57</Key>
-        <Name>ScriptedScenarios</Name>
+        <Name>ScriptedCases</Name>
         <NameInSource>SQLite</NameInSource>
         <Parameters isList="true" count="0" />
-        <SqlCommand>SELECT * FROM "ScriptedScenarios" ORDER BY "is_reference" DESC, "scenario_id"</SqlCommand>
-      </ScriptedScenarios>
-      <ScriptedOutages Ref="6" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
-        <Alias>ScriptedOutages</Alias>
-        <Columns isList="true" count="8">
-          <value>scenario_id,System.String</value>
+        <SqlCommand>SELECT * FROM "ScriptedCases" ORDER BY "is_reference" DESC, "case_id"</SqlCommand>
+      </ScriptedCases>
+      <ScriptedPlannedOutages Ref="6" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
+        <Alias>ScriptedPlannedOutages</Alias>
+        <Columns isList="true" count="11">
+          <value>case_id,System.String</value>
           <value>outage_id,System.String</value>
-          <value>element_id,System.String</value>
-          <value>element_name,System.String</value>
-          <value>element_type,System.String</value>
+          <value>outage_name,System.String</value>
+          <value>source_class,System.String</value>
+          <value>status,System.String</value>
+          <value>skip_reason,System.String</value>
+          <value>equipment_name,System.String</value>
+          <value>equipment_type,System.String</value>
+          <value>switching_actions,System.String</value>
           <value>start_time,System.String</value>
           <value>end_time,System.String</value>
-          <value>action,System.String</value>
         </Columns>
         <CommandTimeout>30</CommandTimeout>
         <Dictionary isRef="1" />
         <Key>5eafba61f429c774f9ce58ef6f1dde9d</Key>
-        <Name>ScriptedOutages</Name>
+        <Name>ScriptedPlannedOutages</Name>
         <NameInSource>SQLite</NameInSource>
         <Parameters isList="true" count="0" />
-        <SqlCommand>SELECT * FROM "ScriptedOutages" ORDER BY "scenario_id", "start_time", "element_id"</SqlCommand>
-      </ScriptedOutages>
-      <ScriptedScenarioMatrix Ref="7" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
-        <Alias>ScriptedScenarioMatrix</Alias>
+        <SqlCommand>SELECT * FROM "ScriptedPlannedOutages" ORDER BY "status", "outage_name"</SqlCommand>
+      </ScriptedPlannedOutages>
+      <ScriptedCaseMatrix Ref="7" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
+        <Alias>ScriptedCaseMatrix</Alias>
         <Columns isList="true" count="6">
           <value>element_id,System.String</value>
           <value>element_name,System.String</value>
           <value>element_type,System.String</value>
-          <value>scenario_id,System.String</value>
+          <value>case_id,System.String</value>
           <value>is_out_of_service,System.Int32</value>
           <value>status_label,System.String</value>
         </Columns>
         <CommandTimeout>30</CommandTimeout>
         <Dictionary isRef="1" />
         <Key>7ade38fcd2cdbdce36e27064c4bcf51c</Key>
-        <Name>ScriptedScenarioMatrix</Name>
+        <Name>ScriptedCaseMatrix</Name>
         <NameInSource>SQLite</NameInSource>
         <Parameters isList="true" count="0" />
-        <SqlCommand>SELECT * FROM "ScriptedScenarioMatrix" ORDER BY "element_id", "scenario_id"</SqlCommand>
-      </ScriptedScenarioMatrix>
+        <SqlCommand>SELECT * FROM "ScriptedCaseMatrix" ORDER BY "element_id", "case_id"</SqlCommand>
+      </ScriptedCaseMatrix>
       <ScriptedLineStatistics Ref="8" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
         <Alias>ScriptedLineStatistics</Alias>
         <Columns isList="true" count="12">
-          <value>scenario_id,System.String</value>
+          <value>case_id,System.String</value>
           <value>element_id,System.String</value>
           <value>element_name,System.String</value>
           <value>voltage_level,System.String</value>
@@ -138,12 +143,12 @@
         <Name>ScriptedLineStatistics</Name>
         <NameInSource>SQLite</NameInSource>
         <Parameters isList="true" count="0" />
-        <SqlCommand>SELECT * FROM "ScriptedLineStatistics" ORDER BY "scenario_id", "element_id"</SqlCommand>
+        <SqlCommand>SELECT * FROM "ScriptedLineStatistics" ORDER BY "case_id", "element_id"</SqlCommand>
       </ScriptedLineStatistics>
       <ScriptedTransformerStatistics Ref="9" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
         <Alias>ScriptedTransformerStatistics</Alias>
         <Columns isList="true" count="11">
-          <value>scenario_id,System.String</value>
+          <value>case_id,System.String</value>
           <value>element_id,System.String</value>
           <value>element_name,System.String</value>
           <value>voltage_level,System.String</value>
@@ -161,12 +166,12 @@
         <Name>ScriptedTransformerStatistics</Name>
         <NameInSource>SQLite</NameInSource>
         <Parameters isList="true" count="0" />
-        <SqlCommand>SELECT * FROM "ScriptedTransformerStatistics" ORDER BY "scenario_id", "element_id"</SqlCommand>
+        <SqlCommand>SELECT * FROM "ScriptedTransformerStatistics" ORDER BY "case_id", "element_id"</SqlCommand>
       </ScriptedTransformerStatistics>
       <ScriptedVoltageStatistics Ref="10" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
         <Alias>ScriptedVoltageStatistics</Alias>
         <Columns isList="true" count="13">
-          <value>scenario_id,System.String</value>
+          <value>case_id,System.String</value>
           <value>element_id,System.String</value>
           <value>element_name,System.String</value>
           <value>voltage_level,System.String</value>
@@ -186,13 +191,13 @@
         <Name>ScriptedVoltageStatistics</Name>
         <NameInSource>SQLite</NameInSource>
         <Parameters isList="true" count="0" />
-        <SqlCommand>SELECT * FROM "ScriptedVoltageStatistics" ORDER BY "scenario_id", "element_id"</SqlCommand>
+        <SqlCommand>SELECT * FROM "ScriptedVoltageStatistics" ORDER BY "case_id", "element_id"</SqlCommand>
       </ScriptedVoltageStatistics>
       <ScriptedLineLoadingBars Ref="487" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
         <Alias>ScriptedLineLoadingBars</Alias>
         <Columns isList="true" count="9">
           <value>rank,System.Int32</value>
-          <value>scenario_id,System.String</value>
+          <value>case_id,System.String</value>
           <value>element_id,System.String</value>
           <value>element_name,System.String</value>
           <value>bar_label,System.String</value>
@@ -213,7 +218,7 @@
         <Alias>ScriptedTransformerLoadingBars</Alias>
         <Columns isList="true" count="9">
           <value>rank,System.Int32</value>
-          <value>scenario_id,System.String</value>
+          <value>case_id,System.String</value>
           <value>element_id,System.String</value>
           <value>element_name,System.String</value>
           <value>bar_label,System.String</value>
@@ -234,7 +239,7 @@
         <Alias>ScriptedVoltageMagnitudeBars</Alias>
         <Columns isList="true" count="12">
           <value>rank,System.Int32</value>
-          <value>scenario_id,System.String</value>
+          <value>case_id,System.String</value>
           <value>element_id,System.String</value>
           <value>element_name,System.String</value>
           <value>bar_label,System.String</value>
@@ -258,7 +263,7 @@
         <Alias>ScriptedVoltageAngleBars</Alias>
         <Columns isList="true" count="13">
           <value>rank,System.Int32</value>
-          <value>scenario_id,System.String</value>
+          <value>case_id,System.String</value>
           <value>element_id,System.String</value>
           <value>element_name,System.String</value>
           <value>bar_label,System.String</value>
@@ -279,13 +284,13 @@
         <Parameters isList="true" count="0" />
         <SqlCommand>SELECT * FROM "ScriptedVoltageAngleBars" ORDER BY "rank"</SqlCommand>
       </ScriptedVoltageAngleBars>
-      <ScriptedScenarioComparison Ref="12" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
-        <Alias>ScriptedScenarioComparison</Alias>
+      <ScriptedCaseComparison Ref="12" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
+        <Alias>ScriptedCaseComparison</Alias>
         <Columns isList="true" count="7">
           <value>metric_key,System.String</value>
           <value>metric_name,System.String</value>
           <value>unit,System.String</value>
-          <value>scenario_id,System.String</value>
+          <value>case_id,System.String</value>
           <value>metric_value,System.Double</value>
           <value>element_id,System.String</value>
           <value>element_name,System.String</value>
@@ -293,17 +298,17 @@
         <CommandTimeout>30</CommandTimeout>
         <Dictionary isRef="1" />
         <Key>e84e8a0d9811413296e6f69911617d1b</Key>
-        <Name>ScriptedScenarioComparison</Name>
+        <Name>ScriptedCaseComparison</Name>
         <NameInSource>SQLite</NameInSource>
         <Parameters isList="true" count="0" />
-        <SqlCommand>SELECT * FROM "ScriptedScenarioComparison" ORDER BY "metric_key", "scenario_id"</SqlCommand>
-      </ScriptedScenarioComparison>
+        <SqlCommand>SELECT * FROM "ScriptedCaseComparison" ORDER BY "metric_key", "case_id"</SqlCommand>
+      </ScriptedCaseComparison>
       <ScriptedRankings Ref="13" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
         <Alias>ScriptedRankings</Alias>
         <Columns isList="true" count="12">
           <value>ranking_type,System.String</value>
           <value>rank,System.Int32</value>
-          <value>scenario_id,System.String</value>
+          <value>case_id,System.String</value>
           <value>element_id,System.String</value>
           <value>element_name,System.String</value>
           <value>element_type,System.String</value>
@@ -326,7 +331,7 @@
         <Alias>ScriptedRelevantTimePoints</Alias>
         <Columns isList="true" count="8">
           <value>timestamp,System.String</value>
-          <value>scenario_id,System.String</value>
+          <value>case_id,System.String</value>
           <value>reason,System.String</value>
           <value>element_id,System.String</value>
           <value>element_name,System.String</value>
@@ -340,14 +345,14 @@
         <Name>ScriptedRelevantTimePoints</Name>
         <NameInSource>SQLite</NameInSource>
         <Parameters isList="true" count="0" />
-        <SqlCommand>SELECT * FROM "ScriptedRelevantTimePoints" ORDER BY "timestamp", "scenario_id", "reason"</SqlCommand>
+        <SqlCommand>SELECT * FROM "ScriptedRelevantTimePoints" ORDER BY "timestamp", "case_id", "reason"</SqlCommand>
       </ScriptedRelevantTimePoints>
       <ScriptedPlots Ref="15" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
         <Alias>ScriptedPlots</Alias>
         <Columns isList="true" count="7">
           <value>plot_id,System.String</value>
           <value>plot_title,System.String</value>
-          <value>scenario_id,System.String</value>
+          <value>case_id,System.String</value>
           <value>element_id,System.String</value>
           <value>element_name,System.String</value>
           <value>variable,System.String</value>
@@ -365,7 +370,7 @@
         <Alias>ScriptedPlotData</Alias>
         <Columns isList="true" count="5">
           <value>plot_id,System.String</value>
-          <value>scenario_id,System.String</value>
+          <value>case_id,System.String</value>
           <value>series_role,System.String</value>
           <value>timestamp,System.Double</value>
           <value>value,System.Double</value>
@@ -1027,7 +1032,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>CoverSubtitle</Name>
               <Page isRef="18" />
               <Parent isRef="25" />
-              <Text>Netzzustands- und Freischaltungsanalyse</Text>
+              <Text>Network State and Planned Outage Analysis</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -1043,7 +1048,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>CoverMetaLabel0</Name>
               <Page isRef="18" />
               <Parent isRef="25" />
-              <Text>Studie</Text>
+              <Text>Study case</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
             </CoverMetaLabel0>
@@ -1101,7 +1106,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>CoverMetaLabel2</Name>
               <Page isRef="18" />
               <Parent isRef="25" />
-              <Text>Netzmodell</Text>
+              <Text>Network model</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
             </CoverMetaLabel2>
@@ -1130,7 +1135,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>CoverMetaLabel3</Name>
               <Page isRef="18" />
               <Parent isRef="25" />
-              <Text>Modellversion</Text>
+              <Text>Model version</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
             </CoverMetaLabel3>
@@ -1159,7 +1164,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>CoverMetaLabel4</Name>
               <Page isRef="18" />
               <Parent isRef="25" />
-              <Text>Simulationszeitraum</Text>
+              <Text>Simulation period</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
             </CoverMetaLabel4>
@@ -1188,7 +1193,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>CoverMetaLabel5</Name>
               <Page isRef="18" />
               <Parent isRef="25" />
-              <Text>Zeitschritt</Text>
+              <Text>Time step</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
             </CoverMetaLabel5>
@@ -1217,7 +1222,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>CoverMetaLabel6</Name>
               <Page isRef="18" />
               <Parent isRef="25" />
-              <Text>Erstellt am</Text>
+              <Text>Generated at</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
             </CoverMetaLabel6>
@@ -1772,11 +1777,35 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Parent isRef="25" />
               <Stretch>True</Stretch>
             </DigSilentLogoCover>
+            <CoverGeneratedByLabel Ref="720" type="Text" isKey="true">
+              <Border>None;Transparent;0;None;False;4;Black</Border><Brush>Transparent</Brush>
+              <ClientRectangle>0,9.04,4.6,0.52</ClientRectangle><Font>Segoe UI,9,Bold</Font>
+              <Margins>0.12,0.12,0,0</Margins><Name>CoverGeneratedByLabel</Name><Page isRef="18" /><Parent isRef="25" />
+              <Text>Generated by</Text><TextBrush>[55:55:55]</TextBrush><VertAlignment>Center</VertAlignment>
+            </CoverGeneratedByLabel>
+            <CoverGeneratedByValue Ref="721" type="Text" isKey="true">
+              <Border>None;Transparent;0;None;False;4;Black</Border><Brush>Transparent</Brush>
+              <ClientRectangle>4.6,9.04,12.4,0.52</ClientRectangle><Font>Segoe UI,9</Font>
+              <Margins>0.12,0.12,0,0</Margins><Name>CoverGeneratedByValue</Name><Page isRef="18" /><Parent isRef="25" />
+              <Text>{ScriptedReportMeta.generated_by}</Text><TextBrush>[55:55:55]</TextBrush><VertAlignment>Center</VertAlignment>
+            </CoverGeneratedByValue>
+            <CoverRunModeLabel Ref="722" type="Text" isKey="true">
+              <Border>None;Transparent;0;None;False;4;Black</Border><Brush>Transparent</Brush>
+              <ClientRectangle>0,9.56,4.6,0.52</ClientRectangle><Font>Segoe UI,9,Bold</Font>
+              <Margins>0.12,0.12,0,0</Margins><Name>CoverRunModeLabel</Name><Page isRef="18" /><Parent isRef="25" />
+              <Text>Run mode</Text><TextBrush>[55:55:55]</TextBrush><VertAlignment>Center</VertAlignment>
+            </CoverRunModeLabel>
+            <CoverRunModeValue Ref="723" type="Text" isKey="true">
+              <Border>None;Transparent;0;None;False;4;Black</Border><Brush>Transparent</Brush>
+              <ClientRectangle>4.6,9.56,12.4,0.52</ClientRectangle><Font>Segoe UI,9</Font>
+              <Margins>0.12,0.12,0,0</Margins><Name>CoverRunModeValue</Name><Page isRef="18" /><Parent isRef="25" />
+              <Text>{ScriptedReportMeta.run_mode}</Text><TextBrush>[55:55:55]</TextBrush><VertAlignment>Center</VertAlignment>
+            </CoverRunModeValue>
             <CoverResultLabel Ref="713" type="Text" isKey="true">
               <Border>None;Transparent;0;None;False;4;Black</Border>
               <Brush>Transparent</Brush>
               <CanGrow>True</CanGrow>
-              <ClientRectangle>0,9.04,4.6,0.52</ClientRectangle>
+              <ClientRectangle>0,10.08,4.6,0.52</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9,Bold</Font>
@@ -1784,7 +1813,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>CoverResultLabel</Name>
               <Page isRef="18" />
               <Parent isRef="25" />
-              <Text>Ergebnisdatei</Text>
+              <Text>Result source</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -1793,7 +1822,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Border>None;Transparent;0;None;False;4;Black</Border>
               <Brush>Transparent</Brush>
               <CanGrow>True</CanGrow>
-              <ClientRectangle>4.6,9.04,12.4,0.52</ClientRectangle>
+              <ClientRectangle>4.6,10.08,12.4,0.52</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,8</Font>
@@ -1810,7 +1839,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Border>None;Transparent;0;None;False;4;Black</Border>
               <Brush>Transparent</Brush>
               <CanGrow>True</CanGrow>
-              <ClientRectangle>0,9.56,4.6,0.52</ClientRectangle>
+              <ClientRectangle>0,10.6,4.6,0.52</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9,Bold</Font>
@@ -1818,7 +1847,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>CoverScopeLabel</Name>
               <Page isRef="18" />
               <Parent isRef="25" />
-              <Text>Bewertungsumfang</Text>
+              <Text>Assessment scope</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -1827,7 +1856,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Border>None;Transparent;0;None;False;4;Black</Border>
               <Brush>Transparent</Brush>
               <CanGrow>True</CanGrow>
-              <ClientRectangle>4.6,9.56,12.4,0.52</ClientRectangle>
+              <ClientRectangle>4.6,10.6,12.4,0.52</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,8</Font>
@@ -1843,7 +1872,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
             <CoverAssessmentStatus Ref="717" type="Text" isKey="true">
               <Border>All;[181:18:62];1;Solid;False;4;Black</Border>
               <Brush>[255:232:237]</Brush>
-              <ClientRectangle>0,10.55,17,1.0</ClientRectangle>
+              <ClientRectangle>0,11.55,17,1.0</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,11,Bold</Font>
@@ -1892,7 +1921,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Font>Segoe UI,24,Bold</Font>
               <Name>TableOfContentsTitle</Name>
               <Parent isRef="465" />
-              <Text>Inhaltsverzeichnis</Text>
+              <Text>Table of Contents</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <VertAlignment>Center</VertAlignment>
             </TableOfContentsTitle>
@@ -1904,7 +1933,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Font>Segoe UI,9</Font>
               <Name>TableOfContentsSubtitle</Name>
               <Parent isRef="465" />
-              <Text>Abschnitt anklicken, um direkt zur Berichtsstelle zu springen.</Text>
+              <Text>Select a section to navigate directly to it.</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <VertAlignment>Center</VertAlignment>
             </TableOfContentsSubtitle>
@@ -1918,7 +1947,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Margins>0.28,0.12,0,0</Margins>
               <Name>TableOfContentsLink1</Name>
               <Parent isRef="465" />
-              <Text>1  Modell-Qualitätssicherung</Text>
+              <Text>1  Model Quality Assurance</Text>
               <TextBrush>[75:75:75]</TextBrush>
               <VertAlignment>Center</VertAlignment>
             </TableOfContentsLink1>
@@ -1932,7 +1961,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Margins>0.28,0.12,0,0</Margins>
               <Name>TableOfContentsLink2</Name>
               <Parent isRef="465" />
-              <Text>2  Untersuchungsrahmen</Text>
+              <Text>2  Study Definition</Text>
               <TextBrush>[75:75:75]</TextBrush>
               <VertAlignment>Center</VertAlignment>
             </TableOfContentsLink2>
@@ -1942,11 +1971,11 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,10,Bold</Font>
-              <Hyperlink>#section-scenarios</Hyperlink>
+              <Hyperlink>#section-cases</Hyperlink>
               <Margins>0.28,0.12,0,0</Margins>
               <Name>TableOfContentsLink3</Name>
               <Parent isRef="465" />
-              <Text>3  Szenarien</Text>
+              <Text>3  Calculated Cases</Text>
               <TextBrush>[75:75:75]</TextBrush>
               <VertAlignment>Center</VertAlignment>
             </TableOfContentsLink3>
@@ -1960,7 +1989,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Margins>0.28,0.12,0,0</Margins>
               <Name>TableOfContentsLink4</Name>
               <Parent isRef="465" />
-              <Text>4  Außerbetriebnahmen im Modell</Text>
+              <Text>4  Planned Outages</Text>
               <TextBrush>[75:75:75]</TextBrush>
               <VertAlignment>Center</VertAlignment>
             </TableOfContentsLink4>
@@ -1974,7 +2003,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Margins>0.28,0.12,0,0</Margins>
               <Name>TableOfContentsLink5</Name>
               <Parent isRef="465" />
-              <Text>5  Szenario-Matrix</Text>
+              <Text>5  Out-of-Service Matrix</Text>
               <TextBrush>[75:75:75]</TextBrush>
               <VertAlignment>Center</VertAlignment>
             </TableOfContentsLink5>
@@ -1988,7 +2017,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Margins>0.28,0.12,0,0</Margins>
               <Name>TableOfContentsLink6</Name>
               <Parent isRef="465" />
-              <Text>6  Aktiver Ergebniszustand</Text>
+              <Text>6  Governing Results</Text>
               <TextBrush>[75:75:75]</TextBrush>
               <VertAlignment>Center</VertAlignment>
             </TableOfContentsLink6>
@@ -2002,7 +2031,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Margins>0.28,0.12,0,0</Margins>
               <Name>TableOfContentsLink7</Name>
               <Parent isRef="465" />
-              <Text>7  Kennwertübersicht</Text>
+              <Text>7  Metric Overview</Text>
               <TextBrush>[75:75:75]</TextBrush>
               <VertAlignment>Center</VertAlignment>
             </TableOfContentsLink7>
@@ -2016,7 +2045,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Margins>0.28,0.12,0,0</Margins>
               <Name>TableOfContentsLink8</Name>
               <Parent isRef="465" />
-              <Text>8  Leitungsanalyse</Text>
+              <Text>8  Line Analysis</Text>
               <TextBrush>[75:75:75]</TextBrush>
               <VertAlignment>Center</VertAlignment>
             </TableOfContentsLink8>
@@ -2030,7 +2059,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Margins>0.28,0.12,0,0</Margins>
               <Name>TableOfContentsLink9</Name>
               <Parent isRef="465" />
-              <Text>9  Transformatoranalyse</Text>
+              <Text>9  Transformer Analysis</Text>
               <TextBrush>[75:75:75]</TextBrush>
               <VertAlignment>Center</VertAlignment>
             </TableOfContentsLink9>
@@ -2044,7 +2073,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Margins>0.28,0.12,0,0</Margins>
               <Name>TableOfContentsLink10</Name>
               <Parent isRef="465" />
-              <Text>10  Spannungsbeträge</Text>
+              <Text>10  Voltage Magnitudes</Text>
               <TextBrush>[75:75:75]</TextBrush>
               <VertAlignment>Center</VertAlignment>
             </TableOfContentsLink10>
@@ -2058,7 +2087,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Margins>0.28,0.12,0,0</Margins>
               <Name>TableOfContentsLink11</Name>
               <Parent isRef="465" />
-              <Text>11  Spannungswinkel</Text>
+              <Text>11  Voltage Angles</Text>
               <TextBrush>[75:75:75]</TextBrush>
               <VertAlignment>Center</VertAlignment>
             </TableOfContentsLink11>
@@ -2072,7 +2101,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Margins>0.28,0.12,0,0</Margins>
               <Name>TableOfContentsLink12</Name>
               <Parent isRef="465" />
-              <Text>12  Relevante Zeitpunkte</Text>
+              <Text>12  Relevant Time Points</Text>
               <TextBrush>[75:75:75]</TextBrush>
               <VertAlignment>Center</VertAlignment>
             </TableOfContentsLink12>
@@ -2086,7 +2115,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Margins>0.28,0.12,0,0</Margins>
               <Name>TableOfContentsLink13</Name>
               <Parent isRef="465" />
-              <Text>13  Zeitreihen</Text>
+              <Text>13  Time Series</Text>
               <TextBrush>[75:75:75]</TextBrush>
               <VertAlignment>Center</VertAlignment>
             </TableOfContentsLink13>
@@ -2099,7 +2128,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Margins>0.28,0.12,0,0</Margins>
               <Name>TableOfContentsNote</Name>
               <Parent isRef="465" />
-              <Text>Berichtsgrenzen: Auslastung &gt; 100 %; Spannung &lt; 0,95 p.u. oder &gt; 1,05 p.u.</Text>
+              <Text>Report limits: loading &gt; 100%; voltage &lt; 0.95 p.u. or &gt; 1.05 p.u.</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <VertAlignment>Center</VertAlignment>
             </TableOfContentsNote>
@@ -2113,7 +2142,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Margins>0.28,0.12,0,0</Margins>
               <Name>TableOfContentsLink14</Name>
               <Parent isRef="465" />
-              <Text>14  Anhang: Detailstatistiken</Text>
+              <Text>14  Appendix: Detailed Statistics</Text>
               <TextBrush>[75:75:75]</TextBrush>
               <VertAlignment>Center</VertAlignment>
             </TableOfContentsLink14>
@@ -2146,7 +2175,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Page isRef="18" />
               <Parent isRef="45" />
               <Pointer>section-quality</Pointer>
-              <Text>Modell-Qualitätssicherung</Text>
+              <Text>Model Quality Assurance</Text>
               <TextBrush>White</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -2163,7 +2192,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ModelQualityTitleBandSubtitle</Name>
               <Page isRef="18" />
               <Parent isRef="45" />
-              <Text>Vollständigkeit der Ergebnisdaten und verwendete Grenzwerte.</Text>
+              <Text>Completeness of result data and applied limits.</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -2183,7 +2212,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
             <ModelQualityHeaderCell0 Ref="49" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>[191:191:191]</Brush>
-              <ClientRectangle>0,0,4.6,0.62</ClientRectangle>
+              <ClientRectangle>0,0,4,0.62</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9,Bold</Font>
@@ -2191,7 +2220,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ModelQualityHeaderCell0</Name>
               <Page isRef="18" />
               <Parent isRef="48" />
-              <Text>Prüfung</Text>
+              <Text>Check</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -2199,11 +2228,12 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
             <ModelQualityHeaderCell1 Ref="50" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>[191:191:191]</Brush>
-              <ClientRectangle>4.6,0,2.2,0.62</ClientRectangle>
+              <ClientRectangle>4,0,2.2,0.62</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9,Bold</Font>
               <Margins>0.12,0.12,0,0</Margins>
+              <HorAlignment>Center</HorAlignment>
               <Name>ModelQualityHeaderCell1</Name>
               <Page isRef="18" />
               <Parent isRef="48" />
@@ -2215,7 +2245,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
             <ModelQualityHeaderCell2 Ref="51" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>[191:191:191]</Brush>
-              <ClientRectangle>6.8,0,6.6,0.62</ClientRectangle>
+              <ClientRectangle>6.2,0,7.5,0.62</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9,Bold</Font>
@@ -2223,7 +2253,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ModelQualityHeaderCell2</Name>
               <Page isRef="18" />
               <Parent isRef="48" />
-              <Text>Hinweis</Text>
+              <Text>Details</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -2231,7 +2261,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
             <ModelQualityHeaderCell3 Ref="52" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>[191:191:191]</Brush>
-              <ClientRectangle>13.4,0,3.6,0.62</ClientRectangle>
+              <ClientRectangle>13.7,0,3.3,0.62</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9,Bold</Font>
@@ -2239,7 +2269,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ModelQualityHeaderCell3</Name>
               <Page isRef="18" />
               <Parent isRef="48" />
-              <Text>Element</Text>
+              <Text>Equipment</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -2261,7 +2291,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>Transparent</Brush>
               <CanGrow>True</CanGrow>
-              <ClientRectangle>0,0,4.6,0.55</ClientRectangle>
+              <ClientRectangle>0,0,4,0.55</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9</Font>
@@ -2276,12 +2306,13 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
             </ModelQualityCell0>
             <ModelQualityCell1 Ref="55" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
-              <Brush>Transparent</Brush>
+              <Brush>[248:248:248]</Brush>
               <CanGrow>True</CanGrow>
-              <ClientRectangle>4.6,0,2.2,0.55</ClientRectangle>
+              <ClientRectangle>4,0,2.2,0.55</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
-              <Font>Segoe UI,9</Font>
+              <Font>Segoe UI,9,Bold</Font>
+              <HorAlignment>Center</HorAlignment>
               <Margins>0.12,0.12,0,0</Margins>
               <Name>ModelQualityCell1</Name>
               <Page isRef="18" />
@@ -2295,7 +2326,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>Transparent</Brush>
               <CanGrow>True</CanGrow>
-              <ClientRectangle>6.8,0,6.6,0.55</ClientRectangle>
+              <ClientRectangle>6.2,0,7.5,0.55</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9</Font>
@@ -2312,7 +2343,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>Transparent</Brush>
               <CanGrow>True</CanGrow>
-              <ClientRectangle>13.4,0,3.6,0.55</ClientRectangle>
+              <ClientRectangle>13.7,0,3.3,0.55</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9</Font>
@@ -2368,7 +2399,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Page isRef="18" />
               <Parent isRef="58" />
               <Pointer>section-study</Pointer>
-              <Text>Untersuchungsrahmen</Text>
+              <Text>Study Definition</Text>
               <TextBrush>White</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -2397,7 +2428,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>StudyDefinitionMetaLabel0</Name>
               <Page isRef="18" />
               <Parent isRef="60" />
-              <Text>Studie</Text>
+              <Text>Study case</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
             </StudyDefinitionMetaLabel0>
@@ -2426,7 +2457,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>StudyDefinitionMetaLabel1</Name>
               <Page isRef="18" />
               <Parent isRef="60" />
-              <Text>Beschreibung</Text>
+              <Text>Description</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
             </StudyDefinitionMetaLabel1>
@@ -2456,7 +2487,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>StudyDefinitionMetaLabel2</Name>
               <Page isRef="18" />
               <Parent isRef="60" />
-              <Text>Netzmodell</Text>
+              <Text>Network model</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
             </StudyDefinitionMetaLabel2>
@@ -2485,7 +2516,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>StudyDefinitionMetaLabel3</Name>
               <Page isRef="18" />
               <Parent isRef="60" />
-              <Text>Modellversion</Text>
+              <Text>Model version</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
             </StudyDefinitionMetaLabel3>
@@ -2514,7 +2545,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>StudyDefinitionMetaLabel4</Name>
               <Page isRef="18" />
               <Parent isRef="60" />
-              <Text>Simulationsbeginn</Text>
+              <Text>Simulation start</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
             </StudyDefinitionMetaLabel4>
@@ -2543,7 +2574,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>StudyDefinitionMetaLabel5</Name>
               <Page isRef="18" />
               <Parent isRef="60" />
-              <Text>Simulationsende</Text>
+              <Text>Simulation end</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
             </StudyDefinitionMetaLabel5>
@@ -2572,7 +2603,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>StudyDefinitionMetaLabel6</Name>
               <Page isRef="18" />
               <Parent isRef="60" />
-              <Text>Zeitschritt</Text>
+              <Text>Time step</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
             </StudyDefinitionMetaLabel6>
@@ -2615,12 +2646,12 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
           <Parent isRef="18" />
           <Sort isList="true" count="0" />
         </StudyPageBreakBand>
-        <ScenariosTitleBand Ref="75" type="HeaderBand" isKey="true">
+        <CasesTitleBand Ref="75" type="HeaderBand" isKey="true">
           <Brush>Transparent</Brush>
           <ClientRectangle>0,40.38,17,1.35</ClientRectangle>
           <Components isList="true" count="1">
-            <ScenariosTitleBandText Ref="76" type="Text" isKey="true">
-              <Bookmark>section-scenarios</Bookmark>
+            <CasesTitleBandText Ref="76" type="Text" isKey="true">
+              <Bookmark>section-cases</Bookmark>
               <Border>None;Transparent;0;None;False;4;Black</Border>
               <Brush>[181:18:62]</Brush>
               <CanGrow>True</CanGrow>
@@ -2629,28 +2660,28 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,15,Bold</Font>
               <Margins>0.22,0.12,0,0</Margins>
-              <Name>ScenariosTitleBandText</Name>
+              <Name>CasesTitleBandText</Name>
               <Page isRef="18" />
               <Parent isRef="75" />
-              <Pointer>section-scenarios</Pointer>
-              <Text>Untersuchte Szenarien</Text>
+              <Pointer>section-cases</Pointer>
+              <Text>Calculated Cases</Text>
               <TextBrush>White</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </ScenariosTitleBandText>
+            </CasesTitleBandText>
           </Components>
           <Conditions isList="true" count="0" />
           <Expressions isList="true" count="0" />
-          <Name>ScenariosTitleBand</Name>
+          <Name>CasesTitleBand</Name>
           <Page isRef="18" />
           <Parent isRef="18" />
           <PrintOnAllPages>False</PrintOnAllPages>
-        </ScenariosTitleBand>
-        <ScenariosHeaderBand Ref="77" type="HeaderBand" isKey="true">
+        </CasesTitleBand>
+        <CasesHeaderBand Ref="77" type="HeaderBand" isKey="true">
           <Brush>Transparent</Brush>
           <ClientRectangle>0,42.53,17,0.62</ClientRectangle>
           <Components isList="true" count="5">
-            <ScenariosHeaderCell0 Ref="78" type="Text" isKey="true">
+            <CasesHeaderCell0 Ref="78" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>[191:191:191]</Brush>
               <ClientRectangle>0,0,1.6,0.62</ClientRectangle>
@@ -2658,15 +2689,15 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9,Bold</Font>
               <Margins>0.12,0.12,0,0</Margins>
-              <Name>ScenariosHeaderCell0</Name>
+              <Name>CasesHeaderCell0</Name>
               <Page isRef="18" />
               <Parent isRef="77" />
               <Text>ID</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </ScenariosHeaderCell0>
-            <ScenariosHeaderCell1 Ref="79" type="Text" isKey="true">
+            </CasesHeaderCell0>
+            <CasesHeaderCell1 Ref="79" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>[191:191:191]</Brush>
               <ClientRectangle>1.6,0,4.4,0.62</ClientRectangle>
@@ -2674,15 +2705,15 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9,Bold</Font>
               <Margins>0.12,0.12,0,0</Margins>
-              <Name>ScenariosHeaderCell1</Name>
+              <Name>CasesHeaderCell1</Name>
               <Page isRef="18" />
               <Parent isRef="77" />
-              <Text>Szenario</Text>
+              <Text>Case</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </ScenariosHeaderCell1>
-            <ScenariosHeaderCell2 Ref="80" type="Text" isKey="true">
+            </CasesHeaderCell1>
+            <CasesHeaderCell2 Ref="80" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>[191:191:191]</Brush>
               <ClientRectangle>6,0,1.8,0.62</ClientRectangle>
@@ -2691,15 +2722,15 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Font>Segoe UI,9,Bold</Font>
               <HorAlignment>Center</HorAlignment>
               <Margins>0.12,0.12,0,0</Margins>
-              <Name>ScenariosHeaderCell2</Name>
+              <Name>CasesHeaderCell2</Name>
               <Page isRef="18" />
               <Parent isRef="77" />
-              <Text>Referenz</Text>
+              <Text>Reference</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </ScenariosHeaderCell2>
-            <ScenariosHeaderCell3 Ref="81" type="Text" isKey="true">
+            </CasesHeaderCell2>
+            <CasesHeaderCell3 Ref="81" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>[191:191:191]</Brush>
               <ClientRectangle>7.8,0,2.4,0.62</ClientRectangle>
@@ -2707,15 +2738,15 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9,Bold</Font>
               <Margins>0.12,0.12,0,0</Margins>
-              <Name>ScenariosHeaderCell3</Name>
+              <Name>CasesHeaderCell3</Name>
               <Page isRef="18" />
               <Parent isRef="77" />
               <Text>Status</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </ScenariosHeaderCell3>
-            <ScenariosHeaderCell4 Ref="82" type="Text" isKey="true">
+            </CasesHeaderCell3>
+            <CasesHeaderCell4 Ref="82" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>[191:191:191]</Brush>
               <ClientRectangle>10.2,0,6.8,0.62</ClientRectangle>
@@ -2723,28 +2754,28 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9,Bold</Font>
               <Margins>0.12,0.12,0,0</Margins>
-              <Name>ScenariosHeaderCell4</Name>
+              <Name>CasesHeaderCell4</Name>
               <Page isRef="18" />
               <Parent isRef="77" />
-              <Text>Beschreibung</Text>
+              <Text>Description</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </ScenariosHeaderCell4>
+            </CasesHeaderCell4>
           </Components>
           <Conditions isList="true" count="0" />
           <Expressions isList="true" count="0" />
-          <Name>ScenariosHeaderBand</Name>
+          <Name>CasesHeaderBand</Name>
           <Page isRef="18" />
           <Parent isRef="18" />
-        </ScenariosHeaderBand>
-        <ScenariosDataBand Ref="83" type="DataBand" isKey="true">
+        </CasesHeaderBand>
+        <CasesDataBand Ref="83" type="DataBand" isKey="true">
           <Brush>Transparent</Brush>
           <BusinessObjectGuid isNull="true" />
           <CanBreak>True</CanBreak>
           <ClientRectangle>0,43.95,17,0.55</ClientRectangle>
           <Components isList="true" count="5">
-            <ScenariosCell0 Ref="84" type="Text" isKey="true">
+            <CasesCell0 Ref="84" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>Transparent</Brush>
               <CanGrow>True</CanGrow>
@@ -2753,15 +2784,15 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9</Font>
               <Margins>0.12,0.12,0,0</Margins>
-              <Name>ScenariosCell0</Name>
+              <Name>CasesCell0</Name>
               <Page isRef="18" />
               <Parent isRef="83" />
-              <Text>{ScriptedScenarios.scenario_id}</Text>
+              <Text>{ScriptedCases.case_id}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </ScenariosCell0>
-            <ScenariosCell1 Ref="85" type="Text" isKey="true">
+            </CasesCell0>
+            <CasesCell1 Ref="85" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>Transparent</Brush>
               <CanGrow>True</CanGrow>
@@ -2770,15 +2801,15 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9</Font>
               <Margins>0.12,0.12,0,0</Margins>
-              <Name>ScenariosCell1</Name>
+              <Name>CasesCell1</Name>
               <Page isRef="18" />
               <Parent isRef="83" />
-              <Text>{ScriptedScenarios.scenario_name}</Text>
+              <Text>{ScriptedCases.case_name}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </ScenariosCell1>
-            <ScenariosCell2 Ref="86" type="Text" isKey="true">
+            </CasesCell1>
+            <CasesCell2 Ref="86" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>Transparent</Brush>
               <CanGrow>True</CanGrow>
@@ -2788,15 +2819,15 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Font>Segoe UI,9</Font>
               <HorAlignment>Center</HorAlignment>
               <Margins>0.12,0.12,0,0</Margins>
-              <Name>ScenariosCell2</Name>
+              <Name>CasesCell2</Name>
               <Page isRef="18" />
               <Parent isRef="83" />
-              <Text>{ScriptedScenarios.is_reference}</Text>
+              <Text>{ScriptedCases.is_reference}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </ScenariosCell2>
-            <ScenariosCell3 Ref="87" type="Text" isKey="true">
+            </CasesCell2>
+            <CasesCell3 Ref="87" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>Transparent</Brush>
               <CanGrow>True</CanGrow>
@@ -2805,15 +2836,15 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9</Font>
               <Margins>0.12,0.12,0,0</Margins>
-              <Name>ScenariosCell3</Name>
+              <Name>CasesCell3</Name>
               <Page isRef="18" />
               <Parent isRef="83" />
-              <Text>{ScriptedScenarios.simulation_status}</Text>
+              <Text>{ScriptedCases.simulation_status}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </ScenariosCell3>
-            <ScenariosCell4 Ref="88" type="Text" isKey="true">
+            </CasesCell3>
+            <CasesCell4 Ref="88" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>Transparent</Brush>
               <CanGrow>True</CanGrow>
@@ -2822,25 +2853,25 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9</Font>
               <Margins>0.12,0.12,0,0</Margins>
-              <Name>ScenariosCell4</Name>
+              <Name>CasesCell4</Name>
               <Page isRef="18" />
               <Parent isRef="83" />
-              <Text>{ScriptedScenarios.description}</Text>
+              <Text>{ScriptedCases.description}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </ScenariosCell4>
+            </CasesCell4>
           </Components>
           <Conditions isList="true" count="0" />
-          <DataSourceName>ScriptedScenarios</DataSourceName>
+          <DataSourceName>ScriptedCases</DataSourceName>
           <Expressions isList="true" count="0" />
           <Filters isList="true" count="0" />
-          <Name>ScenariosDataBand</Name>
+          <Name>CasesDataBand</Name>
           <Page isRef="18" />
           <Parent isRef="18" />
           <Sort isList="true" count="0" />
-        </ScenariosDataBand>
-        <ScenariosPageBreakBand Ref="705" type="DataBand" isKey="true">
+        </CasesDataBand>
+        <CasesPageBreakBand Ref="705" type="DataBand" isKey="true">
           <Brush>Transparent</Brush>
           <BusinessObjectGuid isNull="true" />
           <ClientRectangle>0,0,17,0.01</ClientRectangle>
@@ -2849,12 +2880,12 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
           <DataSourceName>ScriptedReportMeta</DataSourceName>
           <Expressions isList="true" count="0" />
           <Filters isList="true" count="0" />
-          <Name>ScenariosPageBreakBand</Name>
+          <Name>CasesPageBreakBand</Name>
           <NewPageAfter>True</NewPageAfter>
           <Page isRef="18" />
           <Parent isRef="18" />
           <Sort isList="true" count="0" />
-        </ScenariosPageBreakBand>
+        </CasesPageBreakBand>
         <OutagesTitleBand Ref="89" type="HeaderBand" isKey="true">
           <Brush>Transparent</Brush>
           <ClientRectangle>0,45.3,17,1.35</ClientRectangle>
@@ -2873,7 +2904,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Page isRef="18" />
               <Parent isRef="89" />
               <Pointer>section-outages</Pointer>
-              <Text>Außerbetriebnahmen im Modell</Text>
+              <Text>Planned Outages</Text>
               <TextBrush>White</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -2901,7 +2932,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>OutagesHeaderCell0</Name>
               <Page isRef="18" />
               <Parent isRef="91" />
-              <Text>Element</Text>
+              <Text>Planned outage</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -2917,7 +2948,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>OutagesHeaderCell1</Name>
               <Page isRef="18" />
               <Parent isRef="91" />
-              <Text>Typ</Text>
+              <Text>Status</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -2933,7 +2964,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>OutagesHeaderCell2</Name>
               <Page isRef="18" />
               <Parent isRef="91" />
-              <Text>Beginn</Text>
+              <Text>Equipment</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -2949,7 +2980,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>OutagesHeaderCell3</Name>
               <Page isRef="18" />
               <Parent isRef="91" />
-              <Text>Ende</Text>
+              <Text>Switching actions / period</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -2965,7 +2996,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>OutagesHeaderCell4</Name>
               <Page isRef="18" />
               <Parent isRef="91" />
-              <Text>Aktion</Text>
+              <Text>Skip reason</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -2992,13 +3023,13 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>OutagesGroupCaption</Name>
               <Page isRef="18" />
               <Parent isRef="97" />
-              <Text>{ScriptedOutages.scenario_id}</Text>
+              <Text>{ScriptedPlannedOutages.case_id}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
             </OutagesGroupCaption>
           </Components>
-          <Condition>{ScriptedOutages.scenario_id}</Condition>
+          <Condition>{ScriptedPlannedOutages.case_id}</Condition>
           <Conditions isList="true" count="0" />
           <Expressions isList="true" count="0" />
           <Name>OutagesGroupBand</Name>
@@ -3023,24 +3054,25 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>OutagesCell0</Name>
               <Page isRef="18" />
               <Parent isRef="99" />
-              <Text>{ScriptedOutages.element_name}</Text>
+              <Text>{ScriptedPlannedOutages.outage_name} [{ScriptedPlannedOutages.source_class}]</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
             </OutagesCell0>
             <OutagesCell1 Ref="101" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
-              <Brush>Transparent</Brush>
+              <Brush>[248:248:248]</Brush>
               <CanGrow>True</CanGrow>
               <ClientRectangle>4.4,0,2.2,0.55</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
-              <Font>Segoe UI,9</Font>
+              <Font>Segoe UI,9,Bold</Font>
+              <HorAlignment>Center</HorAlignment>
               <Margins>0.12,0.12,0,0</Margins>
               <Name>OutagesCell1</Name>
               <Page isRef="18" />
               <Parent isRef="99" />
-              <Text>{ScriptedOutages.element_type}</Text>
+              <Text>{ScriptedPlannedOutages.status}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -3057,7 +3089,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>OutagesCell2</Name>
               <Page isRef="18" />
               <Parent isRef="99" />
-              <Text>{ScriptedOutages.start_time}</Text>
+              <Text>{ScriptedPlannedOutages.equipment_name} ({ScriptedPlannedOutages.equipment_type})</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -3074,7 +3106,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>OutagesCell3</Name>
               <Page isRef="18" />
               <Parent isRef="99" />
-              <Text>{ScriptedOutages.end_time}</Text>
+              <Text>{ScriptedPlannedOutages.switching_actions} | {ScriptedPlannedOutages.start_time} - {ScriptedPlannedOutages.end_time}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -3091,14 +3123,14 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>OutagesCell4</Name>
               <Page isRef="18" />
               <Parent isRef="99" />
-              <Text>{ScriptedOutages.action}</Text>
+              <Text>{ScriptedPlannedOutages.skip_reason}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
             </OutagesCell4>
           </Components>
           <Conditions isList="true" count="0" />
-          <DataSourceName>ScriptedOutages</DataSourceName>
+          <DataSourceName>ScriptedPlannedOutages</DataSourceName>
           <Expressions isList="true" count="0" />
           <Filters isList="true" count="0" />
           <Name>OutagesDataBand</Name>
@@ -3121,11 +3153,11 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
           <Parent isRef="18" />
           <Sort isList="true" count="0" />
         </OutagesPageBreakBand>
-        <ScenarioMatrixTitleBand Ref="105" type="HeaderBand" isKey="true">
+        <CaseMatrixTitleBand Ref="105" type="HeaderBand" isKey="true">
           <Brush>Transparent</Brush>
           <ClientRectangle>0,51.62,17,1.85</ClientRectangle>
           <Components isList="true" count="2">
-            <ScenarioMatrixTitleBandText Ref="106" type="Text" isKey="true">
+            <CaseMatrixTitleBandText Ref="106" type="Text" isKey="true">
               <Bookmark>section-matrix</Bookmark>
               <Border>None;Transparent;0;None;False;4;Black</Border>
               <Brush>[181:18:62]</Brush>
@@ -3135,16 +3167,16 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,15,Bold</Font>
               <Margins>0.22,0.12,0,0</Margins>
-              <Name>ScenarioMatrixTitleBandText</Name>
+              <Name>CaseMatrixTitleBandText</Name>
               <Page isRef="18" />
               <Parent isRef="105" />
               <Pointer>section-matrix</Pointer>
-              <Text>Szenario-Matrix</Text>
+              <Text>Out-of-Service Matrix</Text>
               <TextBrush>White</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </ScenarioMatrixTitleBandText>
-            <ScenarioMatrixTitleBandSubtitle Ref="107" type="Text" isKey="true">
+            </CaseMatrixTitleBandText>
+            <CaseMatrixTitleBandSubtitle Ref="107" type="Text" isKey="true">
               <Border>None;Transparent;0;None;False;4;Black</Border>
               <Brush>Transparent</Brush>
               <CanGrow>True</CanGrow>
@@ -3153,27 +3185,27 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,8</Font>
               <Margins>0.12,0.12,0,0</Margins>
-              <Name>ScenarioMatrixTitleBandSubtitle</Name>
+              <Name>CaseMatrixTitleBandSubtitle</Name>
               <Page isRef="18" />
               <Parent isRef="105" />
-              <Text>Nur Betriebsmittel mit outserv=1; Zuordnung über die kompakte Fall-ID.</Text>
+              <Text>Only equipment with outserv=1, assigned by compact case ID.</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </ScenarioMatrixTitleBandSubtitle>
+            </CaseMatrixTitleBandSubtitle>
           </Components>
           <Conditions isList="true" count="0" />
           <Expressions isList="true" count="0" />
-          <Name>ScenarioMatrixTitleBand</Name>
+          <Name>CaseMatrixTitleBand</Name>
           <Page isRef="18" />
           <Parent isRef="18" />
           <PrintOnAllPages>False</PrintOnAllPages>
-        </ScenarioMatrixTitleBand>
-        <ScenarioMatrixHeaderBand Ref="108" type="HeaderBand" isKey="true">
+        </CaseMatrixTitleBand>
+        <CaseMatrixHeaderBand Ref="108" type="HeaderBand" isKey="true">
           <Brush>Transparent</Brush>
           <ClientRectangle>0,54.27,17,0.62</ClientRectangle>
           <Components isList="true" count="4">
-            <ScenarioMatrixHeaderCell0 Ref="109" type="Text" isKey="true">
+            <CaseMatrixHeaderCell0 Ref="109" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>[191:191:191]</Brush>
               <ClientRectangle>0,0,3,0.62</ClientRectangle>
@@ -3181,15 +3213,15 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9,Bold</Font>
               <Margins>0.12,0.12,0,0</Margins>
-              <Name>ScenarioMatrixHeaderCell0</Name>
+              <Name>CaseMatrixHeaderCell0</Name>
               <Page isRef="18" />
               <Parent isRef="108" />
-              <Text>Szenario</Text>
+              <Text>Case</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </ScenarioMatrixHeaderCell0>
-            <ScenarioMatrixHeaderCell1 Ref="110" type="Text" isKey="true">
+            </CaseMatrixHeaderCell0>
+            <CaseMatrixHeaderCell1 Ref="110" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>[191:191:191]</Brush>
               <ClientRectangle>3,0,3,0.62</ClientRectangle>
@@ -3198,15 +3230,15 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Font>Segoe UI,9,Bold</Font>
               <HorAlignment>Center</HorAlignment>
               <Margins>0.12,0.12,0,0</Margins>
-              <Name>ScenarioMatrixHeaderCell1</Name>
+              <Name>CaseMatrixHeaderCell1</Name>
               <Page isRef="18" />
               <Parent isRef="108" />
               <Text>Status</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </ScenarioMatrixHeaderCell1>
-            <ScenarioMatrixHeaderCell2 Ref="111" type="Text" isKey="true">
+            </CaseMatrixHeaderCell1>
+            <CaseMatrixHeaderCell2 Ref="111" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>[191:191:191]</Brush>
               <ClientRectangle>6,0,5,0.62</ClientRectangle>
@@ -3214,15 +3246,15 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9,Bold</Font>
               <Margins>0.12,0.12,0,0</Margins>
-              <Name>ScenarioMatrixHeaderCell2</Name>
+              <Name>CaseMatrixHeaderCell2</Name>
               <Page isRef="18" />
               <Parent isRef="108" />
               <Text>Element-ID</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </ScenarioMatrixHeaderCell2>
-            <ScenarioMatrixHeaderCell3 Ref="112" type="Text" isKey="true">
+            </CaseMatrixHeaderCell2>
+            <CaseMatrixHeaderCell3 Ref="112" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>[191:191:191]</Brush>
               <ClientRectangle>11,0,6,0.62</ClientRectangle>
@@ -3230,26 +3262,26 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9,Bold</Font>
               <Margins>0.12,0.12,0,0</Margins>
-              <Name>ScenarioMatrixHeaderCell3</Name>
+              <Name>CaseMatrixHeaderCell3</Name>
               <Page isRef="18" />
               <Parent isRef="108" />
-              <Text>Typ</Text>
+              <Text>Type</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </ScenarioMatrixHeaderCell3>
+            </CaseMatrixHeaderCell3>
           </Components>
           <Conditions isList="true" count="0" />
           <Expressions isList="true" count="0" />
-          <Name>ScenarioMatrixHeaderBand</Name>
+          <Name>CaseMatrixHeaderBand</Name>
           <Page isRef="18" />
           <Parent isRef="18" />
-        </ScenarioMatrixHeaderBand>
-        <ScenarioMatrixGroupBand Ref="113" type="GroupHeaderBand" isKey="true">
+        </CaseMatrixHeaderBand>
+        <CaseMatrixGroupBand Ref="113" type="GroupHeaderBand" isKey="true">
           <Brush>Transparent</Brush>
           <ClientRectangle>0,55.69,17,0.6</ClientRectangle>
           <Components isList="true" count="1">
-            <ScenarioMatrixGroupCaption Ref="114" type="Text" isKey="true">
+            <CaseMatrixGroupCaption Ref="114" type="Text" isKey="true">
               <Border>None;Transparent;0;None;False;4;Black</Border>
               <Brush>Transparent</Brush>
               <ClientRectangle>0,0.15,17,0.45</ClientRectangle>
@@ -3257,29 +3289,29 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,10.5,Bold</Font>
               <Margins>0.12,0.12,0,0</Margins>
-              <Name>ScenarioMatrixGroupCaption</Name>
+              <Name>CaseMatrixGroupCaption</Name>
               <Page isRef="18" />
               <Parent isRef="113" />
-              <Text>{ScriptedScenarioMatrix.element_name} ({ScriptedScenarioMatrix.element_type})</Text>
+              <Text>{ScriptedCaseMatrix.element_name} ({ScriptedCaseMatrix.element_type})</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </ScenarioMatrixGroupCaption>
+            </CaseMatrixGroupCaption>
           </Components>
-          <Condition>{ScriptedScenarioMatrix.element_name}</Condition>
+          <Condition>{ScriptedCaseMatrix.element_name}</Condition>
           <Conditions isList="true" count="0" />
           <Expressions isList="true" count="0" />
-          <Name>ScenarioMatrixGroupBand</Name>
+          <Name>CaseMatrixGroupBand</Name>
           <Page isRef="18" />
           <Parent isRef="18" />
-        </ScenarioMatrixGroupBand>
-        <ScenarioMatrixDataBand Ref="115" type="DataBand" isKey="true">
+        </CaseMatrixGroupBand>
+        <CaseMatrixDataBand Ref="115" type="DataBand" isKey="true">
           <Brush>Transparent</Brush>
           <BusinessObjectGuid isNull="true" />
           <CanBreak>True</CanBreak>
           <ClientRectangle>0,57.09,17,0.55</ClientRectangle>
           <Components isList="true" count="4">
-            <ScenarioMatrixCell0 Ref="116" type="Text" isKey="true">
+            <CaseMatrixCell0 Ref="116" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>Transparent</Brush>
               <CanGrow>True</CanGrow>
@@ -3288,15 +3320,15 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9</Font>
               <Margins>0.12,0.12,0,0</Margins>
-              <Name>ScenarioMatrixCell0</Name>
+              <Name>CaseMatrixCell0</Name>
               <Page isRef="18" />
               <Parent isRef="115" />
-              <Text>{ScriptedScenarioMatrix.scenario_id}</Text>
+              <Text>{ScriptedCaseMatrix.case_id}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </ScenarioMatrixCell0>
-            <ScenarioMatrixCell1 Ref="117" type="Text" isKey="true">
+            </CaseMatrixCell0>
+            <CaseMatrixCell1 Ref="117" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>Transparent</Brush>
               <CanGrow>True</CanGrow>
@@ -3306,15 +3338,15 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Font>Segoe UI,9</Font>
               <HorAlignment>Center</HorAlignment>
               <Margins>0.12,0.12,0,0</Margins>
-              <Name>ScenarioMatrixCell1</Name>
+              <Name>CaseMatrixCell1</Name>
               <Page isRef="18" />
               <Parent isRef="115" />
-              <Text>{ScriptedScenarioMatrix.status_label}</Text>
+              <Text>{ScriptedCaseMatrix.status_label}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </ScenarioMatrixCell1>
-            <ScenarioMatrixCell2 Ref="118" type="Text" isKey="true">
+            </CaseMatrixCell1>
+            <CaseMatrixCell2 Ref="118" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>Transparent</Brush>
               <CanGrow>True</CanGrow>
@@ -3323,15 +3355,15 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9</Font>
               <Margins>0.12,0.12,0,0</Margins>
-              <Name>ScenarioMatrixCell2</Name>
+              <Name>CaseMatrixCell2</Name>
               <Page isRef="18" />
               <Parent isRef="115" />
-              <Text>{ScriptedScenarioMatrix.element_id}</Text>
+              <Text>{ScriptedCaseMatrix.element_id}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </ScenarioMatrixCell2>
-            <ScenarioMatrixCell3 Ref="119" type="Text" isKey="true">
+            </CaseMatrixCell2>
+            <CaseMatrixCell3 Ref="119" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>Transparent</Brush>
               <CanGrow>True</CanGrow>
@@ -3340,24 +3372,24 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9</Font>
               <Margins>0.12,0.12,0,0</Margins>
-              <Name>ScenarioMatrixCell3</Name>
+              <Name>CaseMatrixCell3</Name>
               <Page isRef="18" />
               <Parent isRef="115" />
-              <Text>{ScriptedScenarioMatrix.element_type}</Text>
+              <Text>{ScriptedCaseMatrix.element_type}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </ScenarioMatrixCell3>
+            </CaseMatrixCell3>
           </Components>
           <Conditions isList="true" count="0" />
-          <DataSourceName>ScriptedScenarioMatrix</DataSourceName>
+          <DataSourceName>ScriptedCaseMatrix</DataSourceName>
           <Expressions isList="true" count="0" />
           <Filters isList="true" count="0" />
-          <Name>ScenarioMatrixDataBand</Name>
+          <Name>CaseMatrixDataBand</Name>
           <Page isRef="18" />
           <Parent isRef="18" />
           <Sort isList="true" count="0" />
-        </ScenarioMatrixDataBand>
+        </CaseMatrixDataBand>
         <ReferencePageBreakBand Ref="483" type="DataBand" isKey="true">
           <Brush>Transparent</Brush>
           <BusinessObjectGuid isNull="true" />
@@ -3391,7 +3423,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Page isRef="18" />
               <Parent isRef="120" />
               <Pointer>section-reference</Pointer>
-              <Text>Aktiver Ergebniszustand</Text>
+              <Text>Governing Results</Text>
               <TextBrush>White</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -3408,7 +3440,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ReferenceStateTitleBandSubtitle</Name>
               <Page isRef="18" />
               <Parent isRef="120" />
-              <Text>Grenzwertverletzungen aller berechneten Fälle mit Vergleich gegen REF.</Text>
+              <Text>Limit violations for all calculated cases compared with REF.</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -3436,7 +3468,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ReferenceStateHeaderCell0</Name>
               <Page isRef="18" />
               <Parent isRef="123" />
-              <Text>Kennzahl</Text>
+              <Text>Metric</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -3453,7 +3485,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ReferenceStateHeaderCell1</Name>
               <Page isRef="18" />
               <Parent isRef="123" />
-              <Text>Wert</Text>
+              <Text>Value</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -3469,7 +3501,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ReferenceStateHeaderCell2</Name>
               <Page isRef="18" />
               <Parent isRef="123" />
-              <Text>Einheit</Text>
+              <Text>Unit</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -3485,7 +3517,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ReferenceStateHeaderCell3</Name>
               <Page isRef="18" />
               <Parent isRef="123" />
-              <Text>Maßgebendes Element</Text>
+              <Text>Governing equipment</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -3515,7 +3547,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ReferenceStateCell0</Name>
               <Page isRef="18" />
               <Parent isRef="128" />
-              <Text>{ScriptedScenarioComparison.metric_name}</Text>
+              <Text>{ScriptedCaseComparison.metric_name}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -3533,7 +3565,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ReferenceStateCell1</Name>
               <Page isRef="18" />
               <Parent isRef="128" />
-              <Text>{ScriptedScenarioComparison.metric_value}</Text>
+              <Text>{ScriptedCaseComparison.metric_value}</Text>
               <TextBrush>[145:13:48]</TextBrush>
               <TextFormat Ref="131" type="CustomFormat" isKey="true">
                 <StringFormat>0.0##</StringFormat>
@@ -3553,7 +3585,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ReferenceStateCell2</Name>
               <Page isRef="18" />
               <Parent isRef="128" />
-              <Text>{ScriptedScenarioComparison.unit}</Text>
+              <Text>{ScriptedCaseComparison.unit}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -3570,14 +3602,14 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ReferenceStateCell3</Name>
               <Page isRef="18" />
               <Parent isRef="128" />
-              <Text>{ScriptedScenarioComparison.element_name}</Text>
+              <Text>{ScriptedCaseComparison.element_name}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
             </ReferenceStateCell3>
           </Components>
           <Conditions isList="true" count="0" />
-          <DataSourceName>ScriptedScenarioComparison</DataSourceName>
+          <DataSourceName>ScriptedCaseComparison</DataSourceName>
           <Expressions isList="true" count="0" />
           <Filters isList="true" count="0" />
           <Name>ReferenceStateDataBand</Name>
@@ -4281,7 +4313,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Page isRef="139" />
               <Parent isRef="146" />
               <Pointer>section-comparison</Pointer>
-              <Text>Kennwertübersicht</Text>
+              <Text>Metric Overview</Text>
               <TextBrush>White</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -4298,7 +4330,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ScenarioComparisonTitleBandSubtitle</Name>
               <Page isRef="139" />
               <Parent isRef="146" />
-              <Text>Maßgebende Kennwerte aller erfolgreich berechneten Fälle.</Text>
+              <Text>Governing metrics for all successfully calculated cases.</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -4326,7 +4358,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ScenarioComparisonHeaderCell0</Name>
               <Page isRef="139" />
               <Parent isRef="149" />
-              <Text>Szenario</Text>
+              <Text>Case</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -4343,7 +4375,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ScenarioComparisonHeaderCell1</Name>
               <Page isRef="139" />
               <Parent isRef="149" />
-              <Text>Wert</Text>
+              <Text>Value</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -4359,7 +4391,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ScenarioComparisonHeaderCell2</Name>
               <Page isRef="139" />
               <Parent isRef="149" />
-              <Text>Einheit</Text>
+              <Text>Unit</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -4375,7 +4407,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ScenarioComparisonHeaderCell3</Name>
               <Page isRef="139" />
               <Parent isRef="149" />
-              <Text>Maßgebendes Element</Text>
+              <Text>Governing equipment</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -4418,13 +4450,13 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ScenarioComparisonGroupCaption</Name>
               <Page isRef="139" />
               <Parent isRef="155" />
-              <Text>{ScriptedScenarioComparison.metric_name} ({ScriptedScenarioComparison.unit})</Text>
+              <Text>{ScriptedCaseComparison.metric_name} ({ScriptedCaseComparison.unit})</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
             </ScenarioComparisonGroupCaption>
           </Components>
-          <Condition>{ScriptedScenarioComparison.metric_name}</Condition>
+          <Condition>{ScriptedCaseComparison.metric_name}</Condition>
           <Conditions isList="true" count="0" />
           <Expressions isList="true" count="0" />
           <Name>ScenarioComparisonGroupBand</Name>
@@ -4449,7 +4481,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ScenarioComparisonCell0</Name>
               <Page isRef="139" />
               <Parent isRef="157" />
-              <Text>{ScriptedScenarioComparison.scenario_id}</Text>
+              <Text>{ScriptedCaseComparison.case_id}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -4467,7 +4499,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ScenarioComparisonCell1</Name>
               <Page isRef="139" />
               <Parent isRef="157" />
-              <Text>{ScriptedScenarioComparison.metric_value}</Text>
+              <Text>{ScriptedCaseComparison.metric_value}</Text>
               <TextBrush>[145:13:48]</TextBrush>
               <TextFormat Ref="160" type="CustomFormat" isKey="true">
                 <StringFormat>0.0##</StringFormat>
@@ -4487,7 +4519,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ScenarioComparisonCell2</Name>
               <Page isRef="139" />
               <Parent isRef="157" />
-              <Text>{ScriptedScenarioComparison.unit}</Text>
+              <Text>{ScriptedCaseComparison.unit}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -4504,7 +4536,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ScenarioComparisonCell3</Name>
               <Page isRef="139" />
               <Parent isRef="157" />
-              <Text>{ScriptedScenarioComparison.element_name}</Text>
+              <Text>{ScriptedCaseComparison.element_name}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -4521,14 +4553,14 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>ScenarioComparisonCell4</Name>
               <Page isRef="139" />
               <Parent isRef="157" />
-              <Text>{ScriptedScenarioComparison.element_id}</Text>
+              <Text>{ScriptedCaseComparison.element_id}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
             </ScenarioComparisonCell4>
           </Components>
           <Conditions isList="true" count="0" />
-          <DataSourceName>ScriptedScenarioComparison</DataSourceName>
+          <DataSourceName>ScriptedCaseComparison</DataSourceName>
           <Expressions isList="true" count="0" />
           <Filters isList="true" count="0" />
           <Name>ScenarioComparisonDataBand</Name>
@@ -5233,7 +5265,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Page isRef="169" />
               <Parent isRef="176" />
               <Pointer>section-lines</Pointer>
-              <Text>Leitungsanalyse</Text>
+              <Text>Line Analysis</Text>
               <TextBrush>White</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -5299,7 +5331,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                     <Color>70, 70, 70</Color>
                     <Direction>LeftToRight</Direction>
                     <Font>Segoe UI,9,Bold</Font>
-                    <Text>Auslastung [%]</Text>
+                    <Text>Loading [%]</Text>
                   </Title>
                 </XAxis>
                 <XTopAxis Ref="506" type="Stimulsoft.Report.Chart.StiXTopAxis" isKey="true">
@@ -5400,7 +5432,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                     <MarkerSize>8, 6</MarkerSize>
                     <ValueTypeSeparator>-</ValueTypeSeparator>
                   </SeriesLabels>
-                  <Title>Maximale Auslastung</Title>
+                  <Title>Maximum Loading</Title>
                   <TopN Ref="533" type="Stimulsoft.Report.Chart.StiSeriesTopN" isKey="true" />
                   <TrendLine Ref="534" type="Stimulsoft.Report.Chart.StiTrendLineNone" isKey="true">
                     <LineColor>Black</LineColor>
@@ -5456,7 +5488,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>LineAnalysisMaxSubheading</Name>
               <Page isRef="169" />
               <Parent isRef="178" />
-              <Text>Höchste Leitungsauslastungen</Text>
+              <Text>Highest Line Loadings</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -5485,7 +5517,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>LineAnalysisMaxHeaderCell0</Name>
               <Page isRef="169" />
               <Parent isRef="180" />
-              <Text>Rang</Text>
+              <Text>Rank</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -5501,7 +5533,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>LineAnalysisMaxHeaderCell1</Name>
               <Page isRef="169" />
               <Parent isRef="180" />
-              <Text>Szenario</Text>
+              <Text>Case</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -5517,7 +5549,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>LineAnalysisMaxHeaderCell2</Name>
               <Page isRef="169" />
               <Parent isRef="180" />
-              <Text>Element</Text>
+              <Text>Equipment</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -5534,7 +5566,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>LineAnalysisMaxHeaderCell3</Name>
               <Page isRef="169" />
               <Parent isRef="180" />
-              <Text>Max. Auslastung [%]</Text>
+              <Text>Max. loading [%]</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -5550,7 +5582,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>LineAnalysisMaxHeaderCell4</Name>
               <Page isRef="169" />
               <Parent isRef="180" />
-              <Text>Zeitpunkt</Text>
+              <Text>Time</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -5606,7 +5638,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>LineAnalysisMaxCell1</Name>
               <Page isRef="169" />
               <Parent isRef="186" />
-              <Text>{ScriptedRankings.scenario_id}</Text>
+              <Text>{ScriptedRankings.case_id}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -5716,7 +5748,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Page isRef="169" />
               <Parent isRef="214" />
               <Pointer>section-transformers</Pointer>
-              <Text>Transformatoranalyse</Text>
+              <Text>Transformer Analysis</Text>
               <TextBrush>White</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -5782,7 +5814,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                     <Color>70, 70, 70</Color>
                     <Direction>LeftToRight</Direction>
                     <Font>Segoe UI,9,Bold</Font>
-                    <Text>Auslastung [%]</Text>
+                    <Text>Loading [%]</Text>
                   </Title>
                 </XAxis>
                 <XTopAxis Ref="551" type="Stimulsoft.Report.Chart.StiXTopAxis" isKey="true">
@@ -5883,7 +5915,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                     <MarkerSize>8, 6</MarkerSize>
                     <ValueTypeSeparator>-</ValueTypeSeparator>
                   </SeriesLabels>
-                  <Title>Maximale Auslastung</Title>
+                  <Title>Maximum Loading</Title>
                   <TopN Ref="578" type="Stimulsoft.Report.Chart.StiSeriesTopN" isKey="true" />
                   <TrendLine Ref="579" type="Stimulsoft.Report.Chart.StiTrendLineNone" isKey="true">
                     <LineColor>Black</LineColor>
@@ -5939,7 +5971,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>TransformerAnalysisMaxSubheading</Name>
               <Page isRef="169" />
               <Parent isRef="216" />
-              <Text>Höchste Transformatorauslastungen</Text>
+              <Text>Highest Transformer Loadings</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -5968,7 +6000,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>TransformerAnalysisMaxHeaderCell0</Name>
               <Page isRef="169" />
               <Parent isRef="218" />
-              <Text>Rang</Text>
+              <Text>Rank</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -5984,7 +6016,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>TransformerAnalysisMaxHeaderCell1</Name>
               <Page isRef="169" />
               <Parent isRef="218" />
-              <Text>Szenario</Text>
+              <Text>Case</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -6000,7 +6032,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>TransformerAnalysisMaxHeaderCell2</Name>
               <Page isRef="169" />
               <Parent isRef="218" />
-              <Text>Element</Text>
+              <Text>Equipment</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -6017,7 +6049,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>TransformerAnalysisMaxHeaderCell3</Name>
               <Page isRef="169" />
               <Parent isRef="218" />
-              <Text>Max. Auslastung [%]</Text>
+              <Text>Max. loading [%]</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -6033,7 +6065,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>TransformerAnalysisMaxHeaderCell4</Name>
               <Page isRef="169" />
               <Parent isRef="218" />
-              <Text>Zeitpunkt</Text>
+              <Text>Time</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -6089,7 +6121,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>TransformerAnalysisMaxCell1</Name>
               <Page isRef="169" />
               <Parent isRef="224" />
-              <Text>{ScriptedRankings.scenario_id}</Text>
+              <Text>{ScriptedRankings.case_id}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -6199,7 +6231,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Page isRef="169" />
               <Parent isRef="252" />
               <Pointer>section-voltage</Pointer>
-              <Text>Spannungsbeträge</Text>
+              <Text>Voltage Magnitudes</Text>
               <TextBrush>White</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -6265,7 +6297,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                     <Color>70, 70, 70</Color>
                     <Direction>LeftToRight</Direction>
                     <Font>Segoe UI,9,Bold</Font>
-                    <Text>Spannung [p.u.]</Text>
+                    <Text>Voltage [p.u.]</Text>
                   </Title>
                 </XAxis>
                 <XTopAxis Ref="596" type="Stimulsoft.Report.Chart.StiXTopAxis" isKey="true">
@@ -6451,7 +6483,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>VoltageAnalysisMinSubheading</Name>
               <Page isRef="169" />
               <Parent isRef="254" />
-              <Text>Niedrigste Spannungen</Text>
+              <Text>Lowest Voltages</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -6480,7 +6512,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>VoltageAnalysisMinHeaderCell0</Name>
               <Page isRef="169" />
               <Parent isRef="256" />
-              <Text>Rang</Text>
+              <Text>Rank</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -6496,7 +6528,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>VoltageAnalysisMinHeaderCell1</Name>
               <Page isRef="169" />
               <Parent isRef="256" />
-              <Text>Szenario</Text>
+              <Text>Case</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -6512,7 +6544,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>VoltageAnalysisMinHeaderCell2</Name>
               <Page isRef="169" />
               <Parent isRef="256" />
-              <Text>Element</Text>
+              <Text>Equipment</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -6529,7 +6561,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>VoltageAnalysisMinHeaderCell3</Name>
               <Page isRef="169" />
               <Parent isRef="256" />
-              <Text>Min. Spannung [p.u.]</Text>
+              <Text>Min. voltage [p.u.]</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -6545,7 +6577,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>VoltageAnalysisMinHeaderCell4</Name>
               <Page isRef="169" />
               <Parent isRef="256" />
-              <Text>Zeitpunkt</Text>
+              <Text>Time</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -6601,7 +6633,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>VoltageAnalysisMinCell1</Name>
               <Page isRef="169" />
               <Parent isRef="262" />
-              <Text>{ScriptedRankings.scenario_id}</Text>
+              <Text>{ScriptedRankings.case_id}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -6694,7 +6726,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>VoltageAnalysisMaxSubheading</Name>
               <Page isRef="169" />
               <Parent isRef="270" />
-              <Text>Höchste Spannungen</Text>
+              <Text>Highest Voltages</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -6723,7 +6755,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>VoltageAnalysisMaxHeaderCell0</Name>
               <Page isRef="169" />
               <Parent isRef="272" />
-              <Text>Rang</Text>
+              <Text>Rank</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -6739,7 +6771,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>VoltageAnalysisMaxHeaderCell1</Name>
               <Page isRef="169" />
               <Parent isRef="272" />
-              <Text>Szenario</Text>
+              <Text>Case</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -6755,7 +6787,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>VoltageAnalysisMaxHeaderCell2</Name>
               <Page isRef="169" />
               <Parent isRef="272" />
-              <Text>Element</Text>
+              <Text>Equipment</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -6772,7 +6804,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>VoltageAnalysisMaxHeaderCell3</Name>
               <Page isRef="169" />
               <Parent isRef="272" />
-              <Text>Max. Spannung [p.u.]</Text>
+              <Text>Max. voltage [p.u.]</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -6788,7 +6820,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>VoltageAnalysisMaxHeaderCell4</Name>
               <Page isRef="169" />
               <Parent isRef="272" />
-              <Text>Zeitpunkt</Text>
+              <Text>Time</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -6844,7 +6876,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>VoltageAnalysisMaxCell1</Name>
               <Page isRef="169" />
               <Parent isRef="278" />
-              <Text>{ScriptedRankings.scenario_id}</Text>
+              <Text>{ScriptedRankings.case_id}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -6954,7 +6986,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Page isRef="169" />
               <Parent isRef="631" />
               <Pointer>section-voltage-angle</Pointer>
-              <Text>Spannungswinkel (informativ)</Text>
+              <Text>Voltage Angles (Informational)</Text>
               <TextBrush>White</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -6971,7 +7003,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>VoltageAngleAnalysisSubtitle</Name>
               <Page isRef="169" />
               <Parent isRef="631" />
-              <Text>Keine Balken bedeuten: m:phiu oder m:phiu1 fehlt in den ausgewerteten ElmRes.</Text>
+              <Text>No bars means m:phiu or m:phiu1 is missing from the evaluated ElmRes.</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -7037,7 +7069,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                     <Color>70, 70, 70</Color>
                     <Direction>LeftToRight</Direction>
                     <Font>Segoe UI,9,Bold</Font>
-                    <Text>Spannungswinkel [deg]</Text>
+                    <Text>Voltage angle [deg]</Text>
                   </Title>
                 </XAxis>
                 <XTopAxis Ref="648" type="Stimulsoft.Report.Chart.StiXTopAxis" isKey="true">
@@ -7222,7 +7254,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>VoltageAngleHeaderCell0</Name>
               <Page isRef="169" />
               <Parent isRef="683" />
-              <Text>Knoten</Text>
+              <Text>Bus</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -7238,7 +7270,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>VoltageAngleHeaderCell1</Name>
               <Page isRef="169" />
               <Parent isRef="683" />
-              <Text>Ebene</Text>
+              <Text>Voltage level</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -7289,7 +7321,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>VoltageAngleHeaderCell4</Name>
               <Page isRef="169" />
               <Parent isRef="683" />
-              <Text>Mittel [deg]</Text>
+              <Text>Mean [deg]</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -7306,7 +7338,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>VoltageAngleHeaderCell5</Name>
               <Page isRef="169" />
               <Parent isRef="683" />
-              <Text>Spanne [deg]</Text>
+              <Text>Range [deg]</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -7322,7 +7354,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>VoltageAngleHeaderCell6</Name>
               <Page isRef="169" />
               <Parent isRef="683" />
-              <Text>Extremzeitpunkt</Text>
+              <Text>Extreme time</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -7538,7 +7570,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Page isRef="169" />
               <Parent isRef="326" />
               <Pointer>section-times</Pointer>
-              <Text>Relevante Zeitpunkte</Text>
+              <Text>Relevant Time Points</Text>
               <TextBrush>White</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -7555,7 +7587,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>RelevantTimePointsTitleBandSubtitle</Name>
               <Page isRef="169" />
               <Parent isRef="326" />
-              <Text>Zeitpunkte der im Bericht enthaltenen Grenzwertverletzungen.</Text>
+              <Text>Times of the limit violations included in this report.</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -7583,7 +7615,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>RelevantTimePointsHeaderCell0</Name>
               <Page isRef="169" />
               <Parent isRef="329" />
-              <Text>Zeitpunkt</Text>
+              <Text>Time</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -7599,7 +7631,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>RelevantTimePointsHeaderCell1</Name>
               <Page isRef="169" />
               <Parent isRef="329" />
-              <Text>Szenario</Text>
+              <Text>Case</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -7615,7 +7647,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>RelevantTimePointsHeaderCell2</Name>
               <Page isRef="169" />
               <Parent isRef="329" />
-              <Text>Grund</Text>
+              <Text>Reason</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -7631,7 +7663,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>RelevantTimePointsHeaderCell3</Name>
               <Page isRef="169" />
               <Parent isRef="329" />
-              <Text>Element</Text>
+              <Text>Equipment</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -7648,7 +7680,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>RelevantTimePointsHeaderCell4</Name>
               <Page isRef="169" />
               <Parent isRef="329" />
-              <Text>Wert</Text>
+              <Text>Value</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -7664,7 +7696,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>RelevantTimePointsHeaderCell5</Name>
               <Page isRef="169" />
               <Parent isRef="329" />
-              <Text>Einheit</Text>
+              <Text>Unit</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -7711,7 +7743,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>RelevantTimePointsCell1</Name>
               <Page isRef="169" />
               <Parent isRef="336" />
-              <Text>{ScriptedRelevantTimePoints.scenario_id}</Text>
+              <Text>{ScriptedRelevantTimePoints.case_id}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -7831,7 +7863,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Page isRef="169" />
               <Parent isRef="344" />
               <Pointer>section-plots</Pointer>
-              <Text>Zeitreihen</Text>
+              <Text>Time Series</Text>
               <TextBrush>White</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -7848,7 +7880,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>PlotsTitleBandSubtitle</Name>
               <Page isRef="169" />
               <Parent isRef="344" />
-              <Text>Automatisch skalierte Zeitreihen der kritischsten Betriebsmittel.</Text>
+              <Text>Automatically scaled time series for the most critical equipment.</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -7911,7 +7943,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                   <Title Ref="486" type="Stimulsoft.Report.Chart.StiAxisTitle" isKey="true">
                     <Color>140, 140, 140</Color>
                     <Font>Segoe UI,9,Bold</Font>
-                    <Text>Zeit [h]</Text>
+                    <Text>Time [h]</Text>
                   </Title>
                 </XAxis>
                 <YAxis Ref="352" type="Stimulsoft.Report.Chart.StiYLeftAxis" isKey="true">
@@ -8053,7 +8085,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Page isRef="169" />
               <Parent isRef="364" />
               <Pointer>section-appendix</Pointer>
-              <Text>Anhang: Detailstatistiken</Text>
+              <Text>Appendix: Detailed Statistics</Text>
               <TextBrush>White</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -8070,7 +8102,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>AppendixTitleBandSubtitle</Name>
               <Page isRef="169" />
               <Parent isRef="364" />
-              <Text>Detailwerte ausschließlich für erkannte Grenzwertverletzungen.</Text>
+              <Text>Detailed values only for detected limit violations.</Text>
               <TextBrush>[90:90:90]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -8099,7 +8131,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>AppendixLinesSubheading</Name>
               <Page isRef="169" />
               <Parent isRef="367" />
-              <Text>Leitungen</Text>
+              <Text>Lines</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -8127,7 +8159,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>AppendixLinesHeaderCell0</Name>
               <Page isRef="169" />
               <Parent isRef="369" />
-              <Text>Szen.</Text>
+              <Text>Case</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -8143,7 +8175,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>AppendixLinesHeaderCell1</Name>
               <Page isRef="169" />
               <Parent isRef="369" />
-              <Text>Leitung</Text>
+              <Text>Line</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -8159,7 +8191,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>AppendixLinesHeaderCell2</Name>
               <Page isRef="169" />
               <Parent isRef="369" />
-              <Text>Ebene</Text>
+              <Text>Voltage level</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -8210,7 +8242,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>AppendixLinesHeaderCell5</Name>
               <Page isRef="169" />
               <Parent isRef="369" />
-              <Text>Mittel [%]</Text>
+              <Text>Mean [%]</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -8274,7 +8306,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>AppendixLinesCell0</Name>
               <Page isRef="169" />
               <Parent isRef="378" />
-              <Text>{ScriptedLineStatistics.scenario_id}</Text>
+              <Text>{ScriptedLineStatistics.case_id}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -8469,7 +8501,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>AppendixTransformersSubheading</Name>
               <Page isRef="169" />
               <Parent isRef="392" />
-              <Text>Transformatoren</Text>
+              <Text>Transformers</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -8497,7 +8529,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>AppendixTransformersHeaderCell0</Name>
               <Page isRef="169" />
               <Parent isRef="394" />
-              <Text>Szen.</Text>
+              <Text>Case</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -8513,7 +8545,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>AppendixTransformersHeaderCell1</Name>
               <Page isRef="169" />
               <Parent isRef="394" />
-              <Text>Transformator</Text>
+              <Text>Transformer</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -8529,7 +8561,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>AppendixTransformersHeaderCell2</Name>
               <Page isRef="169" />
               <Parent isRef="394" />
-              <Text>Ebene</Text>
+              <Text>Voltage level</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -8580,7 +8612,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>AppendixTransformersHeaderCell5</Name>
               <Page isRef="169" />
               <Parent isRef="394" />
-              <Text>Mittel [%]</Text>
+              <Text>Mean [%]</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -8644,7 +8676,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>AppendixTransformersCell0</Name>
               <Page isRef="169" />
               <Parent isRef="403" />
-              <Text>{ScriptedTransformerStatistics.scenario_id}</Text>
+              <Text>{ScriptedTransformerStatistics.case_id}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -8839,7 +8871,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>AppendixVoltagesSubheading</Name>
               <Page isRef="169" />
               <Parent isRef="417" />
-              <Text>Spannungen</Text>
+              <Text>Voltages</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -8867,7 +8899,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>AppendixVoltagesHeaderCell0</Name>
               <Page isRef="169" />
               <Parent isRef="419" />
-              <Text>Szen.</Text>
+              <Text>Case</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -8883,7 +8915,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>AppendixVoltagesHeaderCell1</Name>
               <Page isRef="169" />
               <Parent isRef="419" />
-              <Text>Knoten</Text>
+              <Text>Bus</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -8899,7 +8931,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>AppendixVoltagesHeaderCell2</Name>
               <Page isRef="169" />
               <Parent isRef="419" />
-              <Text>Ebene</Text>
+              <Text>Voltage level</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -8950,7 +8982,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>AppendixVoltagesHeaderCell5</Name>
               <Page isRef="169" />
               <Parent isRef="419" />
-              <Text>Mittel [p.u.]</Text>
+              <Text>Mean [p.u.]</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -8997,7 +9029,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>AppendixVoltagesCell0</Name>
               <Page isRef="169" />
               <Parent isRef="427" />
-              <Text>{ScriptedVoltageStatistics.scenario_id}</Text>
+              <Text>{ScriptedVoltageStatistics.case_id}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -9258,7 +9290,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
   <ReportAuthor>GridLens / DIgSILENT PowerFactory</ReportAuthor>
   <ReportChanged>1/1/2026 12:00:00 AM</ReportChanged>
   <ReportCreated>1/1/2026 12:00:00 AM</ReportCreated>
-  <ReportDescription>GridLens PowerFactory 2026 production template with embedded DIgSILENT branding, multi-scenario reference comparison, separate engineering topics, critical-only limit sections, voltage-angle analysis and correctly bound numeric time series. Template 2.2.0; data contract 2.2.</ReportDescription>
+  <ReportDescription>GridLens PowerFactory 2026 production template with embedded DIgSILENT branding, two-case reference comparison, separate engineering topics, critical-only limit sections, voltage-angle analysis and correctly bound numeric time series. Template 3.0.0; data contract 3.0.</ReportDescription>
   <ReportFile />
   <ReportGuid>a1c4e6f28b7d43109f5c2ad06e3b7841</ReportGuid>
   <ReportName>MASTER_GRIDLENS</ReportName>
