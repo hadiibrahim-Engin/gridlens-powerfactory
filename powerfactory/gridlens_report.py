@@ -18,7 +18,7 @@ LOADING_MAX = 100.0
 VOLTAGE_MIN = 0.95
 VOLTAGE_MAX = 1.05
 TIME_UNIT_FALLBACK = 'h'
-PUBLISHER_VERSION = '5.0.1'
+PUBLISHER_VERSION = '5.0.2'
 TEMPLATE_NAME = 'MASTER_GRIDLENS'
 TEMPLATE_VERSION = '3.0.0'
 DATA_CONTRACT_VERSION = '3.0'
@@ -770,6 +770,17 @@ TOTAL_STEPS = 7
 OUTAGE_CLASSES = ("IntPlannedout", "IntOutage")
 REFERENCE_CASE_ID = "REF"
 OUTAGE_CASE_ID = "OUTAGE"
+QDS_CORE_SETTINGS = (
+    ("Time period", "calcPeriod"),
+    ("Step size", "stepSize"),
+    ("Step unit", "stepUnit"),
+)
+QDS_OPTION_ATTRIBUTES = (
+    "iopt_asht", "iopt_at", "iopt_circ", "iopt_cont", "iopt_ctrl",
+    "iopt_event", "iopt_fast", "iopt_lim", "iopt_lod", "iopt_method",
+    "iopt_net", "iopt_plim", "iopt_pq", "iopt_prot", "iopt_show",
+    "iopt_stamode", "iopt_tem", "iopt_time",
+)
 
 
 class GridLensError(RuntimeError):
@@ -1297,6 +1308,144 @@ def _restore_results_binding(qds, original_result):
     return []
 
 
+def _read_setting(obj, attribute):
+    try:
+        return True, getattr(obj, attribute)
+    except Exception:
+        getter = getattr(obj, "GetAttribute", None)
+        if callable(getter):
+            try:
+                return True, getter(attribute)
+            except Exception:
+                pass
+    return False, None
+
+
+def _format_setting_value(value):
+    if type(value) is bool:
+        return "true" if value else "false"
+    numeric = finite_number(value)
+    if numeric is not None:
+        return "{:g}".format(numeric)
+    if class_name(value):
+        return "'{}' ({})".format(object_name(value), class_name(value))
+    if isinstance(value, (list, tuple)):
+        return "[{}]".format(
+            ", ".join(_format_setting_value(item) for item in value))
+    return str(value)
+
+
+def _format_study_time(date_value, time_value):
+    date_number = finite_number(date_value)
+    time_number = finite_number(time_value)
+    if date_number is None or time_number is None:
+        return "date={}, time={}".format(date_value, time_value)
+    date_text = "{:08d}".format(int(date_number))
+    time_text = "{:08d}".format(int(time_number))
+    return "{}-{}-{} {}:{}:{}".format(
+        date_text[0:4], date_text[4:6], date_text[6:8],
+        time_text[0:2], time_text[2:4], time_text[4:6])
+
+
+def _capture_study_time(app):
+    try:
+        study_time = app.GetFromStudyCase("SetTime")
+    except Exception as exc:
+        raise GridLensError(
+            "The initial Study Case date/time could not be accessed: {}. No "
+            "calculation was started.".format(_friendly_exception(exc))) from None
+    if study_time is None:
+        raise GridLensError(
+            "No SetTime object was found in the active Study Case. GridLens "
+            "cannot guarantee restoration of the Study Case clock, so no "
+            "calculation was started.")
+    date_found, date_value = _read_setting(study_time, "cDate")
+    time_found, time_value = _read_setting(study_time, "cTime")
+    if not date_found or not time_found:
+        raise GridLensError(
+            "SetTime.cDate or SetTime.cTime is unavailable. GridLens cannot "
+            "guarantee restoration of the Study Case clock, so no calculation "
+            "was started.")
+    return {
+        "object": study_time,
+        "date": date_value,
+        "time": time_value,
+    }
+
+
+def _set_scalar_attribute(obj, attribute, value):
+    try:
+        setattr(obj, attribute, value)
+    except Exception:
+        setter = getattr(obj, "SetAttribute", None)
+        if not callable(setter):
+            return False
+        try:
+            setter(attribute, value)
+        except Exception:
+            return False
+    found, restored = _read_setting(obj, attribute)
+    if not found:
+        return False
+    left = finite_number(restored)
+    right = finite_number(value)
+    if left is not None and right is not None:
+        return left == right
+    return restored == value
+
+
+def _restore_study_time(state, logger, stage="RESTORE", step=6):
+    errors = []
+    study_time = state["object"]
+    if not _set_scalar_attribute(study_time, "cDate", state["date"]):
+        errors.append("SetTime.cDate could not be restored and verified.")
+    if not _set_scalar_attribute(study_time, "cTime", state["time"]):
+        errors.append("SetTime.cTime could not be restored and verified.")
+    if not errors:
+        logger.write(
+            stage,
+            "Restored Study Case time to {}.".format(
+                _format_study_time(state["date"], state["time"])), step)
+    return errors
+
+
+def _log_qds_settings(qds, result, study_time_state, logger):
+    logger.write(
+        "SETTINGS",
+        "Active ComStatsim settings used unchanged:", 2)
+    for label, attribute in QDS_CORE_SETTINGS:
+        found, value = _read_setting(qds, attribute)
+        rendered = _format_setting_value(value) if found else "<not exposed>"
+        logger.write(
+            "SETTINGS",
+            "{} [{}] = {}".format(label, attribute, rendered), 2)
+    option_names = set(QDS_OPTION_ATTRIBUTES)
+    try:
+        option_names.update(
+            name for name in dir(qds) if name.startswith("iopt_"))
+    except Exception:
+        pass
+    options = []
+    for attribute in sorted(option_names):
+        found, value = _read_setting(qds, attribute)
+        if found:
+            options.append("{}={}".format(
+                attribute, _format_setting_value(value)))
+    logger.write(
+        "SETTINGS",
+        "Calculation options: {}".format(
+            ", ".join(options) if options else "<no exposed iopt_* attributes>"),
+        2)
+    logger.write(
+        "SETTINGS",
+        "Result object [results] = '{}' ({})".format(
+            object_name(result), class_name(result) or "ElmRes"), 2)
+    logger.write(
+        "SETTINGS",
+        "Initial Study Case time: {}".format(_format_study_time(
+            study_time_state["date"], study_time_state["time"])), 2)
+
+
 def _friendly_exception(exc):
     if exc is None:
         return "unknown error"
@@ -1350,11 +1499,13 @@ def execute_gridlens(app):
         raise GridLensError(
             "ComStatsim.results is empty. Configure a result object and the "
             "required variables before running GridLens.")
+    study_time_state = _capture_study_time(app)
     logger.write(
         "CONTEXT",
         "Study case '{}'; QDS '{}'; result '{}'; reference flag {}."
         .format(object_name(study_case), object_name(qds),
                 object_name(original_result), RUN_REFERENCE_CASE), 2)
+    _log_qds_settings(qds, original_result, study_time_state, logger)
     results = []
     records = []
     applied = []
@@ -1366,6 +1517,13 @@ def execute_gridlens(app):
                 app, study_case, qds, REFERENCE_CASE_ID, "Reference",
                 "Initial network state before GridLens applies planned outages.",
                 original_result, logger, temporary_results))
+            clock_errors = _restore_study_time(
+                study_time_state, logger, "CALCULATION", 4)
+            if clock_errors:
+                raise GridLensError(
+                    "The initial Study Case time could not be restored after "
+                    "REF: {}. The outage run was not started.".format(
+                        "; ".join(clock_errors)))
         records, _ = apply_available_outages(app, logger, applied)
         if applied:
             results.append(_run_calculation(
@@ -1380,6 +1538,7 @@ def execute_gridlens(app):
                 4, "WARNING")
     finally:
         logger.write("RESTORE", "Restoring the original PowerFactory state.", 6)
+        state_errors.extend(_restore_study_time(study_time_state, logger))
         state_errors.extend(restore_outages(applied, logger))
         state_errors.extend(_restore_results_binding(qds, original_result))
         state_errors.extend(_delete_temporary_results(temporary_results, logger))

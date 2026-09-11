@@ -20,7 +20,7 @@ Die gemeinsam auszuliefernde Laufzeit besteht ausschließlich aus:
 - `powerfactory/gridlens_report.py`
 - `powerfactory/MASTER_GRIDLENS.mrt`
 
-Publisher-Version: `5.0.1`; MRT: `3.0.0`; Datenvertrag: `3.0`.
+Publisher-Version: `5.0.2`; MRT: `3.0.0`; Datenvertrag: `3.0`.
 
 Das einzelne ComPython liegt direkt unter dem `IntReport`. Es verwendet das
 aktive `ComStatsim` unverändert, kopiert dessen gebundenes Ergebnisobjekt und

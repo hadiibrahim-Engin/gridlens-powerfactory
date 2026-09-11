@@ -153,14 +153,28 @@ class StudyCase(PFObject):
         return copy
 
 
+class StudyTime(PFObject):
+    def __init__(self):
+        super().__init__("Study Time", "SetTime", cDate=20140501, cTime=0)
+
+
 class QDS(PFObject):
-    def __init__(self, result, failure=None):
-        super().__init__("Configured QDS", "ComStatsim", results=result)
+    def __init__(self, result, study_time, failure=None):
+        super().__init__(
+            "Configured QDS", "ComStatsim", results=result,
+            calcPeriod=2, stepSize=1, stepUnit=2,
+            iopt_net=0, iopt_at=1,
+        )
+        self.study_time = study_time
         self.failure = failure
         self.execute_calls = 0
+        self.start_times = []
 
     def Execute(self):
         self.execute_calls += 1
+        self.start_times.append((self.study_time.cDate, self.study_time.cTime))
+        self.study_time.cDate = 20140531
+        self.study_time.cTime = 23000000
         if self.failure:
             raise self.failure
         return 0
@@ -201,7 +215,8 @@ class App:
         self.report = Report()
         self.script = Script(self.report)
         self.original_result = ElmRes()
-        self.qds = QDS(self.original_result, qds_failure)
+        self.study_time = StudyTime()
+        self.qds = QDS(self.original_result, self.study_time, qds_failure)
         self.project = PFObject("Model", "IntPrj")
         self.outage_folder = PFObject("Outages", "IntPrjfolder")
         self.outages = list(outages)
@@ -228,14 +243,18 @@ class App:
         return self.outage_folder if key == "outage" else None
 
     def GetFromStudyCase(self, name):
-        return self.qds if name == "ComStatsim" else None
+        if name == "ComStatsim":
+            return self.qds
+        if name == "SetTime":
+            return self.study_time
+        return None
 
     def GetCalcRelevantObjects(self, _pattern, *_args):
         return []
 
 
 def test_table_contract_is_single_versioned_17_table_contract():
-    assert gl.PUBLISHER_VERSION == "5.0.1"
+    assert gl.PUBLISHER_VERSION == "5.0.2"
     assert gl.TEMPLATE_VERSION == "3.0.0"
     assert gl.DATA_CONTRACT_VERSION == "3.0"
     assert len(gl.TABLES) == 17
@@ -280,9 +299,11 @@ def test_standard_mode_runs_reference_then_one_combined_outage(monkeypatch):
     counts = gl.execute_gridlens(app)
 
     assert app.qds.execute_calls == 2
+    assert app.qds.start_times == [(20140501, 0), (20140501, 0)]
     assert app.qds.results is app.original_result
     assert outage_a.active is False and outage_b.active is False
     assert all(copy.deleted for copy in app.study.copies)
+    assert (app.study_time.cDate, app.study_time.cTime) == (20140501, 0)
     assert app.report.reset_calls == 1
     assert counts["ScriptedCases"] == 2
     assert counts["ScriptedPlannedOutages"] == 2
@@ -290,6 +311,13 @@ def test_standard_mode_runs_reference_then_one_combined_outage(monkeypatch):
     assert values[0, "generated_by"] == "operator"
     assert values[0, "run_mode"] == "REFERENCE + COMBINED PLANNED OUTAGES"
     assert any("blocking API call may take several minutes" in line
+               for line in app.messages)
+    assert any("Time period [calcPeriod] = 2" in line for line in app.messages)
+    assert any("Step size [stepSize] = 1" in line for line in app.messages)
+    assert any("Step unit [stepUnit] = 2" in line for line in app.messages)
+    assert any("Calculation options: iopt_at=1, iopt_net=0" in line
+               for line in app.messages)
+    assert any("Initial Study Case time: 2014-05-01 00:00:00" in line
                for line in app.messages)
 
 
@@ -319,6 +347,7 @@ def test_calculation_failure_still_restores_outage_and_result_binding(monkeypatc
     assert outage.active is False
     assert outage.reset_calls == 1
     assert app.qds.results is app.original_result
+    assert (app.study_time.cDate, app.study_time.cTime) == (20140501, 0)
     assert all(copy.deleted for copy in app.study.copies)
     assert app.report.reset_calls == 0
 
