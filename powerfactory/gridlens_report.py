@@ -18,7 +18,7 @@ LOADING_MAX = 100.0
 VOLTAGE_MIN = 0.95
 VOLTAGE_MAX = 1.05
 TIME_UNIT_FALLBACK = 'h'
-PUBLISHER_VERSION = '5.0.0'
+PUBLISHER_VERSION = '5.0.1'
 TEMPLATE_NAME = 'MASTER_GRIDLENS'
 TEMPLATE_VERSION = '3.0.0'
 DATA_CONTRACT_VERSION = '3.0'
@@ -178,13 +178,15 @@ def format_time_step(hours):
         return '{:g} h'.format(hours)
     return '{:g} d'.format(hours / 24.0)
 
-def time_column(elmres, column_count):
+def time_column(elmres, column_count, row_count):
     candidates = ('b:tnow', 't', 'time')
+    inspected = []
     for column in range(column_count):
         try:
             variable = str(elmres.GetVariable(column)).lower()
         except Exception:
             continue
+        inspected.append(variable)
         if variable in candidates:
             return column
     for candidate in candidates:
@@ -194,7 +196,16 @@ def time_column(elmres, column_count):
                 return column
         except Exception:
             pass
-    raise RuntimeError('ElmRes has no unambiguous time column (b:tnow, t or time).')
+    scale_rows = [0] if row_count == 1 else [0, row_count - 1]
+    scale_values = [result_value(elmres, row, -1) for row in scale_rows]
+    if all(value is not None for value in scale_values):
+        if len(scale_values) == 1 or scale_values[1] > scale_values[0]:
+            return -1
+    variables = ', '.join(inspected) if inspected else 'unreadable'
+    raise RuntimeError(
+        'ElmRes exposes neither an explicit time column (b:tnow, t or time) '
+        'nor a readable implicit time scale at column -1. Inspected result '
+        'variables: {}.'.format(variables))
 
 def voltage_level(obj):
     candidates = [obj]
@@ -241,7 +252,7 @@ def collect_series(elmres):
         raise RuntimeError('ElmRes contains no result columns.')
     if rows > MAX_RESULT_ROWS:
         raise RuntimeError('ElmRes has {} rows and exceeds the limit of {} (MAX_RESULT_ROWS).'.format(rows, MAX_RESULT_ROWS))
-    t_column = time_column(elmres, columns)
+    t_column = time_column(elmres, columns, rows)
     try:
         time_unit = normalize_time_unit(elmres.GetUnit(t_column))
     except Exception as exc:
@@ -1236,6 +1247,10 @@ def _run_calculation(app, study_case, qds, case_id, name, description,
     try:
         snapshot.Load()
         series, labels, plot_times, unit = collect_series(snapshot)
+        logger.write(
+            "EXTRACTION",
+            "Validated {} supported series across {} time point(s); time unit '{}'."
+            .format(len(series), len(labels), unit), 5)
     except Exception as exc:
         raise GridLensError(
             "{} completed, but its ElmRes could not be evaluated: {}".format(
@@ -1293,7 +1308,12 @@ def _friendly_exception(exc):
         text = str(current).strip()
         label = type(current).__name__
         messages.append("{}: {}".format(label, text) if text else label)
-        current = current.__cause__ or current.__context__
+        if current.__cause__ is not None:
+            current = current.__cause__
+        elif not current.__suppress_context__:
+            current = current.__context__
+        else:
+            current = None
     return " -> ".join(messages)
 
 

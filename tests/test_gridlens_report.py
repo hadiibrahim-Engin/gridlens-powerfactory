@@ -114,6 +114,34 @@ class ElmRes(PFObject):
         return self.variables.index(variable)
 
 
+class ImplicitTimeElmRes(ElmRes):
+    """QDS result whose time scale is addressed through column -1."""
+
+    def __init__(self):
+        super().__init__()
+        self.variables = ("c:loading", "m:u", "m:phiu")
+        self.objects = (self.line, self.term, self.term)
+        self.units = ("%", "p.u.", "deg")
+        self.columns = ([90.0, 110.0], [0.96, 0.94], [0.0, 2.0])
+        self.scale = [0.0, 1.0]
+
+    def GetValue(self, row, column):
+        if column == -1:
+            return self.scale[row]
+        return self.columns[column][row]
+
+    def GetUnit(self, column):
+        if column == -1:
+            return "h"
+        return super().GetUnit(column)
+
+    def GetColumnValues(self, *_args):
+        raise TypeError("PowerFactory requires an IntVec argument")
+
+    def FindColumn(self, *_args):
+        return -1
+
+
 class StudyCase(PFObject):
     def __init__(self):
         super().__init__("Study", "IntCase")
@@ -207,7 +235,7 @@ class App:
 
 
 def test_table_contract_is_single_versioned_17_table_contract():
-    assert gl.PUBLISHER_VERSION == "5.0.0"
+    assert gl.PUBLISHER_VERSION == "5.0.1"
     assert gl.TEMPLATE_VERSION == "3.0.0"
     assert gl.DATA_CONTRACT_VERSION == "3.0"
     assert len(gl.TABLES) == 17
@@ -311,6 +339,29 @@ def test_user_facing_runtime_text_is_english():
         "Grenzwert", "Nicht konvergiert", "Freischaltung", "Ergebnisreihe",
     )
     assert not [value for value in forbidden if value in text]
+
+
+def test_qds_result_reads_implicit_time_scale_from_column_minus_one():
+    series, labels, plot_times, time_unit = gl.collect_series(ImplicitTimeElmRes())
+
+    assert labels == ["00:00", "01:00"]
+    assert plot_times == [0.0, 1.0]
+    assert time_unit == "h"
+    assert {item["category"] for item in series} == {
+        "line", "voltage", "voltage_angle",
+    }
+
+
+def test_friendly_exception_respects_suppressed_context():
+    try:
+        try:
+            raise RuntimeError("low-level failure")
+        except RuntimeError:
+            raise gl.GridLensError("Readable operator message") from None
+    except gl.GridLensError as exc:
+        message = gl._friendly_exception(exc)
+
+    assert message == "GridLensError: Readable operator message"
 
 
 @pytest.mark.parametrize(
