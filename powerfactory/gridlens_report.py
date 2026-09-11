@@ -26,4 +26,3 @@ from gridlens_pf.entry import main
 
 if __name__ == "__main__":
     main()
-

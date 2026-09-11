@@ -28,7 +28,7 @@ TUNABLE_FILES = ("gridlens_pf/config.py",)
 # manifest.py selbst kann seinen eigenen Hash nicht enthalten.
 RUNTIME_HASHES = {
     "gridlens_report.py":
-        "9c7c88c8822fec155f463651b4ebfb3d1d75d3fc9b4e3a44ac6ff93db9073554",
+        "e30831ab3db2d68426738d460d0a6e480d0bb02577c8766e67c80fed657376fe",
     "gridlens_pf/__init__.py":
         "af588efcc93407fc5e18ae763b3ce77ed0681eefeda8fba9338b37b53cfd8f81",
     "gridlens_pf/config.py":
