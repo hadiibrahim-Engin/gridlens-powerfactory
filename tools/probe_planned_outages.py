@@ -287,7 +287,7 @@ def study_clock_from_epoch(seconds):
     """Return (cDate, cTime) in PowerFactory's YYYYMMDD / HHMMSSxx encoding."""
     stamp = time.localtime(seconds)
     date = stamp.tm_year * 10000 + stamp.tm_mon * 100 + stamp.tm_mday
-    clock = stamp.tm_hour * 1000000 + stamp.tm_min * 10000 + stamp.tm_sec * 100
+    clock = stamp.tm_hour * 10000 + stamp.tm_min * 100 + stamp.tm_sec
     return date, clock
 
 
@@ -321,15 +321,27 @@ def experiment(app, qds, outages):
 
     def write(obj, attribute, value):
         previous = safe(obj, attribute)
-        try:
-            setattr(obj, attribute, value)
-        except Exception as exc:
-            emit(app, "  Could not set {} = {}: {}".format(attribute, value, exc))
-            return False
-        written.append((obj, attribute, previous))
-        emit(app, "  set {} from {} to {}".format(
-            attribute, render(previous), render(value)))
-        return True
+        # SetTime.cDate and cTime are strings in PowerFactory 2026, so offer
+        # the new value in whatever type the attribute already holds.
+        candidates = [value]
+        if isinstance(previous, str) and not isinstance(value, str):
+            candidates.insert(0, str(value))
+        elif not isinstance(previous, str) and isinstance(value, str):
+            candidates.insert(0, type(previous)(value))
+        last_error = None
+        for candidate in candidates:
+            try:
+                setattr(obj, attribute, candidate)
+            except Exception as exc:
+                last_error = exc
+                continue
+            written.append((obj, attribute, previous))
+            emit(app, "  set {} from {} to {}".format(
+                attribute, render(previous), render(candidate)))
+            return True
+        emit(app, "  Could not set {} = {}: {}".format(
+            attribute, value, last_error))
+        return False
 
     try:
         components = safe(outage, "components")

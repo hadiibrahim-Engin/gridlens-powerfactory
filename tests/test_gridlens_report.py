@@ -732,3 +732,15 @@ def test_api_description_reads_attributes_through_getattributes():
 
     assert "tStart=20140101" in description
     assert "outserv=0" in description
+
+
+def test_study_time_renders_powerfactory_six_digit_clock():
+    # PowerFactory stores SetTime.cTime as HHMMSS, so 230000 is 23:00:00.
+    assert gl._format_study_time(20140102, 230000) == "2014-01-02 23:00:00"
+    assert gl._format_study_time(20140102, 93000) == "2014-01-02 09:30:00"
+    assert gl._format_study_time(20140102, 0) == "2014-01-02 00:00:00"
+    assert gl._format_study_time("20140102", "230000") == "2014-01-02 23:00:00"
+
+
+def test_study_time_rendering_survives_unreadable_values():
+    assert "date=" in gl._format_study_time(None, 230000)

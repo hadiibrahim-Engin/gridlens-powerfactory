@@ -1425,7 +1425,8 @@ def _format_study_time(date_value, time_value):
     if date_number is None or time_number is None:
         return "date={}, time={}".format(date_value, time_value)
     date_text = "{:08d}".format(int(date_number))
-    time_text = "{:08d}".format(int(time_number))
+    # PowerFactory stores SetTime.cTime as HHMMSS: 230000 is 23:00:00.
+    time_text = "{:06d}".format(int(time_number))
     return "{}-{}-{} {}:{}:{}".format(
         date_text[0:4], date_text[4:6], date_text[6:8],
         time_text[0:2], time_text[2:4], time_text[4:6])
