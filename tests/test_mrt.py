@@ -201,3 +201,40 @@ def test_each_trend_chart_reads_its_own_table():
         # Axis titles do not evaluate placeholders in this engine.
         for axis in chart.iter("Title"):
             assert "{" not in (axis.findtext("Text") or "")
+
+
+def test_every_declared_list_count_matches_its_children():
+    # Stimulsoft allocates lists from the declared count; a mismatch was
+    # introduced once by a band whose tiles each hold two text fields.
+    mismatches = []
+    for element in _root().iter():
+        if element.get("isList") == "true":
+            declared = int(element.get("count"))
+            if declared != len(element):
+                mismatches.append("{} declares {} but holds {}".format(
+                    element.tag, declared, len(element)))
+    assert mismatches == []
+
+
+def test_overview_page_precedes_the_first_chapter_and_reads_its_own_tables():
+    root = _root()
+    order = [child.tag for child in root.find(".//PageMain").find("Components")]
+    start = order.index("OverviewTitleBand")
+    assert order[start:start + 6] == [
+        "OverviewTitleBand", "OverviewKpiBand", "OverviewPiesBand",
+        "OverviewBarsBand", "OverviewPageBreakBand", "ModelQualityTitleBand"]
+    assert root.find(".//OverviewKpiBand").findtext("DataSourceName") == "ScriptedOverview"
+
+    expected = {
+        "OverviewLoadingPie": ("StiPieSeries", "ScriptedOverviewLoadingClasses"),
+        "OverviewVoltagePie": ("StiPieSeries", "ScriptedOverviewVoltageClasses"),
+        "OverviewCaseBars": ("StiClusteredBarSeries", "ScriptedOverviewViolationsByCase"),
+        "OverviewOutageBars": ("StiClusteredBarSeries", "ScriptedOverviewViolationsByOutage"),
+    }
+    for name, (series_type, table) in expected.items():
+        chart = root.find(".//" + name)
+        assert chart.findtext("DataSourceName") == table, name
+        series = list(chart.find("Series"))
+        assert len(series) == 1 and series[0].get("type").endswith(series_type)
+        assert series[0].findtext("ValueDataColumn").startswith(table + ".")
+        assert (chart.find("Title").findtext("Text") or "").strip(), name

@@ -249,11 +249,11 @@ class App:
         return []
 
 
-def test_table_contract_is_single_versioned_19_table_contract():
-    assert gl.PUBLISHER_VERSION == "5.2.0"
-    assert gl.TEMPLATE_VERSION == "3.2.0"
-    assert gl.DATA_CONTRACT_VERSION == "3.2"
-    assert len(gl.TABLES) == 19
+def test_table_contract_is_single_versioned_24_table_contract():
+    assert gl.PUBLISHER_VERSION == "5.3.0"
+    assert gl.TEMPLATE_VERSION == "3.3.0"
+    assert gl.DATA_CONTRACT_VERSION == "3.3"
+    assert len(gl.TABLES) == 24
     tables = dict(gl.TABLES)
     assert "ScriptedCases" in tables
     assert "ScriptedPlannedOutages" in tables
@@ -1328,3 +1328,105 @@ def test_trend_shows_the_most_loaded_element_even_within_limits():
     gl._trends(payload, results)
 
     assert payload['ScriptedTrendLineLoading'], "the chart must not stay empty"
+
+
+def _overview_results():
+    """REF and OUTAGE over four lines, one transformer and three buses."""
+    def result(case_id, loadings, trafo, voltages, windows=None):
+        items = []
+        for name, value in loadings.items():
+            items.append(('line', name, '%', value))
+        items.append(('transformer', 'D7_T1', '%', trafo))
+        for name, (low, high) in voltages.items():
+            items.append(('voltage', name, 'p.u.', (low, high)))
+        series = []
+        for category, name, unit, value in items:
+            low, high = value if isinstance(value, tuple) else (value, value)
+            item = {'category': category, 'key': name, 'element_id': name,
+                    'element_name': name, 'voltage_level': '110 kV', 'unit': unit,
+                    'variable': 'x', 'points': [('t0', 0.0, low), ('t1', 1.0, high)],
+                    'windows': (windows or {}).get(name, {})}
+            item['statistics'] = gl.statistics(item)
+            series.append(item)
+        return gl.case_result({'id': case_id, 'name': case_id}, series,
+                              ['t0', 't1'], [0.0, 1.0], 'h')
+    ref = result('REF', {'D7_L1': 50.0, 'D7_L2': 85.0, 'D7_L3': 101.0, 'D7_L4': 70.0},
+                 60.0, {'D7_B1': (0.99, 1.01), 'D7_B2': (0.97, 1.02), 'D7_B3': (1.0, 1.04)})
+    outage = result('OUTAGE', {'D7_L1': 50.0, 'D7_L2': 105.0, 'D7_L3': 120.0, 'D7_L4': 90.0},
+                    60.0, {'D7_B1': (0.93, 1.0), 'D7_B2': (0.97, 1.02), 'D7_B3': (1.0, 1.07)},
+                    windows={'D7_L2': {0: {'min': 80.0, 'max': 105.0, 'mean': 90.0,
+                                           'time_min': 't0', 'time_max': 't1'}},
+                             'D7_B1': {0: {'min': 0.93, 'max': 1.0, 'mean': 0.96,
+                                           'time_min': 't0', 'time_max': 't1'}},
+                             'D7_L1': {1: {'min': 40.0, 'max': 50.0, 'mean': 45.0,
+                                           'time_min': 't0', 'time_max': 't1'}}})
+    return [ref, outage]
+
+
+def _counts(rows):
+    return {row['class_label']: row['element_count'] for row in rows}
+
+
+def test_overview_loading_pie_uses_three_classes_for_the_outage_case():
+    payload = gl.empty_payload()
+
+    gl._overview(payload, _overview_results(), [])
+
+    # OUTAGE: 50, 105, 120, 90 plus a transformer at 60.
+    assert _counts(payload['ScriptedOverviewLoadingClasses']) == {
+        'up to 80 %': 2, '80 to 100 %': 1, 'above 100 %': 2}
+    assert [row['sort_order'] for row in payload['ScriptedOverviewLoadingClasses']] == [1, 2, 3]
+
+
+def test_overview_voltage_pie_partitions_every_node_once():
+    payload = gl.empty_payload()
+
+    gl._overview(payload, _overview_results(), [])
+
+    assert _counts(payload['ScriptedOverviewVoltageClasses']) == {
+        'below 0.95 p.u.': 1, '0.95 to 1.05 p.u.': 1, 'above 1.05 p.u.': 1}
+
+
+def test_overview_compares_violations_between_ref_and_outage():
+    payload = gl.empty_payload()
+
+    gl._overview(payload, _overview_results(), [])
+
+    rows = {(row['case_id'], row['violation_type']): row['element_count']
+            for row in payload['ScriptedOverviewViolationsByCase']}
+    assert rows == {('REF', 'Overload'): 1, ('OUTAGE', 'Overload'): 2,
+                    ('REF', 'Voltage band'): 0, ('OUTAGE', 'Voltage band'): 2}
+    summary = payload['ScriptedOverview'][0]
+    assert summary['chart_case_id'] == 'OUTAGE'
+    assert summary['assessed_elements'] == 8
+    assert summary['overload_text'] == '2 (+1 vs REF)'
+    assert summary['voltage_text'] == '2 (+2 vs REF)'
+
+
+def test_overview_counts_violations_inside_each_outage_window():
+    outages = [
+        {'name': 'Line 04 - 14', 'status': gl.OUTAGE_CONSIDERED, 'window_index': 0},
+        {'name': 'Line 15 - 16', 'status': gl.OUTAGE_CONSIDERED, 'window_index': 1},
+        {'name': 'March', 'status': gl.OUTAGE_SKIPPED, 'window_index': None},
+    ]
+    payload = gl.empty_payload()
+
+    gl._overview(payload, _overview_results(), outages)
+
+    rows = [(row['outage_name'], row['violating_elements'])
+            for row in payload['ScriptedOverviewViolationsByOutage']]
+    # Window 0: D7_L2 at 105 % and D7_B1 at 0.93 p.u.; window 1 is clean.
+    assert rows == [('Line 04 - 14', 2), ('Line 15 - 16', 0)]
+    summary = payload['ScriptedOverview'][0]
+    assert summary['outages_text'] == '2 / 3'
+
+
+def test_overview_without_outages_says_so_instead_of_an_empty_chart():
+    payload = gl.empty_payload()
+
+    gl._overview(payload, _overview_results()[:1], [])
+
+    rows = payload['ScriptedOverviewViolationsByOutage']
+    assert [row['outage_name'] for row in rows] == ['No planned outage in scope']
+    assert payload['ScriptedOverview'][0]['chart_case_id'] == 'REF'
+    assert payload['ScriptedOverview'][0]['overload_text'] == '1'

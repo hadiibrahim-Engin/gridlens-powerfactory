@@ -8,7 +8,7 @@ PowerFactory-Rechner:
 | Datei | Aufgabe |
 |---|---|
 | `gridlens_report.py` | Einzeldatei für Planned-Outage-Discovery, QDS-Läufe, Ergebnisprüfung und `IntReport`-Publikation |
-| `MASTER_GRIDLENS.mrt` | Reportlayout und 19 `Scripted*`-Datenquellen |
+| `MASTER_GRIDLENS.mrt` | Reportlayout und 24 `Scripted*`-Datenquellen |
 
 Weitere Python-Pakete, JSON-Payloads, Schemas oder Datenbanken werden nicht
 benötigt. Die PowerFactory-Laufzeit verwendet nur die Python-Standardbibliothek
@@ -57,7 +57,7 @@ Die Standardreihenfolge ist:
    jede Außerbetriebnahme in ihrem eigenen Zeitfenster an.
 5. Wiederherstellung von `iopt_maint` und `ComStatsim.results`, Löschen der
    temporären Ergebnisse.
-6. Publikation aller 19 Tabellen in das `IntReport`.
+6. Publikation aller 24 Tabellen in das `IntReport`.
 
 ## Warum GridLens die Außerbetriebnahmen nicht selbst anwendet
 
@@ -108,6 +108,21 @@ Spalte nennt die höchste Auslastung mit Betriebsmittel und Uhrzeit, den
 Referenzwert desselben Fensters ohne Freischaltung und das Spannungsband. Der
 Referenzwert ist der Kausalitätsnachweis: liegt er bereits über dem Grenzwert,
 ist die Überlastung nicht der Freischaltung anzulasten.
+
+## Elementumfang
+
+Am Anfang von `gridlens_report.py` steht:
+
+```python
+ELEMENT_NAME_FILTER = 'D7'
+```
+
+Bewertet werden nur Elemente, deren Kurzname diesen Text enthält. Alle übrigen
+Reihen im `ElmRes` werden weder gelesen noch berichtet. Das Log nennt je Fall,
+wie viele Reihen bewertet und wie viele ausgelassen wurden; der Bericht nennt
+den Filter im Feld „Assessment scope“. Ein leerer Text bewertet alle Elemente.
+Enthält kein Element den Text, bricht der Lauf mit einem Hinweis auf die
+Konstante ab.
 
 ## Run Mode
 

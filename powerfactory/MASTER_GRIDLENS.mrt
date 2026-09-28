@@ -10,7 +10,7 @@
         <Name>SQLite</Name>
       </SQLite>
     </Databases>
-    <DataSources isList="true" count="19">
+    <DataSources isList="true" count="24">
       <ScriptedReportMeta Ref="3" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
         <Alias>ScriptedReportMeta</Alias>
         <Columns isList="true" count="21">
@@ -113,6 +113,91 @@
         <Parameters isList="true" count="0" />
         <SqlCommand>SELECT * FROM "ScriptedPlannedOutages" ORDER BY "status", "start_time", "outage_name"</SqlCommand>
       </ScriptedPlannedOutages>
+      <ScriptedOverview Ref="802" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
+        <Alias>ScriptedOverview</Alias>
+        <Columns isList="true" count="12">
+          <value>assessed_elements,System.Int32</value>
+          <value>outages_found,System.Int32</value>
+          <value>outages_in_scope,System.Int32</value>
+          <value>chart_case_id,System.String</value>
+          <value>overloads_ref,System.Int32</value>
+          <value>overloads_outage,System.Int32</value>
+          <value>voltage_violations_ref,System.Int32</value>
+          <value>voltage_violations_outage,System.Int32</value>
+          <value>elements_text,System.String</value>
+          <value>outages_text,System.String</value>
+          <value>overload_text,System.String</value>
+          <value>voltage_text,System.String</value>
+        </Columns>
+        <CommandTimeout>30</CommandTimeout>
+        <Dictionary isRef="1" />
+        <Key>359b52838d8e4c959d351524a57df933</Key>
+        <Name>ScriptedOverview</Name>
+        <NameInSource>SQLite</NameInSource>
+        <Parameters isList="true" count="0" />
+        <SqlCommand>SELECT * FROM "ScriptedOverview"</SqlCommand>
+      </ScriptedOverview>
+      <ScriptedOverviewLoadingClasses Ref="803" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
+        <Alias>ScriptedOverviewLoadingClasses</Alias>
+        <Columns isList="true" count="3">
+          <value>sort_order,System.Int32</value>
+          <value>class_label,System.String</value>
+          <value>element_count,System.Int32</value>
+        </Columns>
+        <CommandTimeout>30</CommandTimeout>
+        <Dictionary isRef="1" />
+        <Key>bd9da7032e1e4d899f9ab788308e0905</Key>
+        <Name>ScriptedOverviewLoadingClasses</Name>
+        <NameInSource>SQLite</NameInSource>
+        <Parameters isList="true" count="0" />
+        <SqlCommand>SELECT * FROM "ScriptedOverviewLoadingClasses" ORDER BY "sort_order"</SqlCommand>
+      </ScriptedOverviewLoadingClasses>
+      <ScriptedOverviewVoltageClasses Ref="804" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
+        <Alias>ScriptedOverviewVoltageClasses</Alias>
+        <Columns isList="true" count="3">
+          <value>sort_order,System.Int32</value>
+          <value>class_label,System.String</value>
+          <value>element_count,System.Int32</value>
+        </Columns>
+        <CommandTimeout>30</CommandTimeout>
+        <Dictionary isRef="1" />
+        <Key>d7cd5e93242e4a98a53d7861590cbeb7</Key>
+        <Name>ScriptedOverviewVoltageClasses</Name>
+        <NameInSource>SQLite</NameInSource>
+        <Parameters isList="true" count="0" />
+        <SqlCommand>SELECT * FROM "ScriptedOverviewVoltageClasses" ORDER BY "sort_order"</SqlCommand>
+      </ScriptedOverviewVoltageClasses>
+      <ScriptedOverviewViolationsByCase Ref="805" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
+        <Alias>ScriptedOverviewViolationsByCase</Alias>
+        <Columns isList="true" count="4">
+          <value>sort_order,System.Int32</value>
+          <value>case_id,System.String</value>
+          <value>violation_type,System.String</value>
+          <value>element_count,System.Int32</value>
+        </Columns>
+        <CommandTimeout>30</CommandTimeout>
+        <Dictionary isRef="1" />
+        <Key>8b87816bf6cc4e9eb60fee5239f62405</Key>
+        <Name>ScriptedOverviewViolationsByCase</Name>
+        <NameInSource>SQLite</NameInSource>
+        <Parameters isList="true" count="0" />
+        <SqlCommand>SELECT * FROM "ScriptedOverviewViolationsByCase" ORDER BY "sort_order"</SqlCommand>
+      </ScriptedOverviewViolationsByCase>
+      <ScriptedOverviewViolationsByOutage Ref="806" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
+        <Alias>ScriptedOverviewViolationsByOutage</Alias>
+        <Columns isList="true" count="3">
+          <value>rank,System.Int32</value>
+          <value>outage_name,System.String</value>
+          <value>violating_elements,System.Int32</value>
+        </Columns>
+        <CommandTimeout>30</CommandTimeout>
+        <Dictionary isRef="1" />
+        <Key>6b293495387b4251b508d10aab5a88e4</Key>
+        <Name>ScriptedOverviewViolationsByOutage</Name>
+        <NameInSource>SQLite</NameInSource>
+        <Parameters isList="true" count="0" />
+        <SqlCommand>SELECT * FROM "ScriptedOverviewViolationsByOutage" ORDER BY "rank"</SqlCommand>
+      </ScriptedOverviewViolationsByOutage>
       <ScriptedCaseMatrix Ref="7" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
         <Alias>ScriptedCaseMatrix</Alias>
         <Columns isList="true" count="6">
@@ -448,7 +533,7 @@
     <PageMain Ref="18" type="Page" isKey="true">
       <Border>None;Black;2;Solid;False;4;Black</Border>
       <Brush>Transparent</Brush>
-      <Components isList="true" count="28">
+      <Components isList="true" count="33">
         <BandPageHeader Ref="19" type="PageHeaderBand" isKey="true">
           <Brush>Transparent</Brush>
           <ClientRectangle>0,0.4,17,1</ClientRectangle>
@@ -1038,7 +1123,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
           <Brush>Transparent</Brush>
           <BusinessObjectGuid isNull="true" />
           <ClientRectangle>0,2.2,17,24.5</ClientRectangle>
-          <Components isList="true" count="24">
+          <Components isList="true" count="28">
             <CoverTitle Ref="26" type="Text" isKey="true">
               <Border>None;Transparent;0;None;False;4;Black</Border>
               <Brush>Transparent</Brush>
@@ -2191,6 +2276,780 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
           <Parent isRef="18" />
           <Sort isList="true" count="0" />
         </BandTableOfContents>
+        <OverviewTitleBand Ref="807" type="HeaderBand" isKey="true">
+          <Brush>Transparent</Brush>
+          <ClientRectangle>0,27.5,17,1.85</ClientRectangle>
+          <Components isList="true" count="2">
+            <OverviewTitleBandText Ref="808" type="Text" isKey="true">
+              <Bookmark>section-overview</Bookmark>
+              <Border>None;Transparent;0;None;False;4;Black</Border>
+              <Brush>[181:18:62]</Brush>
+              <CanGrow>True</CanGrow>
+              <ClientRectangle>0,0.35,17,0.85</ClientRectangle>
+              <Conditions isList="true" count="0" />
+              <Expressions isList="true" count="0" />
+              <Font>Segoe UI,15,Bold</Font>
+              <Margins>0.22,0.12,0,0</Margins>
+              <Name>OverviewTitleBandText</Name>
+              <Page isRef="18" />
+              <Parent isRef="807" />
+              <Pointer>section-overview</Pointer>
+              <Text>Assessment Overview</Text>
+              <TextBrush>White</TextBrush>
+              <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
+              <VertAlignment>Center</VertAlignment>
+            </OverviewTitleBandText>
+            <OverviewTitleBandSubtitle Ref="809" type="Text" isKey="true">
+              <Border>None;Transparent;0;None;False;4;Black</Border>
+              <Brush>Transparent</Brush>
+              <CanGrow>True</CanGrow>
+              <ClientRectangle>0,1.2,17,0.45</ClientRectangle>
+              <Conditions isList="true" count="0" />
+              <Expressions isList="true" count="0" />
+              <Font>Segoe UI,8</Font>
+              <Margins>0.12,0.12,0,0</Margins>
+              <Name>OverviewTitleBandSubtitle</Name>
+              <Page isRef="18" />
+              <Parent isRef="807" />
+              <Text>Key figures, loading and voltage classes, and violations per planned outage.</Text>
+              <TextBrush>[90:90:90]</TextBrush>
+              <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
+              <VertAlignment>Center</VertAlignment>
+            </OverviewTitleBandSubtitle>
+          </Components>
+          <Conditions isList="true" count="0" />
+          <Expressions isList="true" count="0" />
+          <Name>OverviewTitleBand</Name>
+          <Page isRef="18" />
+          <Parent isRef="18" />
+          <PrintOnAllPages>False</PrintOnAllPages>
+        </OverviewTitleBand>
+        <OverviewKpiBand Ref="810" type="DataBand" isKey="true">
+          <Brush>Transparent</Brush>
+          <BusinessObjectGuid isNull="true" />
+          <CanBreak>False</CanBreak>
+          <ClientRectangle>0,0,17,2.1</ClientRectangle>
+          <Components isList="true" count="9">
+            <OverviewTile0Label Ref="811" type="Text" isKey="true">
+              <Border>None;Transparent;0;None;False;4;Black</Border>
+              <Brush>[242:242:242]</Brush>
+              <CanGrow>True</CanGrow>
+              <ClientRectangle>0.0,0,4.1,0.55</ClientRectangle>
+              <Conditions isList="true" count="0" />
+              <Expressions isList="true" count="0" />
+              <Font>Segoe UI,8</Font>
+              <Margins>0.2,0.12,0.05,0.05</Margins>
+              <Name>OverviewTile0Label</Name>
+              <Page isRef="18" />
+              <Parent isRef="810" />
+              <Text>Assessed elements</Text>
+              <TextBrush>[90:90:90]</TextBrush>
+              <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
+              <VertAlignment>Center</VertAlignment>
+            </OverviewTile0Label>
+            <OverviewTile0Value Ref="812" type="Text" isKey="true">
+              <Border>None;Transparent;0;None;False;4;Black</Border>
+              <Brush>[242:242:242]</Brush>
+              <CanGrow>True</CanGrow>
+              <ClientRectangle>0.0,0.55,4.1,0.85</ClientRectangle>
+              <Conditions isList="true" count="0" />
+              <Expressions isList="true" count="0" />
+              <Font>Segoe UI,15,Bold</Font>
+              <Margins>0.2,0.12,0.05,0.05</Margins>
+              <Name>OverviewTile0Value</Name>
+              <Page isRef="18" />
+              <Parent isRef="810" />
+              <Text>{ScriptedOverview.elements_text}</Text>
+              <TextBrush>[55:55:55]</TextBrush>
+              <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
+              <VertAlignment>Center</VertAlignment>
+            </OverviewTile0Value>
+            <OverviewTile1Label Ref="813" type="Text" isKey="true">
+              <Border>None;Transparent;0;None;False;4;Black</Border>
+              <Brush>[242:242:242]</Brush>
+              <CanGrow>True</CanGrow>
+              <ClientRectangle>4.3,0,4.1,0.55</ClientRectangle>
+              <Conditions isList="true" count="0" />
+              <Expressions isList="true" count="0" />
+              <Font>Segoe UI,8</Font>
+              <Margins>0.2,0.12,0.05,0.05</Margins>
+              <Name>OverviewTile1Label</Name>
+              <Page isRef="18" />
+              <Parent isRef="810" />
+              <Text>Planned outages in scope</Text>
+              <TextBrush>[90:90:90]</TextBrush>
+              <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
+              <VertAlignment>Center</VertAlignment>
+            </OverviewTile1Label>
+            <OverviewTile1Value Ref="814" type="Text" isKey="true">
+              <Border>None;Transparent;0;None;False;4;Black</Border>
+              <Brush>[242:242:242]</Brush>
+              <CanGrow>True</CanGrow>
+              <ClientRectangle>4.3,0.55,4.1,0.85</ClientRectangle>
+              <Conditions isList="true" count="0" />
+              <Expressions isList="true" count="0" />
+              <Font>Segoe UI,15,Bold</Font>
+              <Margins>0.2,0.12,0.05,0.05</Margins>
+              <Name>OverviewTile1Value</Name>
+              <Page isRef="18" />
+              <Parent isRef="810" />
+              <Text>{ScriptedOverview.outages_text}</Text>
+              <TextBrush>[55:55:55]</TextBrush>
+              <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
+              <VertAlignment>Center</VertAlignment>
+            </OverviewTile1Value>
+            <OverviewTile2Label Ref="815" type="Text" isKey="true">
+              <Border>None;Transparent;0;None;False;4;Black</Border>
+              <Brush>[255:232:237]</Brush>
+              <CanGrow>True</CanGrow>
+              <ClientRectangle>8.6,0,4.1,0.55</ClientRectangle>
+              <Conditions isList="true" count="0" />
+              <Expressions isList="true" count="0" />
+              <Font>Segoe UI,8</Font>
+              <Margins>0.2,0.12,0.05,0.05</Margins>
+              <Name>OverviewTile2Label</Name>
+              <Page isRef="18" />
+              <Parent isRef="810" />
+              <Text>Overloaded elements</Text>
+              <TextBrush>[181:18:62]</TextBrush>
+              <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
+              <VertAlignment>Center</VertAlignment>
+            </OverviewTile2Label>
+            <OverviewTile2Value Ref="816" type="Text" isKey="true">
+              <Border>None;Transparent;0;None;False;4;Black</Border>
+              <Brush>[255:232:237]</Brush>
+              <CanGrow>True</CanGrow>
+              <ClientRectangle>8.6,0.55,4.1,0.85</ClientRectangle>
+              <Conditions isList="true" count="0" />
+              <Expressions isList="true" count="0" />
+              <Font>Segoe UI,15,Bold</Font>
+              <Margins>0.2,0.12,0.05,0.05</Margins>
+              <Name>OverviewTile2Value</Name>
+              <Page isRef="18" />
+              <Parent isRef="810" />
+              <Text>{ScriptedOverview.overload_text}</Text>
+              <TextBrush>[181:18:62]</TextBrush>
+              <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
+              <VertAlignment>Center</VertAlignment>
+            </OverviewTile2Value>
+            <OverviewTile3Label Ref="817" type="Text" isKey="true">
+              <Border>None;Transparent;0;None;False;4;Black</Border>
+              <Brush>[255:232:237]</Brush>
+              <CanGrow>True</CanGrow>
+              <ClientRectangle>12.9,0,4.1,0.55</ClientRectangle>
+              <Conditions isList="true" count="0" />
+              <Expressions isList="true" count="0" />
+              <Font>Segoe UI,8</Font>
+              <Margins>0.2,0.12,0.05,0.05</Margins>
+              <Name>OverviewTile3Label</Name>
+              <Page isRef="18" />
+              <Parent isRef="810" />
+              <Text>Voltage band violations</Text>
+              <TextBrush>[181:18:62]</TextBrush>
+              <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
+              <VertAlignment>Center</VertAlignment>
+            </OverviewTile3Label>
+            <OverviewTile3Value Ref="818" type="Text" isKey="true">
+              <Border>None;Transparent;0;None;False;4;Black</Border>
+              <Brush>[255:232:237]</Brush>
+              <CanGrow>True</CanGrow>
+              <ClientRectangle>12.9,0.55,4.1,0.85</ClientRectangle>
+              <Conditions isList="true" count="0" />
+              <Expressions isList="true" count="0" />
+              <Font>Segoe UI,15,Bold</Font>
+              <Margins>0.2,0.12,0.05,0.05</Margins>
+              <Name>OverviewTile3Value</Name>
+              <Page isRef="18" />
+              <Parent isRef="810" />
+              <Text>{ScriptedOverview.voltage_text}</Text>
+              <TextBrush>[181:18:62]</TextBrush>
+              <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
+              <VertAlignment>Center</VertAlignment>
+            </OverviewTile3Value>
+            <OverviewCaseNote Ref="980" type="Text" isKey="true">
+              <Border>None;Transparent;0;None;False;4;Black</Border>
+              <Brush>Transparent</Brush>
+              <CanGrow>True</CanGrow>
+              <ClientRectangle>0,1.55,17,0.45</ClientRectangle>
+              <Conditions isList="true" count="0" />
+              <Expressions isList="true" count="0" />
+              <Font>Segoe UI,8</Font>
+              <Margins>0.12,0.12,0,0</Margins>
+              <Name>OverviewCaseNote</Name>
+              <Page isRef="18" />
+              <Parent isRef="810" />
+              <Text>Tiles compare REF with OUTAGE; the pies describe case {ScriptedOverview.chart_case_id}.</Text>
+              <TextBrush>[90:90:90]</TextBrush>
+              <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
+              <VertAlignment>Center</VertAlignment>
+            </OverviewCaseNote>
+          </Components>
+          <Conditions isList="true" count="0" />
+          <DataSourceName>ScriptedOverview</DataSourceName>
+          <Expressions isList="true" count="0" />
+          <Filters isList="true" count="0" />
+          <Name>OverviewKpiBand</Name>
+          <Page isRef="18" />
+          <Parent isRef="18" />
+          <Sort isList="true" count="0" />
+        </OverviewKpiBand>
+        <OverviewPiesBand Ref="819" type="DataBand" isKey="true">
+          <Brush>Transparent</Brush>
+          <BusinessObjectGuid isNull="true" />
+          <CanBreak>False</CanBreak>
+          <ClientRectangle>0,0,17,6.4</ClientRectangle>
+          <Components isList="true" count="2">
+            <OverviewLoadingPie Ref="820" type="Stimulsoft.Report.Chart.StiChart" isKey="true">
+              <Area Ref="859" type="Stimulsoft.Report.Chart.StiPieArea" isKey="true">
+                <BorderColor>Transparent</BorderColor>
+                <Brush>[255:255:255]</Brush>
+                <Chart isRef="820" />
+              </Area>
+              <Border>None;Transparent;0;None;False;4;Black</Border>
+              <Brush>[255:255:255]</Brush>
+              <ClientRectangle>0,0.2,8.3,6</ClientRectangle>
+              <Conditions isList="true" count="0" />
+              <ConstantLines isList="true" count="0" />
+              <CustomStyleName />
+              <Filters isList="true" count="0" />
+              <Legend Ref="851" type="Stimulsoft.Report.Chart.StiLegend" isKey="true">
+                <BorderColor>Transparent</BorderColor>
+                <Brush>[255:255:255]</Brush>
+                <Chart isRef="820" />
+                <Font>Segoe UI,8</Font>
+                <HorAlignment>Right</HorAlignment>
+                <HorSpacing>2</HorSpacing>
+                <LabelsColor>70, 70, 70</LabelsColor>
+                <MarkerSize>8, 8</MarkerSize>
+                <ShowShadow>False</ShowShadow>
+                <TitleColor>70, 70, 70</TitleColor>
+                <TitleFont>Segoe UI,10,Bold</TitleFont>
+                <VertSpacing>1</VertSpacing>
+                <Visible>True</Visible>
+              </Legend>
+              <Name>OverviewLoadingPie</Name>
+              <Page isRef="18" />
+              <Parent isRef="819" />
+              <Series isList="true" count="1">
+                <Series535 Ref="852" type="Stimulsoft.Report.Chart.StiPieSeries" isKey="true">
+
+                  <AllowApplyStyle>True</AllowApplyStyle>
+                  <ValueDataColumn>ScriptedOverviewLoadingClasses.element_count</ValueDataColumn>
+                  <ArgumentDataColumn>ScriptedOverviewLoadingClasses.class_label</ArgumentDataColumn>
+                  <BorderColor>White</BorderColor>
+                  <Chart isRef="820" />
+                  <Conditions isList="true" count="0" />
+                  <Filters isList="true" count="0" />
+                  <SeriesLabels Ref="853" type="Stimulsoft.Report.Chart.StiCenterPieLabels" isKey="true">
+                    <BorderColor>Transparent</BorderColor>
+                    <Brush>[245:245:245]</Brush>
+                    <Chart isRef="820" />
+                    <Font>Segoe UI,8</Font>
+                    <LabelColor>70, 70, 70</LabelColor>
+                    <MarkerSize>8, 6</MarkerSize>
+                    <ValueTypeSeparator>-</ValueTypeSeparator>
+                  </SeriesLabels>
+                  <Title>Maximum Loading</Title>
+                </Series535>
+              </Series>
+              <SeriesLabels Ref="856" type="Stimulsoft.Report.Chart.StiCenterPieLabels" isKey="true">
+                <BorderColor>Transparent</BorderColor>
+                <Brush>[245:245:245]</Brush>
+                <Chart isRef="820" />
+                <Font>Segoe UI,8</Font>
+                <LabelColor>70, 70, 70</LabelColor>
+                <MarkerSize>8, 6</MarkerSize>
+                <ValueTypeSeparator>-</ValueTypeSeparator>
+                <Visible>False</Visible>
+              </SeriesLabels>
+              <SeriesLabelsConditions isList="true" count="0" />
+              <Sort isList="true" count="0" />
+              <Strips isList="true" count="0" />
+              <Style Ref="857" type="Stimulsoft.Report.Chart.StiStyle29" isKey="true" />
+              <Title Ref="858" type="Stimulsoft.Report.Chart.StiChartTitle" isKey="true">
+                <Brush>Transparent</Brush>
+                <Font>Segoe UI,9,Bold</Font>
+                <Text>Line and transformer loading</Text>
+                <Visible>True</Visible>
+              </Title>
+              <DataSourceName>ScriptedOverviewLoadingClasses</DataSourceName>
+            </OverviewLoadingPie>
+            <OverviewVoltagePie Ref="860" type="Stimulsoft.Report.Chart.StiChart" isKey="true">
+              <Area Ref="899" type="Stimulsoft.Report.Chart.StiPieArea" isKey="true">
+                <BorderColor>Transparent</BorderColor>
+                <Brush>[255:255:255]</Brush>
+                <Chart isRef="860" />
+              </Area>
+              <Border>None;Transparent;0;None;False;4;Black</Border>
+              <Brush>[255:255:255]</Brush>
+              <ClientRectangle>8.7,0.2,8.3,6</ClientRectangle>
+              <Conditions isList="true" count="0" />
+              <ConstantLines isList="true" count="0" />
+              <CustomStyleName />
+              <Filters isList="true" count="0" />
+              <Legend Ref="891" type="Stimulsoft.Report.Chart.StiLegend" isKey="true">
+                <BorderColor>Transparent</BorderColor>
+                <Brush>[255:255:255]</Brush>
+                <Chart isRef="860" />
+                <Font>Segoe UI,8</Font>
+                <HorAlignment>Right</HorAlignment>
+                <HorSpacing>2</HorSpacing>
+                <LabelsColor>70, 70, 70</LabelsColor>
+                <MarkerSize>8, 8</MarkerSize>
+                <ShowShadow>False</ShowShadow>
+                <TitleColor>70, 70, 70</TitleColor>
+                <TitleFont>Segoe UI,10,Bold</TitleFont>
+                <VertSpacing>1</VertSpacing>
+                <Visible>True</Visible>
+              </Legend>
+              <Name>OverviewVoltagePie</Name>
+              <Page isRef="18" />
+              <Parent isRef="819" />
+              <Series isList="true" count="1">
+                <Series535 Ref="892" type="Stimulsoft.Report.Chart.StiPieSeries" isKey="true">
+
+                  <AllowApplyStyle>True</AllowApplyStyle>
+                  <ValueDataColumn>ScriptedOverviewVoltageClasses.element_count</ValueDataColumn>
+                  <ArgumentDataColumn>ScriptedOverviewVoltageClasses.class_label</ArgumentDataColumn>
+                  <BorderColor>White</BorderColor>
+                  <Chart isRef="860" />
+                  <Conditions isList="true" count="0" />
+                  <Filters isList="true" count="0" />
+                  <SeriesLabels Ref="893" type="Stimulsoft.Report.Chart.StiCenterPieLabels" isKey="true">
+                    <BorderColor>Transparent</BorderColor>
+                    <Brush>[245:245:245]</Brush>
+                    <Chart isRef="860" />
+                    <Font>Segoe UI,8</Font>
+                    <LabelColor>70, 70, 70</LabelColor>
+                    <MarkerSize>8, 6</MarkerSize>
+                    <ValueTypeSeparator>-</ValueTypeSeparator>
+                  </SeriesLabels>
+                  <Title>Maximum Loading</Title>
+                </Series535>
+              </Series>
+              <SeriesLabels Ref="896" type="Stimulsoft.Report.Chart.StiCenterPieLabels" isKey="true">
+                <BorderColor>Transparent</BorderColor>
+                <Brush>[245:245:245]</Brush>
+                <Chart isRef="860" />
+                <Font>Segoe UI,8</Font>
+                <LabelColor>70, 70, 70</LabelColor>
+                <MarkerSize>8, 6</MarkerSize>
+                <ValueTypeSeparator>-</ValueTypeSeparator>
+                <Visible>False</Visible>
+              </SeriesLabels>
+              <SeriesLabelsConditions isList="true" count="0" />
+              <Sort isList="true" count="0" />
+              <Strips isList="true" count="0" />
+              <Style Ref="897" type="Stimulsoft.Report.Chart.StiStyle29" isKey="true" />
+              <Title Ref="898" type="Stimulsoft.Report.Chart.StiChartTitle" isKey="true">
+                <Brush>Transparent</Brush>
+                <Font>Segoe UI,9,Bold</Font>
+                <Text>Voltage status of nodes</Text>
+                <Visible>True</Visible>
+              </Title>
+              <DataSourceName>ScriptedOverviewVoltageClasses</DataSourceName>
+            </OverviewVoltagePie>
+          </Components>
+          <Conditions isList="true" count="0" />
+          <DataSourceName>ScriptedReportMeta</DataSourceName>
+          <Expressions isList="true" count="0" />
+          <Filters isList="true" count="0" />
+          <Name>OverviewPiesBand</Name>
+          <Page isRef="18" />
+          <Parent isRef="18" />
+          <Sort isList="true" count="0" />
+        </OverviewPiesBand>
+        <OverviewBarsBand Ref="900" type="DataBand" isKey="true">
+          <Brush>Transparent</Brush>
+          <BusinessObjectGuid isNull="true" />
+          <CanBreak>False</CanBreak>
+          <ClientRectangle>0,0,17,6.4</ClientRectangle>
+          <Components isList="true" count="2">
+            <OverviewCaseBars Ref="901" type="Stimulsoft.Report.Chart.StiChart" isKey="true">
+              <Area Ref="902" type="Stimulsoft.Report.Chart.StiClusteredBarArea" isKey="true">
+                <BorderColor>Transparent</BorderColor>
+                <Brush>[255:255:255]</Brush>
+                <Chart isRef="901" />
+                <GridLinesHor Ref="903" type="Stimulsoft.Report.Chart.StiGridLinesHor" isKey="true">
+                  <Area isRef="902" />
+                  <Color>215, 215, 215</Color>
+                  <MinorColor>235, 235, 235</MinorColor>
+                </GridLinesHor>
+                <GridLinesHorRight Ref="904" type="Stimulsoft.Report.Chart.StiGridLinesHor" isKey="true">
+                  <Area isRef="902" />
+                  <Color>Silver</Color>
+                  <MinorColor>Gainsboro</MinorColor>
+                  <Visible>False</Visible>
+                </GridLinesHorRight>
+                <GridLinesVert Ref="905" type="Stimulsoft.Report.Chart.StiGridLinesVert" isKey="true">
+                  <Area isRef="902" />
+                  <Color>215, 215, 215</Color>
+                  <MinorColor>235, 235, 235</MinorColor>
+                </GridLinesVert>
+                <InterlacingHor Ref="906" type="Stimulsoft.Report.Chart.StiInterlacingHor" isKey="true">
+                  <Area isRef="902" />
+                  <InterlacedBrush>[10:238:238:238]</InterlacedBrush>
+                </InterlacingHor>
+                <InterlacingVert Ref="907" type="Stimulsoft.Report.Chart.StiInterlacingVert" isKey="true">
+                  <Area isRef="902" />
+                  <InterlacedBrush>[10:238:238:238]</InterlacedBrush>
+                </InterlacingVert>
+                <XAxis Ref="908" type="Stimulsoft.Report.Chart.StiXBottomAxis" isKey="true">
+                  <Area isRef="902" />
+                  <DateTimeStep Ref="909" type="Stimulsoft.Report.Chart.StiAxisDateTimeStep" isKey="true">
+                    <NumberOfValues>1</NumberOfValues>
+                  </DateTimeStep>
+                  <Interaction Ref="910" type="Stimulsoft.Report.Chart.StiAxisInteraction" isKey="true" />
+                  <Labels Ref="911" type="Stimulsoft.Report.Chart.StiAxisLabels" isKey="true">
+                    <Angle>30</Angle>
+                    <Color>90, 90, 90</Color>
+                    <Font>Segoe UI,8</Font>
+                  </Labels>
+                  <LineColor>150, 150, 150</LineColor>
+                  <Range Ref="912" type="Stimulsoft.Report.Chart.StiAxisRange" isKey="true" />
+                  <Ticks Ref="913" type="Stimulsoft.Report.Chart.StiAxisTicks" isKey="true" />
+                  <Title Ref="914" type="Stimulsoft.Report.Chart.StiAxisTitle" isKey="true">
+                    <Color>70, 70, 70</Color>
+                    <Direction>LeftToRight</Direction>
+                    <Font>Segoe UI,9,Bold</Font>
+                    <Text>Elements</Text>
+                  </Title>
+                </XAxis>
+                <XTopAxis Ref="915" type="Stimulsoft.Report.Chart.StiXTopAxis" isKey="true">
+                  <Area isRef="902" />
+                  <Interaction Ref="916" type="Stimulsoft.Report.Chart.StiAxisInteraction" isKey="true" />
+                  <Labels Ref="917" type="Stimulsoft.Report.Chart.StiAxisLabels" isKey="true">
+                    <Color>90, 90, 90</Color>
+                    <Font>Segoe UI,8</Font>
+                  </Labels>
+                  <LineColor>150, 150, 150</LineColor>
+                  <Ticks Ref="918" type="Stimulsoft.Report.Chart.StiAxisTicks" isKey="true" />
+                  <Title Ref="919" type="Stimulsoft.Report.Chart.StiAxisTitle" isKey="true">
+                    <Color>70, 70, 70</Color>
+                    <Direction>LeftToRight</Direction>
+                    <Font>Segoe UI,9,Bold</Font>
+                  </Title>
+                </XTopAxis>
+                <YAxis Ref="920" type="Stimulsoft.Report.Chart.StiYLeftAxis" isKey="true">
+                  <Area isRef="902" />
+                  <Interaction Ref="921" type="Stimulsoft.Report.Chart.StiAxisInteraction" isKey="true" />
+                  <Labels Ref="922" type="Stimulsoft.Report.Chart.StiAxisLabels" isKey="true">
+                    <Color>90, 90, 90</Color>
+                    <Font>Segoe UI,8</Font>
+                  </Labels>
+                  <LineColor>150, 150, 150</LineColor>
+                  <Range Ref="923" type="Stimulsoft.Report.Chart.StiAxisRange" isKey="true" />
+                  <Ticks Ref="924" type="Stimulsoft.Report.Chart.StiAxisTicks" isKey="true" />
+                  <Title Ref="925" type="Stimulsoft.Report.Chart.StiAxisTitle" isKey="true">
+                    <Color>70, 70, 70</Color>
+                    <Direction>BottomToTop</Direction>
+                    <Font>Segoe UI,9,Bold</Font>
+                    <Text />
+                  </Title>
+                </YAxis>
+                <YRightAxis Ref="926" type="Stimulsoft.Report.Chart.StiYRightAxis" isKey="true">
+                  <Area isRef="902" />
+                  <Interaction Ref="927" type="Stimulsoft.Report.Chart.StiAxisInteraction" isKey="true" />
+                  <Labels Ref="928" type="Stimulsoft.Report.Chart.StiAxisLabels" isKey="true">
+                    <Color>90, 90, 90</Color>
+                    <Font>Segoe UI,8</Font>
+                    <TextAlignment>Left</TextAlignment>
+                  </Labels>
+                  <LineColor>150, 150, 150</LineColor>
+                  <Range Ref="929" type="Stimulsoft.Report.Chart.StiAxisRange" isKey="true" />
+                  <Ticks Ref="930" type="Stimulsoft.Report.Chart.StiAxisTicks" isKey="true" />
+                  <Title Ref="931" type="Stimulsoft.Report.Chart.StiAxisTitle" isKey="true">
+                    <Color>70, 70, 70</Color>
+                    <Direction>TopToBottom</Direction>
+                    <Font>Segoe UI,9,Bold</Font>
+                  </Title>
+                </YRightAxis>
+              </Area>
+              <Border>None;Transparent;0;None;False;4;Black</Border>
+              <Brush>[255:255:255]</Brush>
+              <ClientRectangle>0,0.2,8.3,6</ClientRectangle>
+              <Conditions isList="true" count="0" />
+              <ConstantLines isList="true" count="0" />
+              <CustomStyleName />
+              <Filters isList="true" count="0" />
+              <Legend Ref="932" type="Stimulsoft.Report.Chart.StiLegend" isKey="true">
+                <BorderColor>Transparent</BorderColor>
+                <Brush>[255:255:255]</Brush>
+                <Chart isRef="901" />
+                <Font>Segoe UI,8</Font>
+                <HorAlignment>LeftOutside</HorAlignment>
+                <HorSpacing>2</HorSpacing>
+                <LabelsColor>70, 70, 70</LabelsColor>
+                <MarkerSize>8, 8</MarkerSize>
+                <ShowShadow>False</ShowShadow>
+                <TitleColor>70, 70, 70</TitleColor>
+                <TitleFont>Segoe UI,10,Bold</TitleFont>
+                <VertSpacing>1</VertSpacing>
+                <Visible>True</Visible>
+              </Legend>
+              <Name>OverviewCaseBars</Name>
+              <Page isRef="18" />
+              <Parent isRef="900" />
+              <Series isList="true" count="1">
+                <Series535 Ref="933" type="Stimulsoft.Report.Chart.StiClusteredBarSeries" isKey="true">
+
+                  <AllowApplyBrushNegative>False</AllowApplyBrushNegative>
+
+                  <AllowApplyStyle>True</AllowApplyStyle>
+                  <ValueDataColumn>ScriptedOverviewViolationsByCase.element_count</ValueDataColumn>
+                  <AutoSeriesKeyDataColumn>ScriptedOverviewViolationsByCase.case_id</AutoSeriesKeyDataColumn>
+                  <AutoSeriesTitleDataColumn>ScriptedOverviewViolationsByCase.case_id</AutoSeriesTitleDataColumn>
+                  <ArgumentDataColumn>ScriptedOverviewViolationsByCase.violation_type</ArgumentDataColumn>
+                  <BorderColor>181, 18, 62</BorderColor>
+                  <Brush>[181:18:62]</Brush>
+                  <BrushNegative>[181:18:62]</BrushNegative>
+                  <Chart isRef="901" />
+                  <Conditions isList="true" count="0" />
+                  <Filters isList="true" count="0" />
+                  <SeriesLabels Ref="934" type="Stimulsoft.Report.Chart.StiCenterAxisLabels" isKey="true">
+                    <BorderColor>Transparent</BorderColor>
+                    <Brush>[245:245:245]</Brush>
+                    <Chart isRef="901" />
+                    <Font>Segoe UI,8</Font>
+                    <LabelColor>70, 70, 70</LabelColor>
+                    <MarkerSize>8, 6</MarkerSize>
+                    <ValueTypeSeparator>-</ValueTypeSeparator>
+                  </SeriesLabels>
+                  <Title>Maximum Loading</Title>
+                  <TopN Ref="935" type="Stimulsoft.Report.Chart.StiSeriesTopN" isKey="true" />
+                  <TrendLine Ref="936" type="Stimulsoft.Report.Chart.StiTrendLineNone" isKey="true">
+                    <LineColor>Black</LineColor>
+                    <ShowShadow>True</ShowShadow>
+                  </TrendLine>
+                </Series535>
+              </Series>
+              <SeriesLabels Ref="937" type="Stimulsoft.Report.Chart.StiInsideEndAxisLabels" isKey="true">
+                <BorderColor>Transparent</BorderColor>
+                <Brush>[245:245:245]</Brush>
+                <Chart isRef="901" />
+                <Font>Segoe UI,8</Font>
+                <LabelColor>70, 70, 70</LabelColor>
+                <MarkerSize>8, 6</MarkerSize>
+                <ValueTypeSeparator>-</ValueTypeSeparator>
+                <Visible>False</Visible>
+              </SeriesLabels>
+              <SeriesLabelsConditions isList="true" count="0" />
+              <Sort isList="true" count="0" />
+              <Strips isList="true" count="0" />
+              <Style Ref="938" type="Stimulsoft.Report.Chart.StiStyle29" isKey="true" />
+              <Title Ref="939" type="Stimulsoft.Report.Chart.StiChartTitle" isKey="true">
+                <Brush>Transparent</Brush>
+                <Font>Segoe UI,9,Bold</Font>
+                <Text>Violating elements, REF against OUTAGE</Text>
+                <Visible>True</Visible>
+              </Title>
+              <DataSourceName>ScriptedOverviewViolationsByCase</DataSourceName>
+            </OverviewCaseBars>
+            <OverviewOutageBars Ref="940" type="Stimulsoft.Report.Chart.StiChart" isKey="true">
+              <Area Ref="941" type="Stimulsoft.Report.Chart.StiClusteredBarArea" isKey="true">
+                <BorderColor>Transparent</BorderColor>
+                <Brush>[255:255:255]</Brush>
+                <Chart isRef="940" />
+                <GridLinesHor Ref="942" type="Stimulsoft.Report.Chart.StiGridLinesHor" isKey="true">
+                  <Area isRef="941" />
+                  <Color>215, 215, 215</Color>
+                  <MinorColor>235, 235, 235</MinorColor>
+                </GridLinesHor>
+                <GridLinesHorRight Ref="943" type="Stimulsoft.Report.Chart.StiGridLinesHor" isKey="true">
+                  <Area isRef="941" />
+                  <Color>Silver</Color>
+                  <MinorColor>Gainsboro</MinorColor>
+                  <Visible>False</Visible>
+                </GridLinesHorRight>
+                <GridLinesVert Ref="944" type="Stimulsoft.Report.Chart.StiGridLinesVert" isKey="true">
+                  <Area isRef="941" />
+                  <Color>215, 215, 215</Color>
+                  <MinorColor>235, 235, 235</MinorColor>
+                </GridLinesVert>
+                <InterlacingHor Ref="945" type="Stimulsoft.Report.Chart.StiInterlacingHor" isKey="true">
+                  <Area isRef="941" />
+                  <InterlacedBrush>[10:238:238:238]</InterlacedBrush>
+                </InterlacingHor>
+                <InterlacingVert Ref="946" type="Stimulsoft.Report.Chart.StiInterlacingVert" isKey="true">
+                  <Area isRef="941" />
+                  <InterlacedBrush>[10:238:238:238]</InterlacedBrush>
+                </InterlacingVert>
+                <XAxis Ref="947" type="Stimulsoft.Report.Chart.StiXBottomAxis" isKey="true">
+                  <Area isRef="941" />
+                  <DateTimeStep Ref="948" type="Stimulsoft.Report.Chart.StiAxisDateTimeStep" isKey="true">
+                    <NumberOfValues>1</NumberOfValues>
+                  </DateTimeStep>
+                  <Interaction Ref="949" type="Stimulsoft.Report.Chart.StiAxisInteraction" isKey="true" />
+                  <Labels Ref="950" type="Stimulsoft.Report.Chart.StiAxisLabels" isKey="true">
+                    <Angle>30</Angle>
+                    <Color>90, 90, 90</Color>
+                    <Font>Segoe UI,8</Font>
+                  </Labels>
+                  <LineColor>150, 150, 150</LineColor>
+                  <Range Ref="951" type="Stimulsoft.Report.Chart.StiAxisRange" isKey="true" />
+                  <Ticks Ref="952" type="Stimulsoft.Report.Chart.StiAxisTicks" isKey="true" />
+                  <Title Ref="953" type="Stimulsoft.Report.Chart.StiAxisTitle" isKey="true">
+                    <Color>70, 70, 70</Color>
+                    <Direction>LeftToRight</Direction>
+                    <Font>Segoe UI,9,Bold</Font>
+                    <Text>Elements</Text>
+                  </Title>
+                </XAxis>
+                <XTopAxis Ref="954" type="Stimulsoft.Report.Chart.StiXTopAxis" isKey="true">
+                  <Area isRef="941" />
+                  <Interaction Ref="955" type="Stimulsoft.Report.Chart.StiAxisInteraction" isKey="true" />
+                  <Labels Ref="956" type="Stimulsoft.Report.Chart.StiAxisLabels" isKey="true">
+                    <Color>90, 90, 90</Color>
+                    <Font>Segoe UI,8</Font>
+                  </Labels>
+                  <LineColor>150, 150, 150</LineColor>
+                  <Ticks Ref="957" type="Stimulsoft.Report.Chart.StiAxisTicks" isKey="true" />
+                  <Title Ref="958" type="Stimulsoft.Report.Chart.StiAxisTitle" isKey="true">
+                    <Color>70, 70, 70</Color>
+                    <Direction>LeftToRight</Direction>
+                    <Font>Segoe UI,9,Bold</Font>
+                  </Title>
+                </XTopAxis>
+                <YAxis Ref="959" type="Stimulsoft.Report.Chart.StiYLeftAxis" isKey="true">
+                  <Area isRef="941" />
+                  <Interaction Ref="960" type="Stimulsoft.Report.Chart.StiAxisInteraction" isKey="true" />
+                  <Labels Ref="961" type="Stimulsoft.Report.Chart.StiAxisLabels" isKey="true">
+                    <Color>90, 90, 90</Color>
+                    <Font>Segoe UI,8</Font>
+                  </Labels>
+                  <LineColor>150, 150, 150</LineColor>
+                  <Range Ref="962" type="Stimulsoft.Report.Chart.StiAxisRange" isKey="true" />
+                  <Ticks Ref="963" type="Stimulsoft.Report.Chart.StiAxisTicks" isKey="true" />
+                  <Title Ref="964" type="Stimulsoft.Report.Chart.StiAxisTitle" isKey="true">
+                    <Color>70, 70, 70</Color>
+                    <Direction>BottomToTop</Direction>
+                    <Font>Segoe UI,9,Bold</Font>
+                    <Text />
+                  </Title>
+                </YAxis>
+                <YRightAxis Ref="965" type="Stimulsoft.Report.Chart.StiYRightAxis" isKey="true">
+                  <Area isRef="941" />
+                  <Interaction Ref="966" type="Stimulsoft.Report.Chart.StiAxisInteraction" isKey="true" />
+                  <Labels Ref="967" type="Stimulsoft.Report.Chart.StiAxisLabels" isKey="true">
+                    <Color>90, 90, 90</Color>
+                    <Font>Segoe UI,8</Font>
+                    <TextAlignment>Left</TextAlignment>
+                  </Labels>
+                  <LineColor>150, 150, 150</LineColor>
+                  <Range Ref="968" type="Stimulsoft.Report.Chart.StiAxisRange" isKey="true" />
+                  <Ticks Ref="969" type="Stimulsoft.Report.Chart.StiAxisTicks" isKey="true" />
+                  <Title Ref="970" type="Stimulsoft.Report.Chart.StiAxisTitle" isKey="true">
+                    <Color>70, 70, 70</Color>
+                    <Direction>TopToBottom</Direction>
+                    <Font>Segoe UI,9,Bold</Font>
+                  </Title>
+                </YRightAxis>
+              </Area>
+              <Border>None;Transparent;0;None;False;4;Black</Border>
+              <Brush>[255:255:255]</Brush>
+              <ClientRectangle>8.7,0.2,8.3,6</ClientRectangle>
+              <Conditions isList="true" count="0" />
+              <ConstantLines isList="true" count="0" />
+              <CustomStyleName />
+              <Filters isList="true" count="0" />
+              <Legend Ref="971" type="Stimulsoft.Report.Chart.StiLegend" isKey="true">
+                <BorderColor>Transparent</BorderColor>
+                <Brush>[255:255:255]</Brush>
+                <Chart isRef="940" />
+                <Font>Segoe UI,8</Font>
+                <HorAlignment>LeftOutside</HorAlignment>
+                <HorSpacing>2</HorSpacing>
+                <LabelsColor>70, 70, 70</LabelsColor>
+                <MarkerSize>8, 8</MarkerSize>
+                <ShowShadow>False</ShowShadow>
+                <TitleColor>70, 70, 70</TitleColor>
+                <TitleFont>Segoe UI,10,Bold</TitleFont>
+                <VertSpacing>1</VertSpacing>
+                <Visible>False</Visible>
+              </Legend>
+              <Name>OverviewOutageBars</Name>
+              <Page isRef="18" />
+              <Parent isRef="900" />
+              <Series isList="true" count="1">
+                <Series535 Ref="972" type="Stimulsoft.Report.Chart.StiClusteredBarSeries" isKey="true">
+
+                  <AllowApplyBrushNegative>False</AllowApplyBrushNegative>
+
+                  <AllowApplyStyle>False</AllowApplyStyle>
+                  <ValueDataColumn>ScriptedOverviewViolationsByOutage.violating_elements</ValueDataColumn>
+                  <ArgumentDataColumn>ScriptedOverviewViolationsByOutage.outage_name</ArgumentDataColumn>
+                  <BorderColor>181, 18, 62</BorderColor>
+                  <Brush>[181:18:62]</Brush>
+                  <BrushNegative>[181:18:62]</BrushNegative>
+                  <Chart isRef="940" />
+                  <Conditions isList="true" count="0" />
+                  <Filters isList="true" count="0" />
+                  <SeriesLabels Ref="973" type="Stimulsoft.Report.Chart.StiCenterAxisLabels" isKey="true">
+                    <BorderColor>Transparent</BorderColor>
+                    <Brush>[245:245:245]</Brush>
+                    <Chart isRef="940" />
+                    <Font>Segoe UI,8</Font>
+                    <LabelColor>70, 70, 70</LabelColor>
+                    <MarkerSize>8, 6</MarkerSize>
+                    <ValueTypeSeparator>-</ValueTypeSeparator>
+                  </SeriesLabels>
+                  <Title>Maximum Loading</Title>
+                  <TopN Ref="974" type="Stimulsoft.Report.Chart.StiSeriesTopN" isKey="true" />
+                  <TrendLine Ref="975" type="Stimulsoft.Report.Chart.StiTrendLineNone" isKey="true">
+                    <LineColor>Black</LineColor>
+                    <ShowShadow>True</ShowShadow>
+                  </TrendLine>
+                </Series535>
+              </Series>
+              <SeriesLabels Ref="976" type="Stimulsoft.Report.Chart.StiInsideEndAxisLabels" isKey="true">
+                <BorderColor>Transparent</BorderColor>
+                <Brush>[245:245:245]</Brush>
+                <Chart isRef="940" />
+                <Font>Segoe UI,8</Font>
+                <LabelColor>70, 70, 70</LabelColor>
+                <MarkerSize>8, 6</MarkerSize>
+                <ValueTypeSeparator>-</ValueTypeSeparator>
+                <Visible>False</Visible>
+              </SeriesLabels>
+              <SeriesLabelsConditions isList="true" count="0" />
+              <Sort isList="true" count="0" />
+              <Strips isList="true" count="0" />
+              <Style Ref="977" type="Stimulsoft.Report.Chart.StiStyle29" isKey="true" />
+              <Title Ref="978" type="Stimulsoft.Report.Chart.StiChartTitle" isKey="true">
+                <Brush>Transparent</Brush>
+                <Font>Segoe UI,9,Bold</Font>
+                <Text>Violating elements inside each outage window</Text>
+                <Visible>True</Visible>
+              </Title>
+              <DataSourceName>ScriptedOverviewViolationsByOutage</DataSourceName>
+            </OverviewOutageBars>
+          </Components>
+          <Conditions isList="true" count="0" />
+          <DataSourceName>ScriptedReportMeta</DataSourceName>
+          <Expressions isList="true" count="0" />
+          <Filters isList="true" count="0" />
+          <Name>OverviewBarsBand</Name>
+          <Page isRef="18" />
+          <Parent isRef="18" />
+          <Sort isList="true" count="0" />
+        </OverviewBarsBand>
+        <OverviewPageBreakBand Ref="979" type="DataBand" isKey="true">
+          <Brush>Transparent</Brush>
+          <BusinessObjectGuid isNull="true" />
+          <CanBreak>False</CanBreak>
+          <ClientRectangle>0,0,17,0.01</ClientRectangle>
+          <Components isList="true" count="0">
+          </Components>
+          <Conditions isList="true" count="0" />
+          <DataSourceName>ScriptedReportMeta</DataSourceName>
+          <Expressions isList="true" count="0" />
+          <Filters isList="true" count="0" />
+          <Name>OverviewPageBreakBand</Name>
+          <NewPageAfter>True</NewPageAfter>
+          <Page isRef="18" />
+          <Parent isRef="18" />
+          <Sort isList="true" count="0" />
+        </OverviewPageBreakBand>
         <ModelQualityTitleBand Ref="45" type="HeaderBand" isKey="true">
           <Brush>Transparent</Brush>
           <ClientRectangle>0,27.5,17,1.85</ClientRectangle>

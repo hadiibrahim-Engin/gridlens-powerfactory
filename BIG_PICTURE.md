@@ -1,6 +1,6 @@
 # GridLens – Big Picture
 
-Stand: **28. September 2026** · Publisher `5.2.0` · MRT `3.2.0` · Datenvertrag `3.2`
+Stand: **28. September 2026** · Publisher `5.3.0` · MRT `3.3.0` · Datenvertrag `3.3`
 
 GridLens erzeugt in DIgSILENT PowerFactory 2026 einen Bericht zur technischen
 Vorprüfung geplanter Außerbetriebnahmen (Freischaltungen). Ein Klick auf das
@@ -39,9 +39,9 @@ flowchart LR
     QDS -- "rechnet REF und OUTAGE" --> PY
     OUT -- "Zeitfenster · Betriebsmittel" --> PY
     RES -- "Vorlage für temporäre Kopien" --> PY
-    PY -- "CreateTable · CreateField · SetValue<br/>19 Tabellen" --> REP
+    PY -- "CreateTable · CreateField · SetValue<br/>24 Tabellen" --> REP
     REP --> DB
-    DB -- "19 Scripted*-Datenquellen" --> MRT
+    DB -- "24 Scripted*-Datenquellen" --> MRT
     MRT --> PDF
 ```
 
@@ -50,7 +50,7 @@ Ausgeliefert werden **genau zwei Dateien**, immer aus demselben Release:
 | Datei | Aufgabe |
 |---|---|
 | `powerfactory/gridlens_report.py` | Rechnen, Auswerten, Zustand wiederherstellen, Tabellen publizieren. Nur Standardbibliothek und `powerfactory`. |
-| `powerfactory/MASTER_GRIDLENS.mrt` | Berichtslayout mit 19 Datenquellen, Logos, Lesezeichen, Inhaltsverzeichnis. |
+| `powerfactory/MASTER_GRIDLENS.mrt` | Berichtslayout mit 24 Datenquellen, Logos, Lesezeichen, Inhaltsverzeichnis. |
 
 Zwei Dinge liegen bewusst **außerhalb** der Auslieferung:
 
@@ -93,7 +93,7 @@ sequenceDiagram
     end
 
     Note over GL,Q: 06 RESTORE / CLEANUP<br/>iopt_maint, results, Study Time zurück · Kopien löschen · verifizieren
-    GL->>R: 07 REPORT<br/>Reset · 19 Tabellen · Heartbeat-Fortschritt
+    GL->>R: 07 REPORT<br/>Reset · 24 Tabellen · Heartbeat-Fortschritt
     GL-->>U: Report published successfully
     U->>R: Bericht erzeugen / exportieren
 ```
@@ -235,7 +235,7 @@ stateDiagram-v2
     }
     Restore --> Publizieren: alles verifiziert
     Restore --> Fehler: etwas nicht verifiziert
-    Publizieren --> [*]: 19 Tabellen im IntReport
+    Publizieren --> [*]: 24 Tabellen im IntReport
     Fehler --> [*]: nichts publiziert · manuelle Prüfung
 ```
 
@@ -258,14 +258,15 @@ löscht das Objekt nicht. Aufräumen heißt hier umbenennen, nicht löschen.
 
 ## 6. Vom Datenvertrag zum Bericht
 
-Python publiziert 19 Tabellen. PowerFactory stellt jedem Namen `Scripted`
+Python publiziert 24 Tabellen. PowerFactory stellt jedem Namen `Scripted`
 voran. Die Namen, Felder und Typen müssen exakt mit den Datenquellen der MRT
 übereinstimmen – `tests/test_mrt.py` prüft das feldgenau.
 
 ```mermaid
 flowchart LR
-    subgraph T["19 Tabellen"]
+    subgraph T["24 Tabellen"]
         M["ReportMeta"]
+        OV["Overview · LoadingClasses · VoltageClasses<br/>ViolationsByCase · ViolationsByOutage"]
         MQ["ModelQuality"]
         C["Cases"]
         PO["PlannedOutages"]
@@ -279,6 +280,7 @@ flowchart LR
     end
 
     M --> K0["Deckblatt · Inhalt · 2 Study Definition"]
+    OV --> KO["Assessment Overview"]
     MQ --> K1["1 Model Quality Assurance"]
     C --> K3["3 Calculated Cases"]
     PO --> K4["4 Planned Outages<br/>(Bewertung)"]
@@ -294,6 +296,7 @@ flowchart LR
 | Berichtskapitel | Datenquelle(n) |
 |---|---|
 | Deckblatt, Inhaltsverzeichnis, 2 Study Definition | `ReportMeta` |
+| Assessment Overview (vor Kapitel 1) | `Overview` (Kennzahlen), `OverviewLoadingClasses`, `OverviewVoltageClasses` (Kreise), `OverviewViolationsByCase`, `OverviewViolationsByOutage` (Balken) |
 | 1 Model Quality Assurance | `ModelQuality` |
 | 3 Calculated Cases | `Cases` |
 | 4 Planned Outages | `PlannedOutages` |

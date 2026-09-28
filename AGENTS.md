@@ -20,7 +20,7 @@ Die gemeinsam auszuliefernde Laufzeit besteht ausschließlich aus:
 - `powerfactory/gridlens_report.py`
 - `powerfactory/MASTER_GRIDLENS.mrt`
 
-Publisher-Version: `5.2.0`; MRT: `3.2.0`; Datenvertrag: `3.2`.
+Publisher-Version: `5.3.0`; MRT: `3.3.0`; Datenvertrag: `3.3`.
 
 Das einzelne ComPython liegt direkt unter dem `IntReport`. Es verwendet das
 aktive `ComStatsim` einschließlich Zeitraum, Zeitschritt, Profilen und
@@ -73,6 +73,19 @@ kommen aus der Klassifizierung, die vor dem ersten Rechenlauf steht.
 `assessment_detail` nennt die Zahlen dahinter, bei übersprungenen Einträgen den
 Grund.
 
+## Übersichtsseite und Elementumfang
+
+Vor Kapitel 1 steht die Seite „Assessment Overview“: vier Kennzahlen, zwei
+Kreisdiagramme (Auslastungsklassen bis 80 %, 80–100 %, über 100 % für
+Leitungen und Transformatoren; Spannungsstatus der Knoten) und zwei
+Balkendiagramme (Verletzungen REF gegen OUTAGE; Verletzungen je
+Freischaltungsfenster). Alle Zahlen berechnet `_overview` in Python; die MRT
+zeigt nur an. Jedes Diagramm liest eine eigene `ScriptedOverview*`-Tabelle.
+
+`ELEMENT_NAME_FILTER` (Standard `'D7'`) begrenzt die Bewertung auf Elemente,
+deren Kurzname den Text enthält; der übrige Modellteil ist Auslandsnetz. Der
+Filter greift in `collect_series` vor dem Lesen der Werte.
+
 ## Fachliche Regeln
 
 - Priorisierte Variablen: `c:loading`/`m:loading`, `m:u`/`m:u1`,
@@ -90,7 +103,7 @@ Grund.
 
 ## Datenvertrag und MRT
 
-PowerFactory ergänzt `Scripted` genau einmal. Python publiziert 19 Tabellen;
+PowerFactory ergänzt `Scripted` genau einmal. Python publiziert 24 Tabellen;
 MRT und `TABLES` in `gridlens_report.py` müssen exakt übereinstimmen.
 Vertragsänderungen erfordern synchrone Anpassungen von Code, MRT, Versionen und
 Tests. `report.Reset()` läuft im erfolgreichen Publikationspfad genau einmal.
