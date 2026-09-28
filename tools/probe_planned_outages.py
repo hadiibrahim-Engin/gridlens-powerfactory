@@ -106,17 +106,49 @@ def render(value):
     return text
 
 
-def attribute_names(obj):
+def attribute_names(obj, app=None):
+    """Attribute names, preferring PowerFactory's own accessor over dir()."""
     for getter_name in ("GetAttributes", "GetAttributeNames"):
         getter = safe(obj, getter_name)
         if not callable(getter):
             continue
-        returned = call(getter)
-        names = sorted({str(item).strip() for item in returned or ()
-                        if str(item).strip()})
+        try:
+            returned = getter()
+        except TypeError:
+            try:
+                returned = getter(0)
+            except Exception as exc:
+                if app:
+                    emit(app, "    (note: {}() needs other arguments: {})".format(
+                        getter_name, exc))
+                continue
+        except Exception as exc:
+            if app:
+                emit(app, "    (note: {}() failed: {})".format(getter_name, exc))
+            continue
+        try:
+            names = sorted({str(item).strip() for item in returned or ()
+                            if str(item).strip()})
+        except TypeError:
+            names = []
         if names:
             return names
-    return []
+        if app:
+            emit(app, "    (note: {}() returned {}; falling back to dir())"
+                 .format(getter_name, render(returned)))
+    names = []
+    try:
+        candidates = sorted(dir(obj))
+    except Exception:
+        candidates = []
+    for name in candidates:
+        if name.startswith("_"):
+            continue
+        value = safe(obj, name)
+        if value is None or callable(value):
+            continue
+        names.append(name)
+    return names
 
 
 def describe_attribute(obj, name):
@@ -162,7 +194,7 @@ def report_object(app, obj, heading):
         emit(app, "  path : {}".format(obj.GetFullName()))
     except Exception:
         pass
-    names = attribute_names(obj)
+    names = attribute_names(obj, app)
     if not names:
         emit(app, "    <the object declares no attributes through GetAttributes>")
         return
@@ -223,7 +255,7 @@ def report_command_options(app, command, heading):
     """Print every calculation option with PowerFactory's own description."""
     emit(app, "")
     emit(app, "  {}".format(heading))
-    names = attribute_names(command)
+    names = attribute_names(command, app)
     options = [name for name in names if name.startswith("iopt_")]
     if not options:
         options = [name for name in dir(command) if name.startswith("iopt_")]
