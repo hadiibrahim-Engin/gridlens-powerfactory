@@ -1,6 +1,6 @@
 # GridLens – Big Picture
 
-Stand: **28. September 2026** · Publisher `5.1.2` · MRT `3.1.0` · Datenvertrag `3.1`
+Stand: **28. September 2026** · Publisher `5.1.3` · MRT `3.1.0` · Datenvertrag `3.1`
 
 GridLens erzeugt in DIgSILENT PowerFactory 2026 einen Bericht zur technischen
 Vorprüfung geplanter Außerbetriebnahmen (Freischaltungen). Ein Klick auf das
@@ -213,9 +213,6 @@ ist ein harter Fehler.
 ```mermaid
 stateDiagram-v2
     [*] --> Erfasst: Ausgangszustand lesen
-    Erfasst --> Abgewiesen: ComStatsim.results ist ein<br/>GridLens_TMP_-Überbleibsel
-    Abgewiesen --> [*]: nichts verändert
-
     Erfasst --> Verändert: Lauf beginnt
     state Verändert {
         state "iopt_maint = 0 bzw. 1" as Option
@@ -251,8 +248,11 @@ stateDiagram-v2
 
 Alle anderen `ComStatsim`-Einstellungen bleiben unberührt. Wird ein Lauf hart
 abgebrochen, bevor der Restore greift, kann `ComStatsim.results` auf einer
-temporären Kopie stehen bleiben. Der nächste Lauf erkennt das und startet dann
-nicht; die Reparatur beschreibt die Fehlermeldung.
+temporären Kopie `GridLens_TMP_…` stehen bleiben. Der nächste Lauf rechnet
+trotzdem mit den hinterlegten Einstellungen: Die Kopie enthält die vollständige
+Variablenauswahl, und jeder Fall wird frisch in eine neue Kopie gerechnet.
+GridLens meldet das als Warnung, stellt die Bindung danach wieder her und
+löscht das Objekt nicht. Aufräumen heißt hier umbenennen, nicht löschen.
 
 ---
 

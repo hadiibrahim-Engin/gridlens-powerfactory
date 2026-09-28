@@ -244,7 +244,7 @@ class App:
 
 
 def test_table_contract_is_single_versioned_17_table_contract():
-    assert gl.PUBLISHER_VERSION == "5.1.2"
+    assert gl.PUBLISHER_VERSION == "5.1.3"
     assert gl.TEMPLATE_VERSION == "3.1.0"
     assert gl.DATA_CONTRACT_VERSION == "3.1"
     assert len(gl.TABLES) == 17
@@ -1158,14 +1158,23 @@ def test_statistics_rows_do_not_rescan_the_category_per_critical_element():
     assert _CountingList.scans <= len(results)
 
 
-def test_leftover_temporary_result_is_refused_before_any_calculation():
-    # A run aborted mid-calculation left ComStatsim.results bound to its own
-    # temporary ElmRes; later runs silently copied their variables from it.
+def test_leftover_temporary_result_is_used_as_configured_with_a_warning(monkeypatch):
+    # A run aborted mid-calculation can leave ComStatsim.results bound to its
+    # own temporary ElmRes. That object is a full copy of the variable
+    # selection, and every run recalculates into a fresh copy, so GridLens
+    # calculates with the stored settings instead of refusing to run.
     app = App((PlannedOutage("Outage"),))
-    app.original_result.loc_name = "GridLens_TMP_20260928145610059524_REF"
+    leftover = app.original_result
+    leftover.loc_name = "GridLens_TMP_20260928145610059524_REF"
+    monkeypatch.setattr(gl, "RUN_REFERENCE_CASE", True)
 
-    with pytest.raises(gl.GridLensError, match="left behind by an earlier"):
-        gl.execute_gridlens(app)
+    counts = gl.execute_gridlens(app)
 
-    assert app.qds.execute_calls == 0
-    assert app.qds.results is app.original_result
+    assert app.qds.execute_calls == 2
+    assert counts["ScriptedCases"] == 2
+    assert app.qds.results is leftover, "the stored binding must come back"
+    assert leftover.deleted is False, "only this run's own copies are deleted"
+    warnings = [line for line in app.messages
+                if "WARNING" in line and "GridLens_TMP_20260928145610059524_REF" in line]
+    assert len(warnings) == 1
+    assert "not deleted" in warnings[0]

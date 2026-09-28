@@ -181,7 +181,8 @@ ungefilterten Traceback. Suche immer nach den Phasen `FAILED`, `ABORTED` und
 4. `ComStatsim.results` mit dem ursprünglichen Ergebnisobjekt vergleichen,
 5. `iopt_maint` am `ComStatsim` gegen den Ausgangswert prüfen,
 6. verbliebene Objekte mit Präfix `GridLens_TMP_` prüfen und gegebenenfalls
-   kontrolliert entfernen,
+   kontrolliert entfernen – nicht aber das Objekt, auf das
+   `ComStatsim.results` zeigt; das lieber umbenennen,
 7. Ursache beheben und den vollständigen Lauf wiederholen.
 
 GridLens löscht ausschließlich die temporären `ElmRes`, die es im aktuellen

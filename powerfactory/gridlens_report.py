@@ -19,7 +19,7 @@ LOADING_MAX = 100.0
 VOLTAGE_MIN = 0.95
 VOLTAGE_MAX = 1.05
 TIME_UNIT_FALLBACK = 'h'
-PUBLISHER_VERSION = '5.1.2'
+PUBLISHER_VERSION = '5.1.3'
 TEMPLATE_NAME = 'MASTER_GRIDLENS'
 TEMPLATE_VERSION = '3.1.0'
 DATA_CONTRACT_VERSION = '3.1'
@@ -1748,12 +1748,17 @@ def execute_gridlens(app):
             "ComStatsim.results is empty. Configure a result object and the "
             "required variables before running GridLens.")
     if object_name(original_result).startswith(SNAPSHOT_PREFIX + "TMP_"):
-        raise GridLensError(
+        # An aborted run can leave this binding behind. The object still holds
+        # the full variable selection and every case recalculates into a fresh
+        # copy, so the stored settings are used as they are.
+        logger.write(
+            "CONTEXT",
             "ComStatsim.results is bound to '{}', a temporary result left "
-            "behind by an earlier GridLens run that was aborted. Bind "
-            "ComStatsim.results to the intended ElmRes, delete the leftover "
-            "GridLens_TMP_ objects, and run GridLens again. No calculation "
-            "was started.".format(object_name(original_result)))
+            "behind by an earlier GridLens run that was aborted. GridLens uses "
+            "it as the configured result object and restores this binding "
+            "afterwards; it is not deleted. To tidy up, rename it or bind "
+            "ComStatsim.results to the intended ElmRes.".format(
+                object_name(original_result)), 2, "WARNING")
     option_found, original_option = _read_setting(qds, PLANNED_OUTAGE_OPTION)
     if not option_found:
         raise GridLensError(
