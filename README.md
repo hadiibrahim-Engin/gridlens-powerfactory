@@ -19,6 +19,9 @@ Zeitfenster anwendet. Anschließend wird die Option verifiziert
 zurückgesetzt. Es erzeugt keine Operation Scenarios, Network Variations oder
 zusätzlichen Study Cases.
 
+Wie die Teile zusammenspielen – mit Ablauf-, Zustands- und Datenflussdiagrammen –
+erklärt [`BIG_PICTURE.md`](BIG_PICTURE.md).
+
 Installation, Bedienung, Fehlersuche und die noch erforderliche reale
 PowerFactory-2026-Abnahme stehen in
 [`powerfactory/README.md`](powerfactory/README.md).
