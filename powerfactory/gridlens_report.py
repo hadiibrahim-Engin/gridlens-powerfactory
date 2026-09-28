@@ -34,7 +34,8 @@ SNAPSHOT_PREFIX = 'GridLens_'
 FIELD_TYPES = {'string': 0, 'integer': 1, 'number': 2}
 MAX_LABEL_LENGTH = 80
 MAX_TEXT_LENGTH = 500
-MAX_DIAGNOSTIC_LENGTH = 1200
+MAX_DIAGNOSTIC_LENGTH = 4000
+ABSOLUTE_TIME_THRESHOLD_HOURS = 87600.0
 _LABEL_SUFFIXES = ('_id', '_name', '_label', '_type', '_level', '_time')
 _LABEL_FIELDS = ('unit', 'variable', 'status', 'reason', 'action', 'timestamp', 'metric_name', 'check_name', 'ranking_type', 'simulation_status', 'simulation_start', 'simulation_end', 'simulation_time_step', 'generation_date', 'assessment_status')
 
@@ -161,6 +162,21 @@ def format_clock(hours):
         return '{}{} d {}'.format(sign, days, clock)
     return sign + clock
 
+def is_absolute_time_axis(hours):
+    """True when the axis holds absolute epoch time instead of elapsed time.
+
+    PowerFactory 2026 reports the implicit quasi-dynamic time scale in 's'
+    but fills it with absolute epoch seconds. No quasi-dynamic study spans
+    the decade that separates the two interpretations.
+    """
+    return bool(hours) and hours[0] >= ABSOLUTE_TIME_THRESHOLD_HOURS
+
+def format_absolute_time(hours):
+    try:
+        return time.strftime('%Y-%m-%d %H:%M', time.localtime(hours * 3600.0))
+    except (ValueError, OverflowError, OSError):
+        return format_clock(hours)
+
 def format_time(value, row, unit):
     if isinstance(value, (tuple, list)):
         value = value[1] if len(value) >= 2 else value[0] if value else None
@@ -260,15 +276,22 @@ def collect_series(elmres):
         raise RuntimeError('The ElmRes time-column unit could not be read: {}'.format(exc)) from exc
     if time_unit not in {'s', 'min', 'h', 'd'}:
         raise RuntimeError('Unsupported ElmRes time-column unit: {}'.format(time_unit or TIME_UNIT_FALLBACK))
-    plot_times = []
-    labels = []
+    raw_times = []
+    hours = []
     for row, raw in enumerate(read_column(elmres, t_column, rows)):
         if raw is None:
             raise RuntimeError('Invalid time value in ElmRes cell ({}, {}).'.format(row, t_column))
-        plot_times.append(time_in_hours(raw, time_unit, row))
-        labels.append(format_time(raw, row, time_unit))
-    if any((current <= previous for previous, current in zip(plot_times, plot_times[1:]))):
+        raw_times.append(raw)
+        hours.append(time_in_hours(raw, time_unit, row))
+    if any((current <= previous for previous, current in zip(hours, hours[1:]))):
         raise RuntimeError('The ElmRes time axis is not strictly increasing.')
+    absolute = is_absolute_time_axis(hours)
+    if absolute:
+        labels = [format_absolute_time(value) for value in hours]
+        plot_times = [value - hours[0] for value in hours]
+    else:
+        labels = [format_time(raw, row, time_unit) for row, raw in enumerate(raw_times)]
+        plot_times = list(hours)
     chosen = {}
     for column in range(columns):
         try:
@@ -306,7 +329,7 @@ def collect_series(elmres):
         item['points'] = sampled_plot_points(item)
     if not series:
         raise RuntimeError('ElmRes contains no completely readable supported result series.')
-    return (series, labels, plot_times, time_unit)
+    return (series, labels, plot_times, time_unit, absolute)
 
 def check_run_budget(results):
     cells = 0
@@ -819,6 +842,31 @@ def _call_without_or_with_zero(method):
         return method(0)
 
 
+def _declared_attributes(obj):
+    """Name and value of every attribute the object itself declares."""
+    names = []
+    for getter_name in ("GetAttributes", "GetAttributeNames"):
+        getter = safe_attr(obj, getter_name)
+        if not callable(getter):
+            continue
+        try:
+            returned = _call_without_or_with_zero(getter)
+        except Exception:
+            continue
+        names = sorted({str(item).strip() for item in returned or ()
+                        if str(item).strip()})
+        if names:
+            break
+    described = []
+    for name in names:
+        value = safe_attr(obj, name)
+        if callable(value):
+            continue
+        described.append("{}={}".format(
+            name, clip_text(value, MAX_LABEL_LENGTH) if value is not None else ""))
+    return described
+
+
 def describe_object_api(obj):
     """Report which callables and parameters a PowerFactory object exposes."""
     methods = []
@@ -840,15 +888,9 @@ def describe_object_api(obj):
         "methods: {}".format(", ".join(methods) or "none visible"),
         "parameters: {}".format(", ".join(parameters) or "none visible"),
     ]
-    getter = safe_attr(obj, "GetAttributeNames")
-    if callable(getter):
-        try:
-            declared = sorted(
-                str(item) for item in _call_without_or_with_zero(getter) or ())
-        except Exception:
-            declared = []
-        if declared:
-            parts.append("declared attributes: {}".format(", ".join(declared)))
+    declared = _declared_attributes(obj)
+    if declared:
+        parts.append("declared attributes: {}".format(", ".join(declared)))
     return clip_text("; ".join(parts), MAX_DIAGNOSTIC_LENGTH)
 
 
@@ -1293,16 +1335,17 @@ def _run_calculation(app, study_case, qds, case_id, name, description,
     logger.write("EXTRACTION", "Reading and validating {} results.".format(case_id), 5)
     try:
         snapshot.Load()
-        series, labels, plot_times, unit = collect_series(snapshot)
+        series, labels, plot_times, unit, absolute = collect_series(snapshot)
         logger.write(
             "EXTRACTION",
             "Validated {} supported series across {} time point(s); time unit '{}'."
             .format(len(series), len(labels), unit), 5)
         logger.write(
             "EXTRACTION",
-            "Time axis: unit '{}'; first {}; last {}; span {}."
-            .format(unit, labels[0], labels[-1],
-                    format_time_step(plot_times[-1] - plot_times[0])), 5)
+            "Time axis: {} scale, unit '{}'; first {}; last {}; span {}."
+            .format("absolute" if absolute else "relative",
+                    unit, labels[0], labels[-1],
+                    '{:g} h'.format(plot_times[-1] - plot_times[0])), 5)
     except Exception as exc:
         raise GridLensError(
             "{} completed, but its ElmRes could not be evaluated: {}".format(

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import re
 from pathlib import Path
 
 import pytest
@@ -371,8 +372,9 @@ def test_user_facing_runtime_text_is_english():
 
 
 def test_qds_result_reads_implicit_time_scale_from_column_minus_one():
-    series, labels, plot_times, time_unit = gl.collect_series(ImplicitTimeElmRes())
+    series, labels, plot_times, time_unit, absolute = gl.collect_series(ImplicitTimeElmRes())
 
+    assert absolute is False
     assert labels == ["00:00", "01:00"]
     assert plot_times == [0.0, 1.0]
     assert time_unit == "h"
@@ -581,11 +583,12 @@ def test_api_description_survives_objects_that_raise_on_access():
 
 def test_api_description_reports_powerfactory_declared_attributes():
     outage = PlannedOutage("Probe")
-    outage.GetAttributeNames = lambda: ["tStart", "tEnd", "outserv"]
+    outage.GetAttributeNames = lambda: ["tEnd", "outserv"]
+    outage.tEnd = 20140102
 
     description = gl.describe_object_api(outage)
 
-    assert "declared attributes: outserv, tEnd, tStart" in description
+    assert "declared attributes: outserv=0, tEnd=20140102" in description
 
 
 def test_api_description_is_bounded_for_the_output_window():
@@ -629,3 +632,103 @@ def test_extraction_logs_the_time_axis_span(monkeypatch):
     assert "unit 'h'" in spans[0]
     assert "first 00:00" in spans[0]
     assert "last 01:00" in spans[0]
+
+
+EPOCH_2014_06_15_12_UTC = 1402833600.0
+
+
+class EpochTimeElmRes(ElmRes):
+    """QDS result whose implicit time scale holds absolute epoch seconds.
+
+    This is what PowerFactory 2026 returns for a quasi-dynamic run: the unit
+    reads 's', but the values are not elapsed time since the simulation start.
+    """
+
+    def __init__(self, points=48):
+        super().__init__()
+        self.points = points
+        self.variables = ("c:loading", "m:u", "m:phiu")
+        self.objects = (self.line, self.term, self.term)
+        self.units = ("%", "p.u.", "deg")
+        self.scale = [EPOCH_2014_06_15_12_UTC + 3600.0 * index
+                      for index in range(points)]
+        self.columns = (
+            [90.0 + index for index in range(points)],
+            [0.96 for _ in range(points)],
+            [0.0 for _ in range(points)],
+        )
+
+    def clone(self):
+        return EpochTimeElmRes(self.points)
+
+    def GetNumberOfRows(self):
+        return self.points
+
+    def GetValue(self, row, column):
+        if column == -1:
+            return self.scale[row]
+        return self.columns[column][row]
+
+    def GetUnit(self, column):
+        return "s" if column == -1 else super().GetUnit(column)
+
+    def GetColumnValues(self, *_args):
+        raise TypeError("PowerFactory requires an IntVec argument")
+
+    def FindColumn(self, *_args):
+        return -1
+
+
+def test_absolute_epoch_axis_is_detected():
+    assert gl.is_absolute_time_axis([385703.0, 385704.0]) is True
+    assert gl.is_absolute_time_axis([0.0, 1.0, 47.0]) is False
+    assert gl.is_absolute_time_axis([]) is False
+
+
+def test_epoch_axis_is_labelled_as_a_calendar_time():
+    _, labels, _, _, absolute = gl.collect_series(EpochTimeElmRes())
+
+    assert absolute is True
+    assert re.fullmatch(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}", labels[0])
+    assert labels[0].startswith("2014-06-")
+    assert "d " not in labels[0]
+
+
+def test_epoch_axis_plot_times_are_relative_to_the_first_sample():
+    _, _, plot_times, _, _ = gl.collect_series(EpochTimeElmRes())
+
+    assert plot_times[0] == 0.0
+    assert plot_times[-1] == pytest.approx(47.0)
+
+
+def test_relative_axis_keeps_elapsed_clock_labels():
+    _, labels, plot_times, _, absolute = gl.collect_series(ElmRes())
+
+    assert absolute is False
+    assert labels == ["00:00", "01:00"]
+    assert plot_times == [0.0, 1.0]
+
+
+def test_epoch_axis_span_is_reported_in_hours(monkeypatch):
+    app = App((PlannedOutage("Applicable"),))
+    app.original_result = EpochTimeElmRes()
+    app.qds.results = app.original_result
+    monkeypatch.setattr(gl, "RUN_REFERENCE_CASE", True)
+
+    gl.execute_gridlens(app)
+
+    spans = [line for line in app.messages if "Time axis" in line]
+    assert spans
+    assert "span 47 h" in spans[0]
+    assert "absolute" in spans[0]
+
+
+def test_api_description_reads_attributes_through_getattributes():
+    outage = PlannedOutage("Probe")
+    outage.GetAttributes = lambda: ["tStart", "outserv"]
+    outage.tStart = 20140101
+
+    description = gl.describe_object_api(outage)
+
+    assert "tStart=20140101" in description
+    assert "outserv=0" in description
