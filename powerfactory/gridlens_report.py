@@ -947,9 +947,10 @@ def _format_pf_time(value):
     if numeric is None:
         return str(value)
     if numeric > 315532800:
+        # Compact local time: the report cells are narrow and the time-axis
+        # labels already read this way.
         try:
-            return datetime.fromtimestamp(numeric).astimezone().isoformat(
-                timespec="seconds")
+            return datetime.fromtimestamp(numeric).strftime("%Y-%m-%d %H:%M")
         except (OSError, OverflowError, ValueError):
             pass
     return "{:g}".format(numeric)

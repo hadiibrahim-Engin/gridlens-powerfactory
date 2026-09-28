@@ -747,3 +747,16 @@ def test_study_time_renders_powerfactory_six_digit_clock():
 
 def test_study_time_rendering_survives_unreadable_values():
     assert "date=" in gl._format_study_time(None, 230000)
+
+
+def test_outage_times_are_rendered_compactly_for_the_report():
+    # The report cell is 3.1 cm wide; ISO with a timezone offset does not fit,
+    # and the time-axis labels already read this way.
+    assert gl._format_pf_time(OUTAGE_START) == "2014-01-01 00:00"
+    assert gl._format_pf_time(OUTAGE_END) == "2014-01-01 23:59"
+
+
+def test_outage_time_rendering_leaves_other_values_alone():
+    assert gl._format_pf_time("2014-01-01") == "2014-01-01"
+    assert gl._format_pf_time(None) == ""
+    assert gl._format_pf_time(42) == "42"
