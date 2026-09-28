@@ -34,6 +34,7 @@ SNAPSHOT_PREFIX = 'GridLens_'
 FIELD_TYPES = {'string': 0, 'integer': 1, 'number': 2}
 MAX_LABEL_LENGTH = 80
 MAX_TEXT_LENGTH = 500
+MAX_DIAGNOSTIC_LENGTH = 1200
 _LABEL_SUFFIXES = ('_id', '_name', '_label', '_type', '_level', '_time')
 _LABEL_FIELDS = ('unit', 'variable', 'status', 'reason', 'action', 'timestamp', 'metric_name', 'check_name', 'ranking_type', 'simulation_status', 'simulation_start', 'simulation_end', 'simulation_time_step', 'generation_date', 'assessment_status')
 
@@ -818,6 +819,39 @@ def _call_without_or_with_zero(method):
         return method(0)
 
 
+def describe_object_api(obj):
+    """Report which callables and parameters a PowerFactory object exposes."""
+    methods = []
+    parameters = []
+    try:
+        names = sorted(dir(obj))
+    except Exception:
+        names = []
+    for name in names:
+        if name.startswith("_"):
+            continue
+        member = safe_attr(obj, name)
+        if member is None:
+            continue
+        target = methods if callable(member) else parameters
+        target.append(name)
+    parts = [
+        "class={}".format(class_name(obj) or "unknown"),
+        "methods: {}".format(", ".join(methods) or "none visible"),
+        "parameters: {}".format(", ".join(parameters) or "none visible"),
+    ]
+    getter = safe_attr(obj, "GetAttributeNames")
+    if callable(getter):
+        try:
+            declared = sorted(
+                str(item) for item in _call_without_or_with_zero(getter) or ())
+        except Exception:
+            declared = []
+        if declared:
+            parts.append("declared attributes: {}".format(", ".join(declared)))
+    return clip_text("; ".join(parts), MAX_DIAGNOSTIC_LENGTH)
+
+
 def _same_object(left, right):
     if left is right:
         return True
@@ -1059,6 +1093,8 @@ def apply_available_outages(app, logger, applied=None):
                 "Required PowerFactory API method(s) unavailable: {}."
                 .format(", ".join(missing)))
             logger.write("OUTAGES", prefix + record["skip_reason"], 3, "WARNING")
+            logger.write(
+                "DIAGNOSTIC", prefix + describe_object_api(outage), 3, "WARNING")
             continue
         try:
             in_study_time = _study_time_allows(outage)
@@ -1262,6 +1298,11 @@ def _run_calculation(app, study_case, qds, case_id, name, description,
             "EXTRACTION",
             "Validated {} supported series across {} time point(s); time unit '{}'."
             .format(len(series), len(labels), unit), 5)
+        logger.write(
+            "EXTRACTION",
+            "Time axis: unit '{}'; first {}; last {}; span {}."
+            .format(unit, labels[0], labels[-1],
+                    format_time_step(plot_times[-1] - plot_times[0])), 5)
     except Exception as exc:
         raise GridLensError(
             "{} completed, but its ElmRes could not be evaluated: {}".format(

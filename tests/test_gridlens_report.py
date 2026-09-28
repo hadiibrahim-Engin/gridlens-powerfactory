@@ -541,3 +541,91 @@ def test_payload_validation_rejects_unknown_fields_and_booleans():
     }]
     with pytest.raises(ValueError, match="boolean"):
         gl.validate_payload(payload)
+
+
+class HostileObject(PFObject):
+    """Outage whose attribute access fails the way a broken proxy would."""
+
+    def __init__(self):
+        super().__init__("Hostile", "IntPlannedout", outserv=0)
+
+    def __getattr__(self, name):
+        raise RuntimeError("attribute access exploded: " + name)
+
+
+def test_api_description_separates_methods_from_parameters():
+    description = gl.describe_object_api(PlannedOutage("Probe"))
+
+    assert "class=IntPlannedout" in description
+    assert "Apply" in description
+    assert "IsInStudyTime" in description
+    assert "outserv" in description
+    assert "apply_calls" in description
+
+
+def test_api_description_omits_unavailable_methods():
+    description = gl.describe_object_api(PlannedOutage("Probe", include_api=False))
+
+    methods = description.split("parameters:")[0]
+    assert "Apply" not in methods
+    assert "Reset" not in methods
+    assert "IsInStudyTime" in methods
+
+
+def test_api_description_survives_objects_that_raise_on_access():
+    description = gl.describe_object_api(HostileObject())
+
+    assert isinstance(description, str)
+    assert description
+
+
+def test_api_description_reports_powerfactory_declared_attributes():
+    outage = PlannedOutage("Probe")
+    outage.GetAttributeNames = lambda: ["tStart", "tEnd", "outserv"]
+
+    description = gl.describe_object_api(outage)
+
+    assert "declared attributes: outserv, tEnd, tStart" in description
+
+
+def test_api_description_is_bounded_for_the_output_window():
+    outage = PlannedOutage("Probe")
+    for index in range(400):
+        setattr(outage, "parameter_with_a_long_name_{}".format(index), index)
+
+    assert len(gl.describe_object_api(outage)) <= gl.MAX_DIAGNOSTIC_LENGTH
+
+
+def test_missing_outage_api_is_logged_with_the_real_object_surface():
+    unsupported = PlannedOutage("Unsupported", include_api=False)
+    app = App((unsupported,))
+
+    records, applied = gl.apply_available_outages(app, gl.RunLogger(app))
+
+    assert applied == []
+    assert records[0]["status"] == "SKIPPED"
+    diagnostics = [line for line in app.messages if "DIAGNOSTIC" in line]
+    assert len(diagnostics) == 1
+    assert "class=IntPlannedout" in diagnostics[0]
+    assert "IsInStudyTime" in diagnostics[0]
+
+
+def test_applicable_outage_produces_no_diagnostic_noise():
+    app = App((PlannedOutage("Applicable"),))
+
+    gl.apply_available_outages(app, gl.RunLogger(app))
+
+    assert [line for line in app.messages if "DIAGNOSTIC" in line] == []
+
+
+def test_extraction_logs_the_time_axis_span(monkeypatch):
+    app = App((PlannedOutage("Applicable"),))
+    monkeypatch.setattr(gl, "RUN_REFERENCE_CASE", True)
+
+    gl.execute_gridlens(app)
+
+    spans = [line for line in app.messages if "Time axis" in line]
+    assert spans
+    assert "unit 'h'" in spans[0]
+    assert "first 00:00" in spans[0]
+    assert "last 01:00" in spans[0]
