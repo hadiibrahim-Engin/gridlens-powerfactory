@@ -242,7 +242,7 @@ class App:
 
 
 def test_table_contract_is_single_versioned_17_table_contract():
-    assert gl.PUBLISHER_VERSION == "5.1.0"
+    assert gl.PUBLISHER_VERSION == "5.1.1"
     assert gl.TEMPLATE_VERSION == "3.1.0"
     assert gl.DATA_CONTRACT_VERSION == "3.1"
     assert len(gl.TABLES) == 17
@@ -896,3 +896,101 @@ def test_skipped_outage_shows_its_reason_as_the_detail(monkeypatch):
     assert values[0, "assessment"] == gl.ASSESSMENT_SKIPPED
     assert values[0, "violation"] == 0
     assert "disabled" in values[0, "assessment_detail"]
+
+
+def _publication_payload():
+    payload = gl.build_cases_payload(
+        PFObject("Study", "IntCase"), [], "Model", "Result", [],
+        "operator", "TEST")
+    payload["ScriptedCases"] = [
+        {"case_id": "C{}".format(index), "case_name": "Case",
+         "is_reference": 0, "simulation_status": "CONVERGED"}
+        for index in range(10)
+    ]
+    return payload
+
+
+def test_publication_heartbeat_reports_progress_without_changing_data(monkeypatch):
+    payload = _publication_payload()
+    expected = Report()
+    gl.publish_report(expected, payload)
+    clock = [0.0]
+    monkeypatch.setattr(gl.time, "monotonic", lambda: clock[0])
+    messages = []
+
+    class SlowReport(Report):
+        def CreateField(self, *args):
+            clock[0] += 1.0
+            return super().CreateField(*args)
+
+        def SetValue(self, *args):
+            clock[0] += 1.0
+            return super().SetValue(*args)
+
+    report = SlowReport()
+    counts = gl.publish_report(
+        report, payload,
+        log=lambda message: messages.append((clock[0], message)))
+
+    assert report.tables == expected.tables
+    assert report.reset_calls == 1
+    assert counts["ScriptedCases"] == 10
+    heartbeats = [(stamp, message) for stamp, message in messages
+                  if "Publication heartbeat:" in message]
+    assert any("CREATE FIELDS" in message for _, message in heartbeats)
+    assert any("WRITE CELLS" in message and "Cases" in message
+               and "rows complete" in message for _, message in heartbeats)
+    assert all(right[0] - left[0] >= 5.0
+               for left, right in zip(heartbeats, heartbeats[1:]))
+    for previous, current in zip(messages, messages[1:]):
+        assert current[0] - previous[0] <= 5.0
+    assert any("cells/s" in message for _, message in messages)
+    assert "Publication finished:" in messages[-1][1]
+
+
+def test_publication_times_reset_and_announces_it_before_blocking(monkeypatch):
+    clock = [0.0]
+    monkeypatch.setattr(gl.time, "monotonic", lambda: clock[0])
+    messages = []
+
+    class SlowResetReport(Report):
+        def Reset(self):
+            assert messages[-1] == "Resetting report database."
+            clock[0] += 12.0
+            return super().Reset()
+
+    report = SlowResetReport()
+    gl.publish_report(report, _publication_payload(), log=messages.append)
+
+    assert "Report database reset completed in 12.0s." in messages
+    assert report.reset_calls == 1
+
+
+def test_publication_validation_failure_does_not_reset_or_claim_validated():
+    report = Report()
+    messages = []
+    payload = _publication_payload()
+    payload["ScriptedCases"][0]["is_reference"] = True
+
+    with pytest.raises(ValueError, match="boolean"):
+        gl.publish_report(report, payload, log=messages.append)
+
+    assert report.reset_calls == 0
+    assert messages == ["Validating report tables before publication."]
+
+
+def test_publication_write_failure_keeps_cell_context_and_clears_partial_data():
+    class FailingReport(Report):
+        def SetValue(self, table, field, row, value):
+            if table == "Cases" and row == 2:
+                return 7
+            return super().SetValue(table, field, row, value)
+
+    report = FailingReport()
+    messages = []
+    with pytest.raises(RuntimeError, match=r"SetValue\(Cases.case_id, row 2\)"):
+        gl.publish_report(report, _publication_payload(), log=messages.append)
+
+    assert report.reset_calls == 2
+    assert report.tables == {}
+    assert not any("Publication finished:" in message for message in messages)

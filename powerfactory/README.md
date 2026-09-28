@@ -150,6 +150,27 @@ Werte.
 dieses Aufrufs kann Python keinen feineren Fortschritt melden; vor und nach jedem
 Lauf werden deshalb Fall, Status und Dauer eindeutig ausgegeben.
 
+Die Publikation protokolliert die Dauer der Validierung, des Datenbank-Resets
+und je Tabelle die Erstellung der Tabelle, die Erstellung ihrer Felder und das
+Schreiben der Zellen. Vor dem Reset und vor jeder Tabelle steht eine Startmeldung.
+Die Abschlussmeldung je Tabelle enthält zusätzlich die Schreibrate in Zellen pro
+Sekunde. Damit lässt sich erkennen, welcher Teil der Publikation Zeit benötigt.
+
+Während der Felderstellung und der Zellschreibvorgänge erscheint ungefähr alle
+fünf Sekunden eine `Publication heartbeat`-Meldung mit dem aktuellen Fortschritt
+und der seit Publikationsbeginn vergangenen Zeit. Beim Schreiben nennt sie auch
+die vollständig abgeschlossenen Zeilen; die gerade geschriebene Zeile zählt erst
+nach ihrem Abschluss dazu. Das Intervall steht in
+`PUBLICATION_LOG_INTERVAL_SECONDS` am Anfang des Skripts. Schnelle Tabellen
+benötigen keine zusätzliche Heartbeat-Meldung.
+
+Der Heartbeat läuft zwischen den PowerFactory-API-Aufrufen auf demselben Thread.
+Blockiert ein einzelner Aufruf, etwa `Reset()` oder `SetValue()`, kann Python bis
+zu dessen Rückkehr keine weitere Fortschrittsmeldung ausgeben. Das Intervall ist
+deshalb keine garantierte Frist und keine unabhängige Erkennung eines Hängers.
+Diese Zeitmessungen verändern die publizierten Daten nicht und sind noch kein
+Nachweis einer schnelleren Publikation auf dem PowerFactory-Rechner.
+
 Bei Fehlern zeigt GridLens eine kurze, handlungsorientierte Meldung ohne
 ungefilterten Traceback. Suche immer nach den Phasen `FAILED`, `ABORTED` und
 `RESTORE`. Wenn die Wiederherstellung nicht verifiziert werden konnte:

@@ -19,7 +19,7 @@ LOADING_MAX = 100.0
 VOLTAGE_MIN = 0.95
 VOLTAGE_MAX = 1.05
 TIME_UNIT_FALLBACK = 'h'
-PUBLISHER_VERSION = '5.1.0'
+PUBLISHER_VERSION = '5.1.1'
 TEMPLATE_NAME = 'MASTER_GRIDLENS'
 TEMPLATE_VERSION = '3.1.0'
 DATA_CONTRACT_VERSION = '3.1'
@@ -30,6 +30,7 @@ MAX_RESULT_ROWS = 35040
 MAX_RESULT_CELLS = 20000000
 MAX_RUN_CELLS = 120000000
 MAX_TABLE_ROWS = 5000
+PUBLICATION_LOG_INTERVAL_SECONDS = 5.0
 SNAPSHOT_PREFIX = 'GridLens_'
 
 FIELD_TYPES = {'string': 0, 'integer': 1, 'number': 2}
@@ -873,24 +874,82 @@ def _check(returned, context):
         raise RuntimeError('{} returned error code {:g}'.format(context, code))
 
 def publish_report(report, payload, log=None):
+    started = time.monotonic()
+    last_message = started
+
+    def emit(message):
+        nonlocal last_message
+        if log:
+            log(message)
+        last_message = time.monotonic()
+
+    def heartbeat(phase, table, completed, total, unit, rows=None):
+        # Stay on the PowerFactory thread. A blocking API call must return
+        # before progress can be reported; this is not a background timer.
+        if not log:
+            return
+        now = time.monotonic()
+        if now - last_message < PUBLICATION_LOG_INTERVAL_SECONDS:
+            return
+        row_progress = '{} / {} rows complete; '.format(*rows) if rows else ''
+        emit('Publication heartbeat: {} [{}]; {}{} / {} {}; '
+             '{:.1f}s since publication started.'.format(
+                 table, phase, row_progress, completed, total, unit,
+                 now - started))
+
+    emit('Validating report tables before publication.')
     validate_payload(payload)
+    emit('Report table validation completed in {:.1f}s.'.format(
+        time.monotonic() - started))
     if report is None or class_name(report) != 'IntReport':
         raise RuntimeError('Run this ComPython as a child of an IntReport.')
     for method in ('Reset', 'CreateTable', 'CreateField', 'SetValue'):
         if not callable(getattr(report, method, None)):
             raise RuntimeError('IntReport is missing method ' + method)
+    cell_counts = {
+        name: sum(row.get(field) is not None
+                  for row in payload[name] for field, _ in fields)
+        for name, fields in TABLES
+    }
+    total_cells = sum(cell_counts.values())
+    total_rows = sum(len(rows) for rows in payload.values())
+    emit('Publishing {} validated report tables: {} rows, {} cell writes. '
+         'Progress interval: {:g}s between API calls; a blocking call can '
+         'delay the next message.'.format(
+             len(TABLES), total_rows, total_cells,
+             PUBLICATION_LOG_INTERVAL_SECONDS))
     context = 'Reset'
     try:
+        emit('Resetting report database.')
+        reset_started = time.monotonic()
         report.Reset()
-        for name, fields in TABLES:
+        emit('Report database reset completed in {:.1f}s.'.format(
+            time.monotonic() - reset_started))
+        for table_index, (name, fields) in enumerate(TABLES, 1):
             if not name.startswith(HOST_TABLE_PREFIX):
                 raise ValueError('Table lacks host prefix: ' + name)
             native_name = name[len(HOST_TABLE_PREFIX):]
+            row_count = len(payload[name])
+            cell_count = cell_counts[name]
+            emit('Table {}/{}: {} -> {}: {} rows, {} cell writes; '
+                 'creating table.'.format(
+                     table_index, len(TABLES), native_name, name,
+                     row_count, cell_count))
+            table_started = time.monotonic()
             context = 'CreateTable({})'.format(native_name)
             _check(report.CreateTable(native_name), context)
-            for field, kind in fields:
+            emit('Table {} created in {:.1f}s; creating {} fields.'.format(
+                native_name, time.monotonic() - table_started, len(fields)))
+            fields_started = time.monotonic()
+            for field_index, (field, kind) in enumerate(fields, 1):
                 context = 'CreateField({}.{})'.format(native_name, field)
                 _check(report.CreateField(native_name, field, FIELD_TYPES[kind]), context)
+                heartbeat('CREATE FIELDS', native_name, field_index,
+                          len(fields), 'fields')
+            emit('Table {} fields created in {:.1f}s; writing {} cells.'.format(
+                native_name, time.monotonic() - fields_started, cell_count))
+            write_started = time.monotonic()
+            written = 0
             for index, row in enumerate(payload[name]):
                 for field, _ in fields:
                     value = row.get(field)
@@ -898,14 +957,23 @@ def publish_report(report, payload, log=None):
                         continue
                     context = 'SetValue({}.{}, row {})'.format(native_name, field, index)
                     _check(report.SetValue(native_name, field, index, value), context)
-            if log:
-                log('GridLens: {} -> {}: {} rows'.format(native_name, name, len(payload[name])))
+                    written += 1
+                    heartbeat('WRITE CELLS', native_name, written, cell_count,
+                              'cells', rows=(index, row_count))
+            write_seconds = time.monotonic() - write_started
+            rate = '{:.1f} cells/s'.format(written / write_seconds) if written and write_seconds > 0 else 'n/a'
+            emit('GridLens: {} -> {}: {} rows, {} cells; writes {:.1f}s '
+                 '({}); table total {:.1f}s.'.format(
+                     native_name, name, row_count, written, write_seconds,
+                     rate, time.monotonic() - table_started))
     except Exception as exc:
         try:
             report.Reset()
         except Exception:
             pass
         raise RuntimeError('GridLens publication failed at ' + context) from exc
+    emit('Publication finished: {} tables, {} rows, {} cells in {:.1f}s.'.format(
+        len(TABLES), total_rows, total_cells, time.monotonic() - started))
     return {name: len(rows) for name, rows in payload.items()}
 
 
@@ -1773,7 +1841,7 @@ def execute_gridlens(app):
         if temporary_results else "No calculation executed",
         records, _generated_by(), run_mode)
     logger.write(
-        "REPORT", "Publishing {} validated report tables.".format(len(TABLES)), 7)
+        "REPORT", "Preparing publication of {} report tables.".format(len(TABLES)), 7)
     counts = publish_report(report, payload, log=lambda message: logger.write(
         "REPORT", message, 7))
     logger.write(
