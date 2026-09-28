@@ -286,6 +286,7 @@ def collect_series(elmres):
     if any((current <= previous for previous, current in zip(hours, hours[1:]))):
         raise RuntimeError('The ElmRes time axis is not strictly increasing.')
     absolute = is_absolute_time_axis(hours)
+    origin = hours[0] if absolute else None
     if absolute:
         labels = [format_absolute_time(value) for value in hours]
         plot_times = [value - hours[0] for value in hours]
@@ -329,7 +330,7 @@ def collect_series(elmres):
         item['points'] = sampled_plot_points(item)
     if not series:
         raise RuntimeError('ElmRes contains no completely readable supported result series.')
-    return (series, labels, plot_times, time_unit, absolute)
+    return (series, labels, plot_times, time_unit, absolute, origin)
 
 def check_run_budget(results):
     cells = 0
@@ -652,11 +653,11 @@ def build_cases_payload(study_case, results, project_name, result_name, planned_
             label = identity.get(key, name)
             payload['ScriptedCaseMatrix'].append({'element_id': label, 'element_name': label, 'element_type': _element_type(element_class), 'case_id': result['id'], 'is_out_of_service': 1, 'status_label': 'OFF'})
     for outage in planned_outages:
-        payload['ScriptedPlannedOutages'].append({'case_id': 'OUTAGE' if outage['status'] == 'APPLIED' else 'N/A', 'outage_id': outage['id'], 'outage_name': outage['name'], 'source_class': outage['source_class'], 'status': outage['status'], 'skip_reason': outage.get('skip_reason', ''), 'equipment_name': outage.get('equipment_name', ''), 'equipment_type': outage.get('equipment_type', ''), 'switching_actions': outage.get('switching_actions', ''), 'start_time': outage.get('start_time', ''), 'end_time': outage.get('end_time', '')})
-    applied = sum((item['status'] == 'APPLIED' for item in planned_outages))
-    skipped = len(planned_outages) - applied
-    outage_status = 'PASS' if applied and skipped == 0 else 'WARNING'
-    payload['ScriptedModelQuality'].append({'check_id': 'planned_outages', 'check_name': 'Planned outage applicability', 'status': outage_status, 'message': '{} found; {} applied; {} skipped.'.format(len(planned_outages), applied, skipped), 'affected_element': ''})
+        payload['ScriptedPlannedOutages'].append({'case_id': OUTAGE_CASE_ID if outage['status'] == OUTAGE_CONSIDERED else 'N/A', 'outage_id': outage['id'], 'outage_name': outage['name'], 'source_class': outage['source_class'], 'status': outage['status'], 'skip_reason': outage.get('skip_reason', ''), 'equipment_name': outage.get('equipment_name', ''), 'equipment_type': outage.get('equipment_type', ''), 'switching_actions': outage.get('switching_actions', ''), 'start_time': outage.get('start_time', ''), 'end_time': outage.get('end_time', '')})
+    considered = sum((item['status'] == OUTAGE_CONSIDERED for item in planned_outages))
+    skipped = len(planned_outages) - considered
+    outage_status = 'PASS' if considered and skipped == 0 else 'WARNING'
+    payload['ScriptedModelQuality'].append({'check_id': 'planned_outages', 'check_name': 'Planned outage applicability', 'status': outage_status, 'message': '{} found; {} in scope; {} skipped.'.format(len(planned_outages), considered, skipped), 'affected_element': ''})
     _model_quality(payload, results)
     _statistics_rows(payload, results, 'line', 'ScriptedLineStatistics', LINE_FIELDS)
     _statistics_rows(payload, results, 'transformer', 'ScriptedTransformerStatistics', TRANSFORMER_FIELDS)
@@ -792,6 +793,22 @@ def publish_report(report, payload, log=None):
 
 TOTAL_STEPS = 7
 OUTAGE_CLASSES = ("IntPlannedout", "IntOutage")
+# PowerFactory describes this ComStatsim option as "Planned Outages". Setting
+# it is how planned outages are applied; IntPlannedout exposes no Apply method.
+PLANNED_OUTAGE_OPTION = "iopt_maint"
+OUTAGE_CONSIDERED = "CONSIDERED"
+OUTAGE_SKIPPED = "SKIPPED"
+OUTAGE_START_ATTRIBUTES = (
+    "starttime", "tStart", "t_start", "date_start", "time_start")
+OUTAGE_END_ATTRIBUTES = (
+    "endtime", "tEnd", "t_end", "date_end", "time_end")
+# PowerFactory labels IntPlannedout.components "Components"; it holds the
+# equipment the outage switches. The remaining names are legacy fallbacks.
+OUTAGE_EQUIPMENT_ATTRIBUTES = (
+    "components", "p_target", "pTarget", "pObject", "p_object", "obj_id",
+    "pDevice", "cpObject", "pElm", "p_target1", "p_target2")
+# ComStatsim carries the simulated period as epoch seconds.
+QDS_PERIOD_ATTRIBUTES = (("startTime", "endTime"), ("starttime", "endtime"))
 REFERENCE_CASE_ID = "REF"
 OUTAGE_CASE_ID = "OUTAGE"
 QDS_CORE_SETTINGS = (
@@ -949,9 +966,7 @@ def _first_attribute(obj, names):
 def _outage_details(outage):
     """Collect display-only outage context without exposing full PF paths."""
     related = []
-    for attribute in (
-            "p_target", "pTarget", "pObject", "p_object", "obj_id",
-            "pDevice", "cpObject", "pElm", "p_target1", "p_target2"):
+    for attribute in OUTAGE_EQUIPMENT_ATTRIBUTES:
         related.extend(_as_objects(safe_attr(outage, attribute)))
     try:
         children = outage.GetContents("*", 1) or []
@@ -968,9 +983,7 @@ def _outage_details(outage):
         child_name = object_name(child)
         if child_class.startswith(("Evt", "Sta", "Int")):
             actions.append("{} {}".format(child_class, child_name).strip())
-        for attribute in (
-                "p_target", "pTarget", "pObject", "p_object", "obj_id",
-                "pDevice", "cpObject", "pElm"):
+        for attribute in OUTAGE_EQUIPMENT_ATTRIBUTES:
             related.extend(_as_objects(safe_attr(child, attribute)))
     equipment = []
     seen = set()
@@ -988,10 +1001,8 @@ def _outage_details(outage):
     action_text = "; ".join(sorted(set(actions)))
     if not action_text:
         action_text = object_description(outage)
-    start = _first_attribute(
-        outage, ("tStart", "t_start", "start_time", "date_start", "time_start"))
-    end = _first_attribute(
-        outage, ("tEnd", "t_end", "end_time", "date_end", "time_end"))
+    start = _first_attribute(outage, OUTAGE_START_ATTRIBUTES)
+    end = _first_attribute(outage, OUTAGE_END_ATTRIBUTES)
     return equipment_names, equipment_types, action_text, _format_pf_time(start), _format_pf_time(end)
 
 
@@ -1057,49 +1068,38 @@ def _outage_record(outage):
     }
 
 
-def _check_is_applied(record):
-    method = record.get("_check")
-    if not callable(method):
+def outage_window(outage):
+    """The outage's (start, end) in epoch seconds, where PowerFactory has them."""
+    start = finite_number(_first_attribute(outage, OUTAGE_START_ATTRIBUTES))
+    end = finite_number(_first_attribute(outage, OUTAGE_END_ATTRIBUTES))
+    return start, end
+
+
+def window_overlaps_period(window, period):
+    """True or False when both are readable, None when the answer is unknown."""
+    start, end = window
+    begin, finish = period
+    if begin is None or finish is None:
         return None
-    try:
-        value = _call_without_or_with_zero(method)
-    except Exception as exc:
-        raise GridLensError(
-            "Could not verify planned outage '{}': {}".format(
-                record["name"], _friendly_exception(exc))) from None
-    if str(safe_attr(method, "__name__", "")).lower().startswith("is"):
-        numeric = finite_number(value)
-        return bool(numeric) if numeric is not None else bool(value)
-    code = return_code(value)
-    if code is None:
-        raise GridLensError(
-            "Planned outage '{}' returned an unreadable Check value.".format(
-                record["name"]))
-    return code == 0.0
-
-
-def _method(outage, names):
-    for name in names:
-        value = getattr(outage, name, None)
-        if callable(value):
-            return value
-    return None
-
-
-def _study_time_allows(outage):
-    method = _method(outage, ("IsInStudyTime", "IsWithinStudyTime"))
-    if method is None:
+    if start is None and end is None:
         return None
-    value = _call_without_or_with_zero(method)
-    numeric = finite_number(value)
-    return bool(numeric) if numeric is not None else bool(value)
+    if start is not None and start > finish:
+        return False
+    if end is not None and end < begin:
+        return False
+    return True
 
 
-def apply_available_outages(app, logger, applied=None):
-    """Apply every safely verifiable outage and return records and handles."""
+def classify_planned_outages(app, logger, period=(None, None)):
+    """Report which planned outages PowerFactory will apply for this period.
+
+    GridLens never applies an outage itself. PowerFactory does that during the
+    calculation once PLANNED_OUTAGE_OPTION is set, driven by each outage's own
+    time window. This pass only decides what to tell the reader, and whether an
+    outage run is worth starting at all.
+    """
     objects = _find_project_outages(app)
     records = [_outage_record(item) for item in objects]
-    applied = applied if applied is not None else []
     names = {}
     for record in records:
         names[record["name"]] = names.get(record["name"], 0) + 1
@@ -1109,121 +1109,63 @@ def apply_available_outages(app, logger, applied=None):
                 record["name"], _key_discriminator(object_key(record["_object"])))
     logger.write(
         "OUTAGES", "Found {} planned outage object(s).".format(len(records)), 3)
+    candidates = []
     for index, record in enumerate(records, 1):
         outage = record["_object"]
         prefix = "Outage {}/{} '{}': ".format(index, len(records), record["name"])
         if finite_number(safe_attr(outage, "outserv", 0)) == 1.0:
-            record["status"] = "SKIPPED"
+            record["status"] = OUTAGE_SKIPPED
             record["skip_reason"] = "Outage object is disabled (outserv=1)."
             logger.write("OUTAGES", prefix + record["skip_reason"], 3, "WARNING")
             continue
-        apply_method = _method(outage, ("Apply", "ApplyOutage"))
-        reset_method = _method(outage, ("Reset", "ResetOutage"))
-        check_method = _method(outage, ("Check", "IsApplied"))
-        record["_reset"] = reset_method
-        record["_check"] = check_method
-        missing = []
-        if apply_method is None:
-            missing.append("Apply")
-        if reset_method is None:
-            missing.append("Reset")
-        if check_method is None:
-            missing.append("Check/IsApplied")
-        if missing:
-            record["status"] = "SKIPPED"
+        window = outage_window(outage)
+        overlap = window_overlaps_period(window, period)
+        if overlap is False:
+            record["status"] = OUTAGE_SKIPPED
             record["skip_reason"] = (
-                "Required PowerFactory API method(s) unavailable: {}."
-                .format(", ".join(missing)))
+                "Outage window {} to {} lies outside the simulated period "
+                "{} to {}.".format(
+                    _format_pf_time(window[0]), _format_pf_time(window[1]),
+                    _format_pf_time(period[0]), _format_pf_time(period[1])))
+            logger.write("OUTAGES", prefix + record["skip_reason"], 3, "WARNING")
+            continue
+        record["status"] = OUTAGE_CONSIDERED
+        if overlap is True:
+            record["skip_reason"] = ""
+            logger.write(
+                "OUTAGES",
+                prefix + "window {} to {} overlaps the simulated period; "
+                "PowerFactory will apply it.".format(
+                    _format_pf_time(window[0]), _format_pf_time(window[1])), 3)
+        else:
+            record["skip_reason"] = (
+                "The outage window could not be compared with the simulated "
+                "period; PowerFactory decides whether it applies.")
             logger.write("OUTAGES", prefix + record["skip_reason"], 3, "WARNING")
             logger.write(
                 "DIAGNOSTIC", prefix + describe_object_api(outage), 3, "WARNING")
-            continue
-        try:
-            in_study_time = _study_time_allows(outage)
-        except Exception as exc:
-            record["status"] = "SKIPPED"
-            record["skip_reason"] = "Study-time check failed: {}".format(
-                _friendly_exception(exc))
-            logger.write("OUTAGES", prefix + record["skip_reason"], 3, "WARNING")
-            continue
-        if in_study_time is False:
-            record["status"] = "SKIPPED"
-            record["skip_reason"] = "Outage is outside the active study time."
-            logger.write("OUTAGES", prefix + record["skip_reason"], 3, "WARNING")
-            continue
-        try:
-            initially_applied = _check_is_applied(record)
-        except Exception as exc:
-            record["status"] = "SKIPPED"
-            record["skip_reason"] = (
-                "Initial state could not be verified; no change was attempted: {}"
-                .format(_friendly_exception(exc)))
-            logger.write("OUTAGES", prefix + record["skip_reason"], 3, "WARNING")
-            continue
-        if initially_applied is True:
-            record["status"] = "SKIPPED"
-            record["skip_reason"] = "Outage is already active."
-            logger.write("OUTAGES", prefix + record["skip_reason"], 3, "WARNING")
-            continue
-        try:
-            returned = _call_without_or_with_zero(apply_method)
-            code = return_code(returned)
-            if code is None or code != 0.0:
-                raise GridLensError(
-                    "Apply returned {}.".format(
-                        "an unreadable value" if code is None
-                        else "error code {:g}".format(code)))
-            if _check_is_applied(record) is not True:
-                raise GridLensError("application could not be verified by Check.")
-        except Exception as exc:
-            reset_error = None
-            try:
-                reset_returned = _call_without_or_with_zero(reset_method)
-                reset_code = return_code(reset_returned)
-                if reset_code is None or reset_code != 0.0:
-                    raise GridLensError("immediate Reset returned an error")
-                if _check_is_applied(record) is not False:
-                    raise GridLensError("immediate Reset could not be verified")
-            except Exception as cleanup_exc:
-                reset_error = cleanup_exc
-            if reset_error is not None:
-                if record not in applied:
-                    applied.append(record)
-                raise GridLensError(
-                    "Planned outage '{}' failed during Apply and could not be "
-                    "reset immediately: {}. The final restoration pass will "
-                    "retry.".format(record["name"],
-                                     _friendly_exception(reset_error))) from None
-            record["status"] = "SKIPPED"
-            record["skip_reason"] = "Could not apply safely: {}".format(
-                _friendly_exception(exc))
-            logger.write("OUTAGES", prefix + record["skip_reason"], 3, "WARNING")
-            continue
-        record["status"] = "APPLIED"
-        record["skip_reason"] = ""
-        applied.append(record)
-        logger.write("OUTAGES", prefix + "applied and verified.", 3)
-    return records, applied
+        candidates.append(record)
+    return records, candidates
 
 
-def restore_outages(applied, logger):
-    errors = []
-    for record in reversed(applied):
-        try:
-            returned = _call_without_or_with_zero(record["_reset"])
-            code = return_code(returned)
-            if code is None or code != 0.0:
-                raise GridLensError(
-                    "Reset returned {}".format(
-                        "an unreadable value" if code is None
-                        else "error code {:g}".format(code)))
-            if _check_is_applied(record) is not False:
-                raise GridLensError("reset could not be verified by Check")
-            logger.write(
-                "RESTORE", "Reset planned outage '{}'.".format(record["name"]), 6)
-        except Exception as exc:
-            errors.append("{}: {}".format(record["name"], _friendly_exception(exc)))
-    return errors
+def qds_period(qds):
+    """The simulated period in epoch seconds, as ComStatsim declares it."""
+    for start_name, end_name in QDS_PERIOD_ATTRIBUTES:
+        start = finite_number(safe_attr(qds, start_name))
+        end = finite_number(safe_attr(qds, end_name))
+        if start is not None and end is not None and end >= start:
+            return start, end
+    return None, None
+
+
+def _restore_planned_outage_option(qds, original, logger):
+    if not _set_scalar_attribute(qds, PLANNED_OUTAGE_OPTION, original):
+        return ["the 'Planned Outages' option ({}) could not be restored to {}"
+                .format(PLANNED_OUTAGE_OPTION, _format_setting_value(original))]
+    logger.write(
+        "RESTORE", "Restored the 'Planned Outages' option [{}] to {}.".format(
+            PLANNED_OUTAGE_OPTION, _format_setting_value(original)), 6)
+    return []
 
 
 def _temporary_result(study_case, template, case_id):
@@ -1302,7 +1244,8 @@ def _run_calculation(app, study_case, qds, case_id, name, description,
             "ElmRes. No calculation was started.")
     logger.write(
         "CALCULATION",
-        "Starting {} with the active ComStatsim settings unchanged."
+        "Starting {} with the active ComStatsim settings; only the "
+        "'Planned Outages' option differs between the cases."
         .format(case_id), 4)
     logger.write(
         "CALCULATION",
@@ -1335,7 +1278,7 @@ def _run_calculation(app, study_case, qds, case_id, name, description,
     logger.write("EXTRACTION", "Reading and validating {} results.".format(case_id), 5)
     try:
         snapshot.Load()
-        series, labels, plot_times, unit, absolute = collect_series(snapshot)
+        series, labels, plot_times, unit, absolute, origin = collect_series(snapshot)
         logger.write(
             "EXTRACTION",
             "Validated {} supported series across {} time point(s); time unit '{}'."
@@ -1365,7 +1308,10 @@ def _run_calculation(app, study_case, qds, case_id, name, description,
         "message": "Completed in {:.1f}s.".format(elapsed),
         "out_of_service": _collect_out_of_service(app),
     }
-    return case_result(case, series, labels, plot_times, unit)
+    result = case_result(case, series, labels, plot_times, unit)
+    result["window"] = ((None, None) if origin is None else
+                        (origin * 3600.0, (origin + plot_times[-1]) * 3600.0))
+    return result
 
 
 def _delete_temporary_results(temporary_results, logger):
@@ -1497,7 +1443,8 @@ def _restore_study_time(state, logger, stage="RESTORE", step=6):
 def _log_qds_settings(qds, result, study_time_state, logger):
     logger.write(
         "SETTINGS",
-        "Active ComStatsim settings used unchanged:", 2)
+        "Active ComStatsim settings; GridLens changes only the 'Planned "
+        "Outages' option and restores it:", 2)
     for label, attribute in QDS_CORE_SETTINGS:
         found, value = _read_setting(qds, attribute)
         rendered = _format_setting_value(value) if found else "<not exposed>"
@@ -1521,6 +1468,23 @@ def _log_qds_settings(qds, result, study_time_state, logger):
         "Calculation options: {}".format(
             ", ".join(options) if options else "<no exposed iopt_* attributes>"),
         2)
+    period_start, period_end = qds_period(qds)
+    if period_start is not None:
+        logger.write(
+            "SETTINGS",
+            "Simulated period [startTime..endTime] = {} .. {}".format(
+                _format_pf_time(period_start), _format_pf_time(period_end)), 2)
+    else:
+        logger.write(
+            "SETTINGS",
+            "Simulated period is not exposed by this ComStatsim; planned "
+            "outages will be judged against the reference time axis.", 2)
+    for attribute in ("iopt_maint", "ciopt_maint", "iopt_action", "iopt_rep"):
+        found, value = _read_setting(qds, attribute)
+        if found:
+            logger.write(
+                "SETTINGS", "Planned outages [{}] = {}".format(
+                    attribute, _format_setting_value(value)), 2)
     logger.write(
         "SETTINGS",
         "Result object [results] = '{}' ({})".format(
@@ -1584,6 +1548,13 @@ def execute_gridlens(app):
         raise GridLensError(
             "ComStatsim.results is empty. Configure a result object and the "
             "required variables before running GridLens.")
+    option_found, original_option = _read_setting(qds, PLANNED_OUTAGE_OPTION)
+    if not option_found:
+        raise GridLensError(
+            "The active ComStatsim does not expose the 'Planned Outages' "
+            "option [{}]. GridLens cannot control whether PowerFactory applies "
+            "planned outages, so no calculation was started.".format(
+                PLANNED_OUTAGE_OPTION))
     study_time_state = _capture_study_time(app)
     logger.write(
         "CONTEXT",
@@ -1593,14 +1564,20 @@ def execute_gridlens(app):
     _log_qds_settings(qds, original_result, study_time_state, logger)
     results = []
     records = []
-    applied = []
+    candidates = []
     temporary_results = []
     state_errors = []
     try:
         if RUN_REFERENCE_CASE:
+            if not _set_scalar_attribute(qds, PLANNED_OUTAGE_OPTION, 0):
+                raise GridLensError(
+                    "The 'Planned Outages' option [{}] could not be switched "
+                    "off, so a reference free of planned outages could not be "
+                    "guaranteed. No calculation was started.".format(
+                        PLANNED_OUTAGE_OPTION))
             results.append(_run_calculation(
                 app, study_case, qds, REFERENCE_CASE_ID, "Reference",
-                "Initial network state before GridLens applies planned outages.",
+                "Network state without planned outages.",
                 original_result, logger, temporary_results))
             clock_errors = _restore_study_time(
                 study_time_state, logger, "CALCULATION", 4)
@@ -1609,22 +1586,36 @@ def execute_gridlens(app):
                     "The initial Study Case time could not be restored after "
                     "REF: {}. The outage run was not started.".format(
                         "; ".join(clock_errors)))
-        records, _ = apply_available_outages(app, logger, applied)
-        if applied:
+        period = qds_period(qds)
+        if period == (None, None) and results:
+            period = results[0].get("window", (None, None))
+        records, candidates = classify_planned_outages(app, logger, period)
+        if candidates:
+            if not _set_scalar_attribute(qds, PLANNED_OUTAGE_OPTION, 1):
+                raise GridLensError(
+                    "The 'Planned Outages' option [{}] could not be switched "
+                    "on, so no outage run was started.".format(
+                        PLANNED_OUTAGE_OPTION))
+            logger.write(
+                "CALCULATION",
+                "Switched the 'Planned Outages' option [{}] on; PowerFactory "
+                "will apply {} planned outage(s) inside their own time "
+                "windows.".format(PLANNED_OUTAGE_OPTION, len(candidates)), 4)
             results.append(_run_calculation(
                 app, study_case, qds, OUTAGE_CASE_ID,
-                "Combined planned outages",
-                "All planned outages that GridLens safely applied together.",
+                "Planned outages",
+                "Same period with the planned outages applied by PowerFactory.",
                 original_result, logger, temporary_results))
         else:
             logger.write(
                 "CALCULATION",
-                "No applicable planned outage was found; the outage run was skipped.",
-                4, "WARNING")
+                "No planned outage applies to the simulated period; the outage "
+                "run was skipped.", 4, "WARNING")
     finally:
         logger.write("RESTORE", "Restoring the original PowerFactory state.", 6)
         state_errors.extend(_restore_study_time(study_time_state, logger))
-        state_errors.extend(restore_outages(applied, logger))
+        state_errors.extend(
+            _restore_planned_outage_option(qds, original_option, logger))
         state_errors.extend(_restore_results_binding(qds, original_result))
         state_errors.extend(_delete_temporary_results(temporary_results, logger))
     if state_errors:
@@ -1639,14 +1630,14 @@ def execute_gridlens(app):
         project = app.GetActiveProject()
     except Exception:
         project = None
-    if applied and RUN_REFERENCE_CASE:
-        run_mode = "REFERENCE + COMBINED PLANNED OUTAGES"
-    elif applied:
-        run_mode = "COMBINED PLANNED OUTAGES ONLY"
+    if candidates and RUN_REFERENCE_CASE:
+        run_mode = "REFERENCE + PLANNED OUTAGES"
+    elif candidates:
+        run_mode = "PLANNED OUTAGES ONLY"
     elif RUN_REFERENCE_CASE:
-        run_mode = "REFERENCE ONLY - NO APPLICABLE PLANNED OUTAGES"
+        run_mode = "REFERENCE ONLY - NO PLANNED OUTAGE IN THE SIMULATED PERIOD"
     else:
-        run_mode = "NO CALCULATION - NO APPLICABLE PLANNED OUTAGES"
+        run_mode = "NO CALCULATION - NO PLANNED OUTAGE IN THE SIMULATED PERIOD"
     payload = build_cases_payload(
         study_case, results,
         object_name(project) if project else "Active PowerFactory model",
@@ -1659,8 +1650,9 @@ def execute_gridlens(app):
         "REPORT", message, 7))
     logger.write(
         "COMPLETE",
-        "Report published successfully: {} table(s), {} applied outage(s), "
-        "{} calculated case(s).".format(len(counts), len(applied), len(results)), 7)
+        "Report published successfully: {} table(s), {} planned outage(s) in "
+        "scope, {} calculated case(s).".format(
+            len(counts), len(candidates), len(results)), 7)
     return counts
 
 

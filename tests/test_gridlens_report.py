@@ -32,40 +32,24 @@ class PFObject:
         return []
 
 
+# The acceptance project's first outage: 2014-01-01 00:00:00 to 23:59:59 local.
+OUTAGE_START = 1388530800
+OUTAGE_END = 1388617199
+# ComStatsim declares 2014-01-01 00:00 to 2014-01-05 00:00 for that project.
+PERIOD_START = 1388530800
+PERIOD_END = 1388876400
+
+
 class PlannedOutage(PFObject):
-    def __init__(self, name, *, active=False, disabled=False, in_time=True,
-                 apply_code=None, reset_code=None, include_api=True):
+    """IntPlannedout as PowerFactory 2026 exposes it: data, no Apply method."""
+
+    def __init__(self, name, *, disabled=False, equipment=None,
+                 starttime=OUTAGE_START, endtime=OUTAGE_END):
         super().__init__(name, "IntPlannedout", outserv=1 if disabled else 0)
-        self.active = active
-        self.in_time = in_time
-        self.apply_code = apply_code
-        self.reset_code = reset_code
-        self.apply_calls = 0
-        self.reset_calls = 0
-        if not include_api:
-            self.Apply = None
-            self.Reset = None
-            self.Check = None
-
-    def IsInStudyTime(self):
-        return 1 if self.in_time else 0
-
-    def Check(self):
-        return 0 if self.active else 1
-
-    def Apply(self):
-        self.apply_calls += 1
-        if self.apply_code not in (None, 0):
-            return self.apply_code
-        self.active = True
-        return self.apply_code
-
-    def Reset(self):
-        self.reset_calls += 1
-        if self.reset_code not in (None, 0):
-            return self.reset_code
-        self.active = False
-        return self.reset_code
+        self.starttime = starttime
+        self.endtime = endtime
+        self.priority = 1
+        self.components = list(equipment or ())
 
 
 class ElmRes(PFObject):
@@ -164,16 +148,19 @@ class QDS(PFObject):
         super().__init__(
             "Configured QDS", "ComStatsim", results=result,
             calcPeriod=2, stepSize=1, stepUnit=2,
-            iopt_net=0, iopt_at=1,
+            iopt_net=0, iopt_at=1, iopt_maint=0,
+            startTime=PERIOD_START, endTime=PERIOD_END,
         )
         self.study_time = study_time
         self.failure = failure
         self.execute_calls = 0
         self.start_times = []
+        self.outage_options = []
 
     def Execute(self):
         self.execute_calls += 1
         self.start_times.append((self.study_time.cDate, self.study_time.cTime))
+        self.outage_options.append(self.iopt_maint)
         self.study_time.cDate = 20140531
         self.study_time.cTime = 23000000
         if self.failure:
@@ -267,42 +254,19 @@ def test_table_contract_is_single_versioned_17_table_contract():
     assert "run_mode" in dict(tables["ScriptedReportMeta"])
 
 
-def test_outage_filter_applies_only_safe_candidate():
-    applicable = PlannedOutage("Applicable")
-    already_active = PlannedOutage("Already active", active=True)
-    disabled = PlannedOutage("Disabled", disabled=True)
-    outside = PlannedOutage("Outside", in_time=False)
-    unsupported = PlannedOutage("Unsupported", include_api=False)
-    app = App((applicable, already_active, disabled, outside, unsupported))
-    records, applied = gl.apply_available_outages(app, gl.RunLogger(app))
-
-    assert [record["name"] for record in applied] == ["Applicable"]
-    assert applicable.active is True
-    statuses = {record["name"]: (record["status"], record["skip_reason"])
-                for record in records}
-    assert statuses["Applicable"] == ("APPLIED", "")
-    assert "already active" in statuses["Already active"][1]
-    assert "disabled" in statuses["Disabled"][1]
-    assert "outside" in statuses["Outside"][1]
-    assert "unavailable" in statuses["Unsupported"][1]
-
-    assert gl.restore_outages(applied, gl.RunLogger(app)) == []
-    assert applicable.active is False
-
-
-def test_standard_mode_runs_reference_then_one_combined_outage(monkeypatch):
-    outage_a = PlannedOutage("Outage A")
-    outage_b = PlannedOutage("Outage B")
-    app = App((outage_a, outage_b))
+def test_reference_runs_without_and_outage_run_with_planned_outages(monkeypatch):
+    app = App((PlannedOutage("Outage A"), PlannedOutage("Outage B")))
     monkeypatch.setattr(gl, "RUN_REFERENCE_CASE", True)
     monkeypatch.setattr(gl.getpass, "getuser", lambda: "operator")
 
     counts = gl.execute_gridlens(app)
 
     assert app.qds.execute_calls == 2
+    # The reference must be free of planned outages, the second run must not.
+    assert app.qds.outage_options == [0, 1]
+    assert app.qds.iopt_maint == 0, "the original option value must come back"
     assert app.qds.start_times == [(20140501, 0), (20140501, 0)]
     assert app.qds.results is app.original_result
-    assert outage_a.active is False and outage_b.active is False
     assert all(copy.deleted for copy in app.study.copies)
     assert (app.study_time.cDate, app.study_time.cTime) == (20140501, 0)
     assert app.report.reset_calls == 1
@@ -310,19 +274,22 @@ def test_standard_mode_runs_reference_then_one_combined_outage(monkeypatch):
     assert counts["ScriptedPlannedOutages"] == 2
     values = app.report.tables["ReportMeta"]["values"]
     assert values[0, "generated_by"] == "operator"
-    assert values[0, "run_mode"] == "REFERENCE + COMBINED PLANNED OUTAGES"
+    assert values[0, "run_mode"] == "REFERENCE + PLANNED OUTAGES"
     assert any("blocking API call may take several minutes" in line
                for line in app.messages)
     assert any("Time period [calcPeriod] = 2" in line for line in app.messages)
     assert any("Step size [stepSize] = 1" in line for line in app.messages)
     assert any("Step unit [stepUnit] = 2" in line for line in app.messages)
-    assert any("Calculation options: iopt_at=1, iopt_net=0" in line
+    assert any("Calculation options: iopt_at=1, iopt_maint=0, iopt_net=0" in line
+               for line in app.messages)
+    assert any("Planned outages [iopt_maint] = 0" in line for line in app.messages)
+    assert any("Simulated period [startTime..endTime] = 2014-01-01" in line
                for line in app.messages)
     assert any("Initial Study Case time: 2014-05-01 00:00:00" in line
                for line in app.messages)
 
 
-def test_direct_mode_with_no_applicable_outage_does_not_calculate(monkeypatch):
+def test_direct_mode_with_no_outage_in_scope_does_not_calculate(monkeypatch):
     app = App((PlannedOutage("Disabled", disabled=True),))
     monkeypatch.setattr(gl, "RUN_REFERENCE_CASE", False)
 
@@ -330,23 +297,22 @@ def test_direct_mode_with_no_applicable_outage_does_not_calculate(monkeypatch):
 
     assert app.qds.execute_calls == 0
     assert app.qds.results is app.original_result
+    assert app.qds.iopt_maint == 0
     assert counts["ScriptedCases"] == 0
     assert counts["ScriptedPlannedOutages"] == 1
     values = app.report.tables["ReportMeta"]["values"]
     assert values[0, "run_mode"] == (
-        "NO CALCULATION - NO APPLICABLE PLANNED OUTAGES")
+        "NO CALCULATION - NO PLANNED OUTAGE IN THE SIMULATED PERIOD")
 
 
-def test_calculation_failure_still_restores_outage_and_result_binding(monkeypatch):
-    outage = PlannedOutage("Outage")
-    app = App((outage,), qds_failure=RuntimeError("solver stopped"))
+def test_calculation_failure_still_restores_option_and_result_binding(monkeypatch):
+    app = App((PlannedOutage("Outage"),), qds_failure=RuntimeError("solver stopped"))
     monkeypatch.setattr(gl, "RUN_REFERENCE_CASE", False)
 
     with pytest.raises(gl.GridLensError, match="solver stopped"):
         gl.execute_gridlens(app)
 
-    assert outage.active is False
-    assert outage.reset_calls == 1
+    assert app.qds.iopt_maint == 0
     assert app.qds.results is app.original_result
     assert (app.study_time.cDate, app.study_time.cTime) == (20140501, 0)
     assert all(copy.deleted for copy in app.study.copies)
@@ -372,7 +338,8 @@ def test_user_facing_runtime_text_is_english():
 
 
 def test_qds_result_reads_implicit_time_scale_from_column_minus_one():
-    series, labels, plot_times, time_unit, absolute = gl.collect_series(ImplicitTimeElmRes())
+    series, labels, plot_times, time_unit, absolute, _ = gl.collect_series(
+        ImplicitTimeElmRes())
 
     assert absolute is False
     assert labels == ["00:00", "01:00"]
@@ -460,42 +427,71 @@ def test_reference_delta_requires_same_internal_object_key():
     assert stats["delta_max"] is None
 
 
-def test_apply_failure_is_skipped_only_after_verified_reset():
-    outage = PlannedOutage("Fails", apply_code=9)
-    app = App((outage,))
-    records, applied = gl.apply_available_outages(app, gl.RunLogger(app))
-    assert applied == []
-    assert records[0]["status"] == "SKIPPED"
-    assert outage.reset_calls == 1
-    assert outage.active is False
+def test_outages_are_classified_against_the_simulated_period():
+    inside = PlannedOutage("Inside")
+    before = PlannedOutage("Before", starttime=PERIOD_START - 172800,
+                           endtime=PERIOD_START - 3600)
+    after = PlannedOutage("After", starttime=PERIOD_END + 3600,
+                          endtime=PERIOD_END + 172800)
+    disabled = PlannedOutage("Disabled", disabled=True)
+    app = App((inside, before, after, disabled))
+
+    records, candidates = gl.classify_planned_outages(
+        app, gl.RunLogger(app), (PERIOD_START, PERIOD_END))
+
+    assert [record["name"] for record in candidates] == ["Inside"]
+    statuses = {record["name"]: (record["status"], record["skip_reason"])
+                for record in records}
+    assert statuses["Inside"] == (gl.OUTAGE_CONSIDERED, "")
+    assert "disabled" in statuses["Disabled"][1]
+    assert "outside the simulated period" in statuses["Before"][1]
+    assert "outside the simulated period" in statuses["After"][1]
 
 
-def test_unreadable_initial_outage_state_is_skipped_without_reset():
-    outage = PlannedOutage("Unreadable")
-    outage.Check = lambda: (_ for _ in ()).throw(RuntimeError("check failed"))
-    app = App((outage,))
+def test_outage_touching_the_period_boundary_stays_in_scope():
+    touching = PlannedOutage("Touching", starttime=PERIOD_END,
+                             endtime=PERIOD_END + 86400)
+    app = App((touching,))
 
-    records, applied = gl.apply_available_outages(app, gl.RunLogger(app))
+    _, candidates = gl.classify_planned_outages(
+        app, gl.RunLogger(app), (PERIOD_START, PERIOD_END))
 
-    assert applied == []
-    assert records[0]["status"] == "SKIPPED"
-    assert "no change was attempted" in records[0]["skip_reason"]
-    assert outage.apply_calls == 0
-    assert outage.reset_calls == 0
+    assert [record["name"] for record in candidates] == ["Touching"]
 
 
-def test_failed_immediate_reset_is_retried_by_final_restoration():
-    outage = PlannedOutage("Unsafe", reset_code=8)
-    outage.Apply = lambda: (setattr(outage, "active", True) or 7)
-    app = App((outage,))
-    applied = []
+def test_unknown_period_keeps_every_enabled_outage_in_scope():
+    app = App((PlannedOutage("Enabled"), PlannedOutage("Disabled", disabled=True)))
 
-    with pytest.raises(gl.GridLensError, match="could not be reset immediately"):
-        gl.apply_available_outages(app, gl.RunLogger(app), applied)
+    records, candidates = gl.classify_planned_outages(app, gl.RunLogger(app))
 
-    assert applied and applied[0]["name"] == "Unsafe"
-    errors = gl.restore_outages(applied, gl.RunLogger(app))
-    assert errors and "Unsafe" in errors[0]
+    assert [record["name"] for record in candidates] == ["Enabled"]
+    statuses = {record["name"]: record["status"] for record in records}
+    assert statuses == {"Enabled": gl.OUTAGE_CONSIDERED,
+                        "Disabled": gl.OUTAGE_SKIPPED}
+
+
+def test_outage_without_a_readable_window_is_reported_with_its_surface():
+    unreadable = PlannedOutage("Unreadable")
+    del unreadable.starttime
+    del unreadable.endtime
+    app = App((unreadable,))
+
+    records, candidates = gl.classify_planned_outages(
+        app, gl.RunLogger(app), (PERIOD_START, PERIOD_END))
+
+    assert [record["name"] for record in candidates] == ["Unreadable"]
+    assert "could not be compared" in records[0]["skip_reason"]
+    diagnostics = [line for line in app.messages if "DIAGNOSTIC" in line]
+    assert len(diagnostics) == 1
+    assert "class=IntPlannedout" in diagnostics[0]
+
+
+def test_outage_in_scope_produces_no_diagnostic_noise():
+    app = App((PlannedOutage("Inside"),))
+
+    gl.classify_planned_outages(app, gl.RunLogger(app), (PERIOD_START, PERIOD_END))
+
+    assert [line for line in app.messages if "DIAGNOSTIC" in line] == []
 
 
 def test_duplicate_outage_names_receive_distinct_short_ids():
@@ -503,10 +499,11 @@ def test_duplicate_outage_names_receive_distinct_short_ids():
     second = PlannedOutage("Duplicate")
     second.GetFullName = lambda: "Project\\Other\\Duplicate.IntPlannedout"
     app = App((first, second))
-    records, applied = gl.apply_available_outages(app, gl.RunLogger(app))
+
+    records, _ = gl.classify_planned_outages(app, gl.RunLogger(app))
+
     assert len({record["id"] for record in records}) == 2
     assert all(record["id"].startswith("Duplicate (") for record in records)
-    assert gl.restore_outages(applied, gl.RunLogger(app)) == []
 
 
 def test_complete_outage_discovery_failure_is_not_reported_as_empty():
@@ -517,7 +514,28 @@ def test_complete_outage_discovery_failure_is_not_reported_as_empty():
         RuntimeError("project unavailable"))
 
     with pytest.raises(gl.GridLensError, match="discovery could not query"):
-        gl.apply_available_outages(app, gl.RunLogger(app))
+        gl.classify_planned_outages(app, gl.RunLogger(app))
+
+
+def test_equipment_is_read_from_the_components_attribute():
+    line = PFObject("Line 09 - 39", "ElmLne", outserv=0)
+    outage = PlannedOutage("Line 04 - 14", equipment=[line])
+
+    equipment, kinds, _, start, end = gl._outage_details(outage)
+
+    assert equipment == "Line 09 - 39"
+    assert kinds == "ElmLne"
+    assert start.startswith("2014-01-01")
+    assert end.startswith("2014-01-01")
+
+
+def test_qds_period_is_read_from_the_command():
+    app = App(())
+
+    assert gl.qds_period(app.qds) == (float(PERIOD_START), float(PERIOD_END))
+
+    del app.qds.startTime
+    assert gl.qds_period(app.qds) == (None, None)
 
 
 def test_payload_validation_rejects_unknown_fields_and_booleans():
@@ -559,19 +577,22 @@ def test_api_description_separates_methods_from_parameters():
     description = gl.describe_object_api(PlannedOutage("Probe"))
 
     assert "class=IntPlannedout" in description
-    assert "Apply" in description
-    assert "IsInStudyTime" in description
-    assert "outserv" in description
-    assert "apply_calls" in description
+    methods, parameters = description.split("parameters:")
+    assert "GetClassName" in methods
+    assert "starttime" in parameters
+    assert "endtime" in parameters
+    assert "priority" in parameters
+    assert "outserv" in parameters
 
 
-def test_api_description_omits_unavailable_methods():
-    description = gl.describe_object_api(PlannedOutage("Probe", include_api=False))
+def test_api_description_omits_methods_powerfactory_does_not_expose():
+    # PowerFactory 2026 offers no Apply, Reset or Check on IntPlannedout.
+    methods = gl.describe_object_api(
+        PlannedOutage("Probe")).split("parameters:")[0]
 
-    methods = description.split("parameters:")[0]
     assert "Apply" not in methods
     assert "Reset" not in methods
-    assert "IsInStudyTime" in methods
+    assert "IsInStudyTime" not in methods
 
 
 def test_api_description_survives_objects_that_raise_on_access():
@@ -597,28 +618,6 @@ def test_api_description_is_bounded_for_the_output_window():
         setattr(outage, "parameter_with_a_long_name_{}".format(index), index)
 
     assert len(gl.describe_object_api(outage)) <= gl.MAX_DIAGNOSTIC_LENGTH
-
-
-def test_missing_outage_api_is_logged_with_the_real_object_surface():
-    unsupported = PlannedOutage("Unsupported", include_api=False)
-    app = App((unsupported,))
-
-    records, applied = gl.apply_available_outages(app, gl.RunLogger(app))
-
-    assert applied == []
-    assert records[0]["status"] == "SKIPPED"
-    diagnostics = [line for line in app.messages if "DIAGNOSTIC" in line]
-    assert len(diagnostics) == 1
-    assert "class=IntPlannedout" in diagnostics[0]
-    assert "IsInStudyTime" in diagnostics[0]
-
-
-def test_applicable_outage_produces_no_diagnostic_noise():
-    app = App((PlannedOutage("Applicable"),))
-
-    gl.apply_available_outages(app, gl.RunLogger(app))
-
-    assert [line for line in app.messages if "DIAGNOSTIC" in line] == []
 
 
 def test_extraction_logs_the_time_axis_span(monkeypatch):
@@ -686,7 +685,7 @@ def test_absolute_epoch_axis_is_detected():
 
 
 def test_epoch_axis_is_labelled_as_a_calendar_time():
-    _, labels, _, _, absolute = gl.collect_series(EpochTimeElmRes())
+    _, labels, _, _, absolute, _ = gl.collect_series(EpochTimeElmRes())
 
     assert absolute is True
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2} \d{2}:\d{2}", labels[0])
@@ -695,16 +694,18 @@ def test_epoch_axis_is_labelled_as_a_calendar_time():
 
 
 def test_epoch_axis_plot_times_are_relative_to_the_first_sample():
-    _, _, plot_times, _, _ = gl.collect_series(EpochTimeElmRes())
+    _, _, plot_times, _, _, origin = gl.collect_series(EpochTimeElmRes())
 
     assert plot_times[0] == 0.0
     assert plot_times[-1] == pytest.approx(47.0)
+    assert origin == pytest.approx(EPOCH_2014_06_15_12_UTC / 3600.0)
 
 
 def test_relative_axis_keeps_elapsed_clock_labels():
-    _, labels, plot_times, _, absolute = gl.collect_series(ElmRes())
+    _, labels, plot_times, _, absolute, origin = gl.collect_series(ElmRes())
 
     assert absolute is False
+    assert origin is None
     assert labels == ["00:00", "01:00"]
     assert plot_times == [0.0, 1.0]
 
@@ -712,6 +713,8 @@ def test_relative_axis_keeps_elapsed_clock_labels():
 def test_epoch_axis_span_is_reported_in_hours(monkeypatch):
     app = App((PlannedOutage("Applicable"),))
     app.original_result = EpochTimeElmRes()
+    app.qds.startTime = EPOCH_2014_06_15_12_UTC
+    app.qds.endTime = EPOCH_2014_06_15_12_UTC + 47 * 3600
     app.qds.results = app.original_result
     monkeypatch.setattr(gl, "RUN_REFERENCE_CASE", True)
 

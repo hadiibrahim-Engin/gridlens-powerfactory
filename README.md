@@ -11,10 +11,13 @@ besteht nur aus zwei gemeinsam zu versionierenden Dateien:
 
 Das Skript verwendet den bereits aktiven Study Case und dessen vorhandenes
 `ComStatsim` einschließlich Zeitraum, Zeitschritt, Calculation Options,
-Profile und Ergebnisvariablen. Standardmäßig berechnet es `REF` im unveränderten
-Anfangszustand und danach genau einen Fall `OUTAGE`, der alle sicher anwendbaren
-Planned Outages kombiniert. Es erzeugt keine Operation Scenarios, Network
-Variations oder zusätzlichen Study Cases.
+Profile und Ergebnisvariablen. Es verändert genau eine Einstellung: die Option
+`iopt_maint`, die PowerFactory mit „Planned Outages" beschriftet. Standardmäßig
+berechnet es `REF` ohne geplante Außerbetriebnahmen und danach genau einen Fall
+`OUTAGE`, in dem PowerFactory jede Außerbetriebnahme in ihrem eigenen
+Zeitfenster anwendet. Anschließend wird die Option verifiziert
+zurückgesetzt. Es erzeugt keine Operation Scenarios, Network Variations oder
+zusätzlichen Study Cases.
 
 Installation, Bedienung, Fehlersuche und die noch erforderliche reale
 PowerFactory-2026-Abnahme stehen in

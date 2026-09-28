@@ -23,26 +23,38 @@ Die gemeinsam auszuliefernde Laufzeit besteht ausschließlich aus:
 Publisher-Version: `5.0.2`; MRT: `3.0.0`; Datenvertrag: `3.0`.
 
 Das einzelne ComPython liegt direkt unter dem `IntReport`. Es verwendet das
-aktive `ComStatsim` unverändert, kopiert dessen gebundenes Ergebnisobjekt und
-berechnet standardmäßig:
+aktive `ComStatsim` einschließlich Zeitraum, Zeitschritt, Profilen und
+Calculation Options. **Genau eine Einstellung wird verändert:** die Option
+`iopt_maint`, die PowerFactory selbst mit „Planned Outages“ beschriftet.
+Berechnet wird:
 
-1. `REF` im unveränderten Zustand beim Skriptstart,
-2. `OUTAGE` mit allen gemeinsam sicher anwendbaren Planned Outages.
+1. `REF` mit `iopt_maint=0`, also ohne geplante Außerbetriebnahmen,
+2. `OUTAGE` mit `iopt_maint=1`, sofern mindestens eine Außerbetriebnahme in
+   den simulierten Zeitraum fällt.
 
-Es erzeugt oder aktiviert keine Operation Scenarios, Network Variations oder
-zusätzlichen Study Cases. `RUN_REFERENCE_CASE=False` überspringt `REF`. Gibt es
-keinen anwendbaren Outage, wird kein sinnloser `OUTAGE`-Lauf gestartet.
+Anschließend wird der ursprüngliche Wert wiederhergestellt und verifiziert.
+Es werden keine Operation Scenarios, Network Variations oder zusätzlichen
+Study Cases erzeugt. `RUN_REFERENCE_CASE=False` überspringt `REF`.
 
-Planned Outages werden bevorzugt als `IntPlannedout`, zusätzlich als Legacy-
-`IntOutage`, gesucht. GridLens verändert nur Objekte, deren Apply-, Reset- und
-Check-Pfad verfügbar ist. Bereits aktive, deaktivierte, zeitlich unpassende,
-ungültige oder nicht sicher prüfbare Outages werden mit Grund übersprungen.
+## Wie Außerbetriebnahmen angewendet werden
 
-Vor jeder Mutation werden die ursprüngliche `ComStatsim.results`-Bindung und
-die selbst aktivierten Outages verfolgt. Reset erfolgt in umgekehrter
-Reihenfolge. Zustand und temporäre Ergebnisse werden vor der Reportpublikation
-wiederhergestellt beziehungsweise entfernt. Ein nicht verifizierter Restore ist
-ein harter Fehler.
+GridLens wendet **keine** Außerbetriebnahme selbst an. In PowerFactory 2026 ist
+`IntPlannedout` ein reines Datenobjekt und besitzt weder `Apply` noch `Reset`
+noch `Check`. Maßgeblich sind seine Attribute:
+
+- `starttime` und `endtime` als Epoch-Sekunden,
+- `components` mit den geschalteten Betriebsmitteln,
+- `outserv` (von PowerFactory als „Ignored“ beschriftet),
+- `priority`.
+
+PowerFactory wendet eine Außerbetriebnahme während der Rechnung an, sobald
+`iopt_maint` gesetzt ist und die Rechenzeit in ihr Zeitfenster fällt. Der
+simulierte Zeitraum steht am `ComStatsim` in `startTime` und `endTime`.
+
+GridLens vergleicht beide Fenster und meldet je Außerbetriebnahme `CONSIDERED`
+oder `SKIPPED` mit Grund. Ist die Frage nicht entscheidbar, gilt `CONSIDERED`
+und die Objektoberfläche wird als `DIAGNOSTIC` protokolliert. Fällt keine
+Außerbetriebnahme in den Zeitraum, wird kein zweiter Lauf gestartet.
 
 ## Fachliche Regeln
 
@@ -83,7 +95,9 @@ davon ausgenommen.
 3. PowerFactory-Laufzeitcode darf nur Standardbibliothek und `powerfactory`
    benötigen.
 4. Keine alten modularen, Scenario-, Variation-, Mock- oder Manifest-Pfade
-   wieder einführen.
+   wieder einführen. Ebenso wenig `Apply`, `Reset` oder `Check` auf
+   `IntPlannedout`: diese Methoden existieren in PowerFactory 2026 nicht.
+   Außer `iopt_maint` darf keine ComStatsim-Einstellung verändert werden.
 5. Fehler dürfen weder einen alten Resultstand als aktuell publizieren noch
    einen unbestimmten Outage-Zustand verschweigen.
 6. Änderungen auf einem Feature-Branch entwickeln; keine Produktionsfreigabe
@@ -103,7 +117,9 @@ QA-Layout.
 
 ## Offene PowerFactory-Abnahme
 
-Die konkreten Rückgabewerte und die Fehlersemantik von `IntPlannedout.Apply`,
-`Reset`, `Check`, `IsInStudyTime`, `AddCopy`/`CopyObject`, `ComStatsim.Execute`,
-`ElmRes` und `IntReport` müssen im Ziel-Build verifiziert werden. Die vollständige
-Abnahmematrix steht in `powerfactory/README.md`.
+Offen bleibt der Nachweis, dass `iopt_maint=1` die Ergebnisse tatsächlich
+verändert: dass also die Betriebsmittel aus `components` im Zeitfenster der
+Außerbetriebnahme abweichende Werte liefern. Der REF/OUTAGE-Vergleich selbst
+ist dieser Nachweis. Ebenso zu verifizieren sind `AddCopy`/`CopyObject`,
+`ComStatsim.Execute`, `ElmRes` und `IntReport`. Die vollständige Abnahmematrix
+steht in `powerfactory/README.md`.
