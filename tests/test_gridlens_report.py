@@ -244,7 +244,7 @@ class App:
 
 
 def test_table_contract_is_single_versioned_17_table_contract():
-    assert gl.PUBLISHER_VERSION == "5.1.1"
+    assert gl.PUBLISHER_VERSION == "5.1.2"
     assert gl.TEMPLATE_VERSION == "3.1.0"
     assert gl.DATA_CONTRACT_VERSION == "3.1"
     assert len(gl.TABLES) == 17
@@ -1116,3 +1116,56 @@ def test_emitted_schema_check_catches_missing_tables_and_fields_from_export_log(
 
     with pytest.raises(AssertionError):
         _check_emitted_report_against_mrt(app.report)
+
+
+class _CountingList(list):
+    """A category list that counts how often it is scanned from the start."""
+
+    scans = 0
+
+    def __iter__(self):
+        _CountingList.scans += 1
+        return super().__iter__()
+
+
+def test_statistics_rows_do_not_rescan_the_category_per_critical_element():
+    # A 229 325-series network hung for minutes here: every critical element
+    # triggered a linear search through the whole category, once per case.
+    results = []
+    for case_id in ("REF", "OUTAGE"):
+        series = []
+        for index in range(300):
+            item, stats = _window_series(
+                "voltage", "Bus {}".format(index), "p.u.", {})
+            stats.update({'min': 0.90, 'max': 1.08})
+            series.append((item, stats))
+        result = gl.case_result(
+            {'id': case_id, 'name': case_id}, [item for item, _ in series],
+            ['t'], [0.0], 'h')
+        for item, stats in series:
+            result['stats_by_key'][('voltage', item['key'])].update(stats)
+        result['by_category']['voltage'] = _CountingList(
+            result['by_category']['voltage'])
+        results.append(result)
+    payload = gl.empty_payload()
+    _CountingList.scans = 0
+
+    gl._statistics_rows(payload, results, 'voltage',
+                        'ScriptedVoltageStatistics', gl.VOLTAGE_FIELDS)
+
+    assert len(payload['ScriptedVoltageStatistics']) == 600
+    # critical_keys reads each case once; per-element lookups must not scan.
+    assert _CountingList.scans <= len(results)
+
+
+def test_leftover_temporary_result_is_refused_before_any_calculation():
+    # A run aborted mid-calculation left ComStatsim.results bound to its own
+    # temporary ElmRes; later runs silently copied their variables from it.
+    app = App((PlannedOutage("Outage"),))
+    app.original_result.loc_name = "GridLens_TMP_20260928145610059524_REF"
+
+    with pytest.raises(gl.GridLensError, match="left behind by an earlier"):
+        gl.execute_gridlens(app)
+
+    assert app.qds.execute_calls == 0
+    assert app.qds.results is app.original_result

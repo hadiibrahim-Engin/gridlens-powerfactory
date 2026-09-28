@@ -19,7 +19,7 @@ LOADING_MAX = 100.0
 VOLTAGE_MIN = 0.95
 VOLTAGE_MAX = 1.05
 TIME_UNIT_FALLBACK = 'h'
-PUBLISHER_VERSION = '5.1.1'
+PUBLISHER_VERSION = '5.1.2'
 TEMPLATE_NAME = 'MASTER_GRIDLENS'
 TEMPLATE_VERSION = '3.1.0'
 DATA_CONTRACT_VERSION = '3.1'
@@ -427,6 +427,7 @@ DELTA_KEYS = (('ref_min', 'delta_min', 'min'), ('ref_max', 'delta_max', 'max'), 
 def case_result(case, series, labels, plot_times, time_unit):
     by_category = {category: [] for category in VARIABLES}
     stats_by_key = {}
+    item_by_key = {}
     for item in series:
         stats = dict(item.get('statistics') or statistics(item))
         for reference_key, delta_key, _ in DELTA_KEYS:
@@ -434,7 +435,8 @@ def case_result(case, series, labels, plot_times, time_unit):
             stats[delta_key] = None
         by_category[item['category']].append((item, stats))
         stats_by_key[item['category'], item['key']] = stats
-    return {'id': case['id'], 'name': case['name'], 'kind': case.get('kind', 'case'), 'description': case.get('description', ''), 'status': case.get('status', CONVERGED), 'error_code': case.get('error_code'), 'message': case.get('message', ''), 'out_of_service': list(case.get('out_of_service', ())), 'is_reference': 1 if case['id'] == REFERENCE_ID else 0, 'labels': list(labels), 'plot_times': list(plot_times), 'time_unit': time_unit, 'by_category': by_category, 'stats_by_key': stats_by_key}
+        item_by_key[item['category'], item['key']] = item
+    return {'id': case['id'], 'name': case['name'], 'kind': case.get('kind', 'case'), 'description': case.get('description', ''), 'status': case.get('status', CONVERGED), 'error_code': case.get('error_code'), 'message': case.get('message', ''), 'out_of_service': list(case.get('out_of_service', ())), 'is_reference': 1 if case['id'] == REFERENCE_ID else 0, 'labels': list(labels), 'plot_times': list(plot_times), 'time_unit': time_unit, 'by_category': by_category, 'stats_by_key': stats_by_key, 'item_by_key': item_by_key}
 
 def find_reference(results, reference_id=REFERENCE_ID):
     for result in results:
@@ -517,7 +519,7 @@ def _statistics_rows(payload, results, category, table, fields):
             stats = result['stats_by_key'].get((category, key))
             if stats is None:
                 continue
-            item = next((entry[0] for entry in result['by_category'][category] if entry[0]['key'] == key))
+            item = result['item_by_key'][category, key]
             row = {'case_id': result['id'], 'element_id': item['element_id'], 'element_name': item['element_name'], 'voltage_level': item['voltage_level']}
             row.update({name: stats[source] for name, source in fields})
             payload[table].append(row)
@@ -591,7 +593,7 @@ def _plots(payload, results):
         plot_id = 'P{:03d}'.format(index)
         payload['ScriptedPlots'].append({'plot_id': plot_id, 'plot_title': '{} - {}'.format(item['element_name'], item['variable']), 'case_id': '', 'element_id': item['element_id'], 'element_name': item['element_name'], 'variable': item['variable'], 'unit': item['unit']})
         for result in converged(results):
-            match = next((entry[0] for entry in result['by_category'][category] if entry[0]['key'] == key), None)
+            match = result['item_by_key'].get((category, key))
             if match is None:
                 continue
             for _, timestamp, value in sampled_plot_points(match):
@@ -1745,6 +1747,13 @@ def execute_gridlens(app):
         raise GridLensError(
             "ComStatsim.results is empty. Configure a result object and the "
             "required variables before running GridLens.")
+    if object_name(original_result).startswith(SNAPSHOT_PREFIX + "TMP_"):
+        raise GridLensError(
+            "ComStatsim.results is bound to '{}', a temporary result left "
+            "behind by an earlier GridLens run that was aborted. Bind "
+            "ComStatsim.results to the intended ElmRes, delete the leftover "
+            "GridLens_TMP_ objects, and run GridLens again. No calculation "
+            "was started.".format(object_name(original_result)))
     option_found, original_option = _read_setting(qds, PLANNED_OUTAGE_OPTION)
     if not option_found:
         raise GridLensError(
