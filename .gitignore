@@ -4,7 +4,6 @@ __pycache__/
 .venv/
 *.egg-info/
 .pytest_cache/
-gridlens-mock-payload.json
 
 # Local workstation files and configuration
 .DS_Store
@@ -13,8 +12,6 @@ gridlens-mock-payload.json
 .env
 .env.*
 !.env.example
-.agents/*
-docs/*
-gridlens-powerfactory-reporting/*
+.agents/
 skills-lock.json
 Report.pdf
