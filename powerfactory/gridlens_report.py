@@ -24,6 +24,10 @@ TEMPLATE_NAME = 'MASTER_GRIDLENS'
 TEMPLATE_VERSION = '3.1.0'
 DATA_CONTRACT_VERSION = '3.1'
 RUN_REFERENCE_CASE = True
+# Only elements whose short name contains this text are assessed. The own grid
+# is named D7...; everything else in the model is foreign network. An empty
+# string assesses every element.
+ELEMENT_NAME_FILTER = 'D7'
 VARIABLES = {'line': ('c:loading', 'm:loading'), 'transformer': ('c:loading', 'm:loading'), 'voltage': ('m:u', 'm:u1'), 'voltage_angle': ('m:phiu', 'm:phiu1')}
 CLASS_CATEGORIES = {'ElmLne': ('line',), 'ElmTr2': ('transformer',), 'ElmTr3': ('transformer',), 'ElmTerm': ('voltage', 'voltage_angle')}
 MAX_RESULT_ROWS = 35040
@@ -90,6 +94,9 @@ def class_name(obj):
         return str(obj.GetClassName())
     except Exception:
         return ''
+
+def element_in_scope(obj):
+    return not ELEMENT_NAME_FILTER or ELEMENT_NAME_FILTER in object_name(obj)
 
 def result_category(obj, variable):
     for category in CLASS_CATEGORIES.get(class_name(obj), ()):
@@ -262,7 +269,7 @@ def read_column(elmres, column, rows):
 def _is_sequence(value):
     return isinstance(value, (list, tuple))
 
-def collect_series(elmres, windows=()):
+def collect_series(elmres, windows=(), counters=None):
     rows = int(elmres.GetNumberOfRows())
     columns = int(elmres.GetNumberOfColumns())
     if rows <= 0:
@@ -297,6 +304,7 @@ def collect_series(elmres, windows=()):
         plot_times = list(hours)
     bounds = window_bounds(hours, windows) if absolute and windows else []
     chosen = {}
+    out_of_scope = 0
     for column in range(columns):
         try:
             obj = elmres.GetObject(column)
@@ -306,10 +314,22 @@ def collect_series(elmres, windows=()):
             continue
         if not category or variable not in VARIABLES[category]:
             continue
+        # Before the full path is fetched and before any value is read.
+        if not element_in_scope(obj):
+            out_of_scope += 1
+            continue
         key = (category, object_key(obj))
         priority = VARIABLES[category].index(variable)
         if key not in chosen or priority < chosen[key][0]:
             chosen[key] = (priority, column, obj, variable)
+    if counters is not None:
+        counters['out_of_scope'] = out_of_scope
+    if not chosen and out_of_scope:
+        raise RuntimeError(
+            'No result series belongs to an element whose name contains {!r} '
+            '({} series were out of scope). Set ELEMENT_NAME_FILTER at the top '
+            'of gridlens_report.py, or to an empty string to assess every '
+            'element.'.format(ELEMENT_NAME_FILTER, out_of_scope))
     cells = rows * len(chosen)
     if cells > MAX_RESULT_CELLS:
         raise RuntimeError('ElmRes contains {} evaluated cells ({} rows x {} series) and exceeds the limit of {} (MAX_RESULT_CELLS).'.format(cells, rows, len(chosen), MAX_RESULT_CELLS))
@@ -747,7 +767,7 @@ def build_cases_payload(study_case, results, project_name, result_name, planned_
     if len(plot_times) >= 2:
         time_step = format_time_step(plot_times[1] - plot_times[0])
     reference = find_reference(results)
-    payload['ScriptedReportMeta'].append({'study_id': object_name(study_case), 'study_name': object_name(study_case), 'study_description': object_description(study_case), 'model_name': project_name, 'model_version': 'PowerFactory 2026', 'simulation_start': start, 'simulation_end': end, 'simulation_time_step': time_step or 'ElmRes row interval', 'generation_date': datetime.now().astimezone().isoformat(timespec='seconds'), 'generated_by': generated_by, 'run_mode': run_mode, 'template_name': TEMPLATE_NAME, 'template_version': TEMPLATE_VERSION, 'data_contract_version': DATA_CONTRACT_VERSION, 'result_name': result_name, 'assessment_scope': '{} case(s); reference: {}'.format(len(results), reference['id'] if reference else 'none'), 'assessment_status': 'PRE-ASSESSMENT - NOT AN OPERATIONAL RELEASE', 'has_line_bars': '0', 'has_transformer_bars': '0', 'has_voltage_bars': '0', 'has_angle_bars': '0'})
+    payload['ScriptedReportMeta'].append({'study_id': object_name(study_case), 'study_name': object_name(study_case), 'study_description': object_description(study_case), 'model_name': project_name, 'model_version': 'PowerFactory 2026', 'simulation_start': start, 'simulation_end': end, 'simulation_time_step': time_step or 'ElmRes row interval', 'generation_date': datetime.now().astimezone().isoformat(timespec='seconds'), 'generated_by': generated_by, 'run_mode': run_mode, 'template_name': TEMPLATE_NAME, 'template_version': TEMPLATE_VERSION, 'data_contract_version': DATA_CONTRACT_VERSION, 'result_name': result_name, 'assessment_scope': '{} case(s); reference: {}; {}'.format(len(results), reference['id'] if reference else 'none', 'elements named *{}*'.format(ELEMENT_NAME_FILTER) if ELEMENT_NAME_FILTER else 'all elements'), 'assessment_status': 'PRE-ASSESSMENT - NOT AN OPERATIONAL RELEASE', 'has_line_bars': '0', 'has_transformer_bars': '0', 'has_voltage_bars': '0', 'has_angle_bars': '0'})
     identity = outage_identity(results)
     for result in results:
         payload['ScriptedCases'].append({'case_id': result['id'], 'case_name': result['name'], 'is_reference': result['is_reference'], 'description': result['description'], 'simulation_status': result['status'], 'simulation_start': result['labels'][0] if result['labels'] else '', 'simulation_end': result['labels'][-1] if result['labels'] else ''})
@@ -1426,6 +1446,8 @@ def _collect_out_of_service(app):
         except Exception:
             objects = []
         for item in objects:
+            if not element_in_scope(item):
+                continue
             if finite_number(safe_attr(item, "outserv", 0)) == 1.0:
                 found[object_key(item)] = (
                     class_name(item), object_name(item), object_key(item))
@@ -1476,8 +1498,15 @@ def _run_calculation(app, study_case, qds, case_id, name, description,
     logger.write("EXTRACTION", "Reading and validating {} results.".format(case_id), 5)
     try:
         snapshot.Load()
+        counters = {}
         series, labels, plot_times, unit, absolute, origin = collect_series(
-            snapshot, windows)
+            snapshot, windows, counters)
+        if ELEMENT_NAME_FILTER:
+            logger.write(
+                "EXTRACTION",
+                "Element scope {!r}: {} series assessed, {} out of scope and "
+                "not read.".format(ELEMENT_NAME_FILTER, len(series),
+                                   counters.get('out_of_scope', 0)), 5)
         logger.write(
             "EXTRACTION",
             "Validated {} supported series across {} time point(s); time unit '{}'."

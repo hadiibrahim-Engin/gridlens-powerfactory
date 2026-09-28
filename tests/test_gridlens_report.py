@@ -17,6 +17,12 @@ assert SPEC.loader is not None
 SPEC.loader.exec_module(gl)
 
 
+@pytest.fixture(autouse=True)
+def _assess_every_element(monkeypatch):
+    """Fake elements are named "Line A"; only the scope tests use D7."""
+    monkeypatch.setattr(gl, "ELEMENT_NAME_FILTER", "")
+
+
 class PFObject:
     def __init__(self, name, kind, **attributes):
         self.loc_name = name
@@ -1178,3 +1184,86 @@ def test_leftover_temporary_result_is_used_as_configured_with_a_warning(monkeypa
                 if "WARNING" in line and "GridLens_TMP_20260928145610059524_REF" in line]
     assert len(warnings) == 1
     assert "not deleted" in warnings[0]
+
+
+
+class ScopedElmRes(ElmRes):
+    """One D7 line, one foreign line and one D7 bus; counts value reads."""
+
+    def __init__(self):
+        super().__init__()
+        self.own = PFObject("D7_L12 Bollenacker", "ElmLne", outserv=0, uknom=110)
+        self.foreign = PFObject("NL Line 380", "ElmLne", outserv=0, uknom=380)
+        self.bus = PFObject("D7_B03", "ElmTerm", outserv=0, uknom=110)
+        self.variables = ("b:tnow", "c:loading", "c:loading", "m:u")
+        self.objects = (self.time, self.own, self.foreign, self.bus)
+        self.units = ("h", "%", "%", "p.u.")
+        self.columns = ([0.0, 1.0], [90.0, 95.0], [383.4, 383.4], [0.99, 1.0])
+        self.reads = []
+
+    def GetColumnValues(self, column):
+        self.reads.append(column)
+        return super().GetColumnValues(column)
+
+
+def test_element_scope_matches_the_d7_naming(monkeypatch):
+    monkeypatch.setattr(gl, "ELEMENT_NAME_FILTER", "D7")
+
+    assert gl.element_in_scope(PFObject("D7_L12 Bollenacker", "ElmLne"))
+    assert gl.element_in_scope(PFObject("Ltg D712", "ElmLne"))
+    assert not gl.element_in_scope(PFObject("NL Line 380", "ElmLne"))
+
+
+def test_empty_element_filter_assesses_every_element(monkeypatch):
+    monkeypatch.setattr(gl, "ELEMENT_NAME_FILTER", "")
+
+    assert gl.element_in_scope(PFObject("NL Line 380", "ElmLne"))
+
+
+def test_foreign_elements_are_neither_assessed_nor_read(monkeypatch):
+    monkeypatch.setattr(gl, "ELEMENT_NAME_FILTER", "D7")
+    result = ScopedElmRes()
+    counters = {}
+
+    series = gl.collect_series(result, counters=counters)[0]
+
+    assert sorted(item["element_name"] for item in series) == [
+        "D7_B03", "D7_L12 Bollenacker"]
+    assert 2 not in result.reads, "the foreign line's values must not be read"
+    assert counters["out_of_scope"] == 1
+
+
+def test_no_element_in_scope_names_the_filter(monkeypatch):
+    monkeypatch.setattr(gl, "ELEMENT_NAME_FILTER", "D9")
+
+    with pytest.raises(RuntimeError, match="ELEMENT_NAME_FILTER"):
+        gl.collect_series(ScopedElmRes())
+
+
+def test_out_of_service_matrix_only_lists_elements_in_scope(monkeypatch):
+    monkeypatch.setattr(gl, "ELEMENT_NAME_FILTER", "D7")
+    app = App(())
+    own = PFObject("D7_L12", "ElmLne", outserv=1)
+    foreign = PFObject("NL Line 380", "ElmLne", outserv=1)
+    app.GetCalcRelevantObjects = (
+        lambda pattern, *_: [own, foreign] if pattern == "*.ElmLne" else [])
+
+    names = [entry[1] for entry in gl._collect_out_of_service(app)]
+
+    assert names == ["D7_L12"]
+
+
+def test_report_states_which_elements_were_assessed(monkeypatch):
+    monkeypatch.setattr(gl, "ELEMENT_NAME_FILTER", "D7")
+    app = App(())
+    app.original_result = ScopedElmRes()
+    app.qds.results = app.original_result
+    app.study.AddCopy = lambda result: ScopedElmRes()
+    monkeypatch.setattr(gl, "RUN_REFERENCE_CASE", True)
+
+    gl.execute_gridlens(app)
+
+    scope = app.report.tables["ReportMeta"]["values"][0, "assessment_scope"]
+    assert "elements named *D7*" in scope
+    assert any("Element scope 'D7': 2 series assessed, 1 out of scope" in line
+               for line in app.messages)
