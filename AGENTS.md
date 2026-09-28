@@ -20,7 +20,7 @@ Die gemeinsam auszuliefernde Laufzeit besteht ausschließlich aus:
 - `powerfactory/gridlens_report.py`
 - `powerfactory/MASTER_GRIDLENS.mrt`
 
-Publisher-Version: `5.0.2`; MRT: `3.0.0`; Datenvertrag: `3.0`.
+Publisher-Version: `5.1.0`; MRT: `3.1.0`; Datenvertrag: `3.1`.
 
 Das einzelne ComPython liegt direkt unter dem `IntReport`. Es verwendet das
 aktive `ComStatsim` einschließlich Zeitraum, Zeitschritt, Profilen und
@@ -55,6 +55,23 @@ GridLens vergleicht beide Fenster und meldet je Außerbetriebnahme `CONSIDERED`
 oder `SKIPPED` mit Grund. Ist die Frage nicht entscheidbar, gilt `CONSIDERED`
 und die Objektoberfläche wird als `DIAGNOSTIC` protokolliert. Fällt keine
 Außerbetriebnahme in den Zeitraum, wird kein zweiter Lauf gestartet.
+
+## Bewertung je Zeitfenster
+
+`ScriptedPlannedOutages` ist die Bewertungsgrundlage und wird **pro Zeitfenster**
+gefüllt, nicht über den gesamten Zeitraum. Das trennt Freischaltungen, die an
+verschiedenen Tagen liegen; eine Gesamtstatistik würde für alle dasselbe zeigen.
+
+`collect_series` berechnet die Fensterstatistik, solange die Reihe noch
+vollständig ist, also vor dem Downsampling für `ScriptedPlotData`. Die Fenster
+kommen aus der Klassifizierung, die vor dem ersten Rechenlauf steht.
+
+`assessment` ist genau einer von: `NO LIMIT EXCEEDED`, `OVERLOAD`,
+`VOLTAGE BAND`, `OVERLOAD + VOLTAGE BAND`, `NOT SIMULATED`,
+`NO RESULT DATA IN WINDOW`. `violation` ist 1, sobald ein Grenzwert im Fenster
+überschritten wird, und steuert die farbliche Hervorhebung in der MRT.
+`assessment_detail` nennt die Zahlen dahinter, bei übersprungenen Einträgen den
+Grund.
 
 ## Fachliche Regeln
 

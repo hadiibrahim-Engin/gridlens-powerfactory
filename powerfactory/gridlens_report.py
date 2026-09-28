@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import bisect
 import getpass
 import hashlib
 import math
@@ -18,10 +19,10 @@ LOADING_MAX = 100.0
 VOLTAGE_MIN = 0.95
 VOLTAGE_MAX = 1.05
 TIME_UNIT_FALLBACK = 'h'
-PUBLISHER_VERSION = '5.0.2'
+PUBLISHER_VERSION = '5.1.0'
 TEMPLATE_NAME = 'MASTER_GRIDLENS'
-TEMPLATE_VERSION = '3.0.0'
-DATA_CONTRACT_VERSION = '3.0'
+TEMPLATE_VERSION = '3.1.0'
+DATA_CONTRACT_VERSION = '3.1'
 RUN_REFERENCE_CASE = True
 VARIABLES = {'line': ('c:loading', 'm:loading'), 'transformer': ('c:loading', 'm:loading'), 'voltage': ('m:u', 'm:u1'), 'voltage_angle': ('m:phiu', 'm:phiu1')}
 CLASS_CATEGORIES = {'ElmLne': ('line',), 'ElmTr2': ('transformer',), 'ElmTr3': ('transformer',), 'ElmTerm': ('voltage', 'voltage_angle')}
@@ -43,8 +44,8 @@ def text_limit(field):
     if field in _LABEL_FIELDS or field.endswith(_LABEL_SUFFIXES):
         return MAX_LABEL_LENGTH
     return MAX_TEXT_LENGTH
-TABLES = (('ScriptedReportMeta', (('study_id', 'string'), ('study_name', 'string'), ('study_description', 'string'), ('model_name', 'string'), ('model_version', 'string'), ('simulation_start', 'string'), ('simulation_end', 'string'), ('simulation_time_step', 'string'), ('generation_date', 'string'), ('generated_by', 'string'), ('run_mode', 'string'), ('template_name', 'string'), ('template_version', 'string'), ('data_contract_version', 'string'), ('result_name', 'string'), ('assessment_scope', 'string'), ('assessment_status', 'string'), ('has_line_bars', 'string'), ('has_transformer_bars', 'string'), ('has_voltage_bars', 'string'), ('has_angle_bars', 'string'))), ('ScriptedModelQuality', (('check_id', 'string'), ('check_name', 'string'), ('status', 'string'), ('message', 'string'), ('affected_element', 'string'))), ('ScriptedCases', (('case_id', 'string'), ('case_name', 'string'), ('is_reference', 'integer'), ('description', 'string'), ('simulation_status', 'string'), ('simulation_start', 'string'), ('simulation_end', 'string'))), ('ScriptedPlannedOutages', (('case_id', 'string'), ('outage_id', 'string'), ('outage_name', 'string'), ('source_class', 'string'), ('status', 'string'), ('skip_reason', 'string'), ('equipment_name', 'string'), ('equipment_type', 'string'), ('switching_actions', 'string'), ('start_time', 'string'), ('end_time', 'string'))), ('ScriptedCaseMatrix', (('element_id', 'string'), ('element_name', 'string'), ('element_type', 'string'), ('case_id', 'string'), ('is_out_of_service', 'integer'), ('status_label', 'string'))), ('ScriptedLineStatistics', (('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('voltage_level', 'string'), ('min_loading', 'number'), ('max_loading', 'number'), ('mean_loading', 'number'), ('p95_loading', 'number'), ('time_of_min_loading', 'string'), ('time_of_max_loading', 'string'), ('reference_max_loading', 'number'), ('delta_max_loading', 'number'))), ('ScriptedTransformerStatistics', (('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('voltage_level', 'string'), ('min_loading', 'number'), ('max_loading', 'number'), ('mean_loading', 'number'), ('p95_loading', 'number'), ('time_of_max_loading', 'string'), ('reference_max_loading', 'number'), ('delta_max_loading', 'number'))), ('ScriptedVoltageStatistics', (('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('voltage_level', 'string'), ('min_voltage', 'number'), ('max_voltage', 'number'), ('mean_voltage', 'number'), ('time_of_min_voltage', 'string'), ('time_of_max_voltage', 'string'), ('reference_min_voltage', 'number'), ('reference_max_voltage', 'number'), ('delta_min_voltage', 'number'), ('delta_max_voltage', 'number'))), ('ScriptedLineLoadingBars', (('rank', 'integer'), ('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('bar_label', 'string'), ('voltage_level', 'string'), ('max_loading', 'number'), ('unit', 'string'), ('event_time', 'string'))), ('ScriptedTransformerLoadingBars', (('rank', 'integer'), ('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('bar_label', 'string'), ('voltage_level', 'string'), ('max_loading', 'number'), ('unit', 'string'), ('event_time', 'string'))), ('ScriptedVoltageMagnitudeBars', (('rank', 'integer'), ('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('bar_label', 'string'), ('voltage_level', 'string'), ('min_voltage', 'number'), ('max_voltage', 'number'), ('mean_voltage', 'number'), ('deviation', 'number'), ('status_label', 'string'), ('unit', 'string'))), ('ScriptedVoltageAngleBars', (('rank', 'integer'), ('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('bar_label', 'string'), ('voltage_level', 'string'), ('min_angle', 'number'), ('max_angle', 'number'), ('mean_angle', 'number'), ('max_abs_angle', 'number'), ('angle_span', 'number'), ('event_time', 'string'), ('unit', 'string'))), ('ScriptedCaseComparison', (('metric_key', 'string'), ('metric_name', 'string'), ('unit', 'string'), ('case_id', 'string'), ('metric_value', 'number'), ('element_id', 'string'), ('element_name', 'string'))), ('ScriptedRankings', (('ranking_type', 'string'), ('rank', 'integer'), ('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('element_type', 'string'), ('metric_name', 'string'), ('metric_value', 'number'), ('unit', 'string'), ('reference_value', 'number'), ('delta_value', 'number'), ('event_time', 'string'))), ('ScriptedRelevantTimePoints', (('timestamp', 'string'), ('case_id', 'string'), ('reason', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('metric_name', 'string'), ('metric_value', 'number'), ('unit', 'string'))), ('ScriptedPlots', (('plot_id', 'string'), ('plot_title', 'string'), ('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('variable', 'string'), ('unit', 'string'))), ('ScriptedPlotData', (('plot_id', 'string'), ('case_id', 'string'), ('series_role', 'string'), ('timestamp', 'number'), ('value', 'number'))))
-REQUIRED_FIELDS = {'ScriptedReportMeta': ('study_id', 'study_name', 'model_name', 'model_version', 'generation_date', 'generated_by', 'run_mode', 'template_name', 'template_version', 'data_contract_version', 'result_name', 'assessment_scope', 'assessment_status', 'has_line_bars', 'has_transformer_bars', 'has_voltage_bars', 'has_angle_bars'), 'ScriptedModelQuality': ('check_id', 'check_name', 'status', 'message'), 'ScriptedCases': ('case_id', 'case_name', 'is_reference', 'simulation_status'), 'ScriptedPlannedOutages': ('case_id', 'outage_id', 'outage_name', 'source_class', 'status'), 'ScriptedCaseMatrix': ('element_id', 'element_name', 'element_type', 'case_id', 'is_out_of_service', 'status_label'), 'ScriptedLineStatistics': ('case_id', 'element_id', 'element_name', 'min_loading', 'max_loading', 'mean_loading', 'p95_loading'), 'ScriptedTransformerStatistics': ('case_id', 'element_id', 'element_name', 'min_loading', 'max_loading', 'mean_loading', 'p95_loading'), 'ScriptedVoltageStatistics': ('case_id', 'element_id', 'element_name', 'min_voltage', 'max_voltage', 'mean_voltage'), 'ScriptedLineLoadingBars': ('rank', 'case_id', 'element_id', 'element_name', 'bar_label', 'max_loading', 'unit'), 'ScriptedTransformerLoadingBars': ('rank', 'case_id', 'element_id', 'element_name', 'bar_label', 'max_loading', 'unit'), 'ScriptedVoltageMagnitudeBars': ('rank', 'case_id', 'element_id', 'element_name', 'bar_label', 'min_voltage', 'max_voltage', 'mean_voltage', 'deviation', 'status_label', 'unit'), 'ScriptedVoltageAngleBars': ('rank', 'case_id', 'element_id', 'element_name', 'bar_label', 'min_angle', 'max_angle', 'mean_angle', 'max_abs_angle', 'angle_span', 'unit'), 'ScriptedCaseComparison': ('metric_key', 'metric_name', 'case_id', 'metric_value'), 'ScriptedRankings': ('ranking_type', 'rank', 'case_id', 'element_id', 'element_name', 'element_type', 'metric_name', 'metric_value', 'unit'), 'ScriptedRelevantTimePoints': ('timestamp', 'case_id', 'reason', 'metric_name', 'metric_value', 'unit'), 'ScriptedPlots': ('plot_id', 'plot_title', 'element_id', 'element_name', 'variable', 'unit'), 'ScriptedPlotData': ('plot_id', 'case_id', 'series_role', 'timestamp', 'value')}
+TABLES = (('ScriptedReportMeta', (('study_id', 'string'), ('study_name', 'string'), ('study_description', 'string'), ('model_name', 'string'), ('model_version', 'string'), ('simulation_start', 'string'), ('simulation_end', 'string'), ('simulation_time_step', 'string'), ('generation_date', 'string'), ('generated_by', 'string'), ('run_mode', 'string'), ('template_name', 'string'), ('template_version', 'string'), ('data_contract_version', 'string'), ('result_name', 'string'), ('assessment_scope', 'string'), ('assessment_status', 'string'), ('has_line_bars', 'string'), ('has_transformer_bars', 'string'), ('has_voltage_bars', 'string'), ('has_angle_bars', 'string'))), ('ScriptedModelQuality', (('check_id', 'string'), ('check_name', 'string'), ('status', 'string'), ('message', 'string'), ('affected_element', 'string'))), ('ScriptedCases', (('case_id', 'string'), ('case_name', 'string'), ('is_reference', 'integer'), ('description', 'string'), ('simulation_status', 'string'), ('simulation_start', 'string'), ('simulation_end', 'string'))), ('ScriptedPlannedOutages', (('case_id', 'string'), ('outage_id', 'string'), ('outage_name', 'string'), ('source_class', 'string'), ('status', 'string'), ('skip_reason', 'string'), ('equipment_name', 'string'), ('equipment_type', 'string'), ('switching_actions', 'string'), ('start_time', 'string'), ('end_time', 'string'), ('priority', 'integer'), ('assessment', 'string'), ('assessment_detail', 'string'), ('violation', 'integer'), ('max_loading', 'number'), ('max_loading_element', 'string'), ('max_loading_time', 'string'), ('reference_max_loading', 'number'), ('min_voltage', 'number'), ('max_voltage', 'number'))), ('ScriptedCaseMatrix', (('element_id', 'string'), ('element_name', 'string'), ('element_type', 'string'), ('case_id', 'string'), ('is_out_of_service', 'integer'), ('status_label', 'string'))), ('ScriptedLineStatistics', (('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('voltage_level', 'string'), ('min_loading', 'number'), ('max_loading', 'number'), ('mean_loading', 'number'), ('p95_loading', 'number'), ('time_of_min_loading', 'string'), ('time_of_max_loading', 'string'), ('reference_max_loading', 'number'), ('delta_max_loading', 'number'))), ('ScriptedTransformerStatistics', (('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('voltage_level', 'string'), ('min_loading', 'number'), ('max_loading', 'number'), ('mean_loading', 'number'), ('p95_loading', 'number'), ('time_of_max_loading', 'string'), ('reference_max_loading', 'number'), ('delta_max_loading', 'number'))), ('ScriptedVoltageStatistics', (('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('voltage_level', 'string'), ('min_voltage', 'number'), ('max_voltage', 'number'), ('mean_voltage', 'number'), ('time_of_min_voltage', 'string'), ('time_of_max_voltage', 'string'), ('reference_min_voltage', 'number'), ('reference_max_voltage', 'number'), ('delta_min_voltage', 'number'), ('delta_max_voltage', 'number'))), ('ScriptedLineLoadingBars', (('rank', 'integer'), ('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('bar_label', 'string'), ('voltage_level', 'string'), ('max_loading', 'number'), ('unit', 'string'), ('event_time', 'string'))), ('ScriptedTransformerLoadingBars', (('rank', 'integer'), ('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('bar_label', 'string'), ('voltage_level', 'string'), ('max_loading', 'number'), ('unit', 'string'), ('event_time', 'string'))), ('ScriptedVoltageMagnitudeBars', (('rank', 'integer'), ('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('bar_label', 'string'), ('voltage_level', 'string'), ('min_voltage', 'number'), ('max_voltage', 'number'), ('mean_voltage', 'number'), ('deviation', 'number'), ('status_label', 'string'), ('unit', 'string'))), ('ScriptedVoltageAngleBars', (('rank', 'integer'), ('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('bar_label', 'string'), ('voltage_level', 'string'), ('min_angle', 'number'), ('max_angle', 'number'), ('mean_angle', 'number'), ('max_abs_angle', 'number'), ('angle_span', 'number'), ('event_time', 'string'), ('unit', 'string'))), ('ScriptedCaseComparison', (('metric_key', 'string'), ('metric_name', 'string'), ('unit', 'string'), ('case_id', 'string'), ('metric_value', 'number'), ('element_id', 'string'), ('element_name', 'string'))), ('ScriptedRankings', (('ranking_type', 'string'), ('rank', 'integer'), ('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('element_type', 'string'), ('metric_name', 'string'), ('metric_value', 'number'), ('unit', 'string'), ('reference_value', 'number'), ('delta_value', 'number'), ('event_time', 'string'))), ('ScriptedRelevantTimePoints', (('timestamp', 'string'), ('case_id', 'string'), ('reason', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('metric_name', 'string'), ('metric_value', 'number'), ('unit', 'string'))), ('ScriptedPlots', (('plot_id', 'string'), ('plot_title', 'string'), ('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('variable', 'string'), ('unit', 'string'))), ('ScriptedPlotData', (('plot_id', 'string'), ('case_id', 'string'), ('series_role', 'string'), ('timestamp', 'number'), ('value', 'number'))))
+REQUIRED_FIELDS = {'ScriptedReportMeta': ('study_id', 'study_name', 'model_name', 'model_version', 'generation_date', 'generated_by', 'run_mode', 'template_name', 'template_version', 'data_contract_version', 'result_name', 'assessment_scope', 'assessment_status', 'has_line_bars', 'has_transformer_bars', 'has_voltage_bars', 'has_angle_bars'), 'ScriptedModelQuality': ('check_id', 'check_name', 'status', 'message'), 'ScriptedCases': ('case_id', 'case_name', 'is_reference', 'simulation_status'), 'ScriptedPlannedOutages': ('case_id', 'outage_id', 'outage_name', 'source_class', 'status', 'assessment', 'assessment_detail', 'violation'), 'ScriptedCaseMatrix': ('element_id', 'element_name', 'element_type', 'case_id', 'is_out_of_service', 'status_label'), 'ScriptedLineStatistics': ('case_id', 'element_id', 'element_name', 'min_loading', 'max_loading', 'mean_loading', 'p95_loading'), 'ScriptedTransformerStatistics': ('case_id', 'element_id', 'element_name', 'min_loading', 'max_loading', 'mean_loading', 'p95_loading'), 'ScriptedVoltageStatistics': ('case_id', 'element_id', 'element_name', 'min_voltage', 'max_voltage', 'mean_voltage'), 'ScriptedLineLoadingBars': ('rank', 'case_id', 'element_id', 'element_name', 'bar_label', 'max_loading', 'unit'), 'ScriptedTransformerLoadingBars': ('rank', 'case_id', 'element_id', 'element_name', 'bar_label', 'max_loading', 'unit'), 'ScriptedVoltageMagnitudeBars': ('rank', 'case_id', 'element_id', 'element_name', 'bar_label', 'min_voltage', 'max_voltage', 'mean_voltage', 'deviation', 'status_label', 'unit'), 'ScriptedVoltageAngleBars': ('rank', 'case_id', 'element_id', 'element_name', 'bar_label', 'min_angle', 'max_angle', 'mean_angle', 'max_abs_angle', 'angle_span', 'unit'), 'ScriptedCaseComparison': ('metric_key', 'metric_name', 'case_id', 'metric_value'), 'ScriptedRankings': ('ranking_type', 'rank', 'case_id', 'element_id', 'element_name', 'element_type', 'metric_name', 'metric_value', 'unit'), 'ScriptedRelevantTimePoints': ('timestamp', 'case_id', 'reason', 'metric_name', 'metric_value', 'unit'), 'ScriptedPlots': ('plot_id', 'plot_title', 'element_id', 'element_name', 'variable', 'unit'), 'ScriptedPlotData': ('plot_id', 'case_id', 'series_role', 'timestamp', 'value')}
 
 def safe_attr(obj, name, default=None):
     try:
@@ -260,7 +261,7 @@ def read_column(elmres, column, rows):
 def _is_sequence(value):
     return isinstance(value, (list, tuple))
 
-def collect_series(elmres):
+def collect_series(elmres, windows=()):
     rows = int(elmres.GetNumberOfRows())
     columns = int(elmres.GetNumberOfColumns())
     if rows <= 0:
@@ -293,6 +294,7 @@ def collect_series(elmres):
     else:
         labels = [format_time(raw, row, time_unit) for row, raw in enumerate(raw_times)]
         plot_times = list(hours)
+    bounds = window_bounds(hours, windows) if absolute and windows else []
     chosen = {}
     for column in range(columns):
         try:
@@ -324,9 +326,11 @@ def collect_series(elmres):
             unit = ''
         if not unit:
             unit = {'voltage': 'p.u.', 'voltage_angle': 'deg'}.get(category, '%')
+        values = [value for _, _, value in points]
         series.append({'category': category, 'object': obj, 'key': object_key(obj), 'element_id': object_id(obj), 'element_name': object_name(obj), 'voltage_level': voltage_level(obj), 'variable_id': variable, 'variable': {'voltage': 'Voltage magnitude', 'voltage_angle': 'Voltage angle'}.get(category, 'Loading'), 'unit': unit, 'points': points})
         item = series[-1]
         item['statistics'] = statistics(item)
+        item['windows'] = window_statistics(values, labels, bounds)
         item['points'] = sampled_plot_points(item)
     if not series:
         raise RuntimeError('ElmRes contains no completely readable supported result series.')
@@ -356,6 +360,32 @@ def percentile95(values):
     ordered = sorted(values)
     index = max(0, int(math.ceil(0.95 * len(ordered))) - 1)
     return ordered[index]
+
+def window_bounds(hours, windows):
+    """Row ranges of each outage window on a strictly increasing hour axis."""
+    bounds = []
+    for start, end in windows:
+        lo = bisect.bisect_left(hours, start / 3600.0)
+        hi = bisect.bisect_right(hours, end / 3600.0)
+        bounds.append((lo, hi))
+    return bounds
+
+def window_statistics(values, labels, bounds):
+    """Statistics per window, skipping windows without result rows."""
+    result = {}
+    for index, (lo, hi) in enumerate(bounds):
+        chunk = values[lo:hi]
+        if not chunk:
+            continue
+        minimum = min(chunk)
+        maximum = max(chunk)
+        result[index] = {
+            'min': minimum, 'max': maximum,
+            'mean': sum(chunk) / len(chunk),
+            'time_min': labels[lo + chunk.index(minimum)],
+            'time_max': labels[lo + chunk.index(maximum)],
+        }
+    return result
 
 def statistics(series):
     values = [value for _, _, value in series['points']]
@@ -598,6 +628,77 @@ def _key_discriminator(key):
     digest = hashlib.sha256(str(key).encode('utf-8')).hexdigest()
     return digest[:6]
 
+def _window_worst(result, categories, index, key, reverse):
+    """The item with the most severe value of `key` inside one window."""
+    best = None
+    for category in categories:
+        for item, _ in result['by_category'].get(category, ()):
+            stats = item.get('windows', {}).get(index)
+            if stats is None:
+                continue
+            if best is None or (stats[key] > best[1][key] if reverse
+                                else stats[key] < best[1][key]):
+                best = (item, stats)
+    return best
+
+
+def assess_outage_window(results, index):
+    """Judge one planned outage by what happens inside its own time window."""
+    outage = next((item for item in converged(results)
+                   if item['id'] == OUTAGE_CASE_ID), None)
+    if outage is None:
+        return None
+    loading = _window_worst(outage, LOADING_CATEGORIES, index, 'max', True)
+    low = _window_worst(outage, ('voltage',), index, 'min', False)
+    high = _window_worst(outage, ('voltage',), index, 'max', True)
+    if loading is None and low is None:
+        return None
+    reference = next((item for item in converged(results)
+                      if item['id'] == REFERENCE_ID), None)
+    reference_loading = (_window_worst(reference, LOADING_CATEGORIES, index,
+                                       'max', True)
+                         if reference is not None else None)
+    over = loading is not None and loading[1]['max'] > LOADING_MAX
+    under_voltage = low is not None and low[1]['min'] < VOLTAGE_MIN
+    over_voltage = high is not None and high[1]['max'] > VOLTAGE_MAX
+    if over and (under_voltage or over_voltage):
+        verdict = ASSESSMENT_BOTH
+    elif over:
+        verdict = ASSESSMENT_LOADING
+    elif under_voltage or over_voltage:
+        verdict = ASSESSMENT_VOLTAGE
+    else:
+        verdict = ASSESSMENT_OK
+    return {
+        'assessment': verdict,
+        'violation': 1 if verdict != ASSESSMENT_OK else 0,
+        'max_loading': loading[1]['max'] if loading else None,
+        'max_loading_element': loading[0]['element_name'] if loading else '',
+        'max_loading_time': loading[1]['time_max'] if loading else '',
+        'reference_max_loading': (reference_loading[1]['max']
+                                  if reference_loading else None),
+        'min_voltage': low[1]['min'] if low else None,
+        'max_voltage': high[1]['max'] if high else None,
+    }
+
+
+def assessment_detail(values):
+    """One readable sentence with the numbers behind the verdict."""
+    parts = []
+    if values.get('max_loading') is not None:
+        text = "max {:.1f} % on {} at {}".format(
+            values['max_loading'], values['max_loading_element'],
+            values['max_loading_time'])
+        if values.get('reference_max_loading') is not None:
+            text += " (reference {:.1f} %)".format(
+                values['reference_max_loading'])
+        parts.append(text)
+    if values.get('min_voltage') is not None and values.get('max_voltage') is not None:
+        parts.append("voltage {:.3f} to {:.3f} p.u.".format(
+            values['min_voltage'], values['max_voltage']))
+    return "; ".join(parts)
+
+
 def outage_identity(results):
     keys_by_name = {}
     for result in results:
@@ -653,7 +754,24 @@ def build_cases_payload(study_case, results, project_name, result_name, planned_
             label = identity.get(key, name)
             payload['ScriptedCaseMatrix'].append({'element_id': label, 'element_name': label, 'element_type': _element_type(element_class), 'case_id': result['id'], 'is_out_of_service': 1, 'status_label': 'OFF'})
     for outage in planned_outages:
-        payload['ScriptedPlannedOutages'].append({'case_id': OUTAGE_CASE_ID if outage['status'] == OUTAGE_CONSIDERED else 'N/A', 'outage_id': outage['id'], 'outage_name': outage['name'], 'source_class': outage['source_class'], 'status': outage['status'], 'skip_reason': outage.get('skip_reason', ''), 'equipment_name': outage.get('equipment_name', ''), 'equipment_type': outage.get('equipment_type', ''), 'switching_actions': outage.get('switching_actions', ''), 'start_time': outage.get('start_time', ''), 'end_time': outage.get('end_time', '')})
+        considered = outage['status'] == OUTAGE_CONSIDERED
+        values = {'assessment': ASSESSMENT_SKIPPED, 'violation': 0}
+        detail = outage.get('skip_reason', '')
+        if considered:
+            judged = assess_outage_window(results, outage.get('window_index'))
+            if judged is None:
+                values = {'assessment': ASSESSMENT_NO_DATA, 'violation': 0}
+                detail = ('No result rows fall inside this outage window, so it '
+                          'was not assessed.')
+            else:
+                values = judged
+                detail = assessment_detail(judged)
+        row = {'case_id': OUTAGE_CASE_ID if considered else 'N/A', 'outage_id': outage['id'], 'outage_name': outage['name'], 'source_class': outage['source_class'], 'status': outage['status'], 'skip_reason': outage.get('skip_reason', ''), 'equipment_name': outage.get('equipment_name', ''), 'equipment_type': outage.get('equipment_type', ''), 'switching_actions': outage.get('switching_actions', ''), 'start_time': outage.get('start_time', ''), 'end_time': outage.get('end_time', ''), 'priority': int(outage.get('priority') or 0), 'assessment_detail': detail}
+        row.update({key: values.get(key) for key in (
+            'assessment', 'violation', 'max_loading', 'max_loading_element',
+            'max_loading_time', 'reference_max_loading', 'min_voltage',
+            'max_voltage')})
+        payload['ScriptedPlannedOutages'].append(row)
     considered = sum((item['status'] == OUTAGE_CONSIDERED for item in planned_outages))
     skipped = len(planned_outages) - considered
     outage_status = 'PASS' if considered and skipped == 0 else 'WARNING'
@@ -797,6 +915,13 @@ OUTAGE_CLASSES = ("IntPlannedout", "IntOutage")
 # it is how planned outages are applied; IntPlannedout exposes no Apply method.
 PLANNED_OUTAGE_OPTION = "iopt_maint"
 OUTAGE_CONSIDERED = "CONSIDERED"
+ASSESSMENT_OK = "NO LIMIT EXCEEDED"
+ASSESSMENT_LOADING = "OVERLOAD"
+ASSESSMENT_VOLTAGE = "VOLTAGE BAND"
+ASSESSMENT_BOTH = "OVERLOAD + VOLTAGE BAND"
+ASSESSMENT_SKIPPED = "NOT SIMULATED"
+ASSESSMENT_NO_DATA = "NO RESULT DATA IN WINDOW"
+LOADING_CATEGORIES = ("line", "transformer")
 OUTAGE_SKIPPED = "SKIPPED"
 OUTAGE_START_ATTRIBUTES = (
     "starttime", "tStart", "t_start", "date_start", "time_start")
@@ -1063,9 +1188,10 @@ def _outage_record(outage):
         "switching_actions": actions,
         "start_time": start,
         "end_time": end,
+        "priority": finite_number(safe_attr(outage, "priority", 0)) or 0,
+        "window": outage_window(outage),
+        "window_index": None,
         "_object": outage,
-        "_reset": None,
-        "_check": None,
     }
 
 
@@ -1145,6 +1271,7 @@ def classify_planned_outages(app, logger, period=(None, None)):
             logger.write("OUTAGES", prefix + record["skip_reason"], 3, "WARNING")
             logger.write(
                 "DIAGNOSTIC", prefix + describe_object_api(outage), 3, "WARNING")
+        record["window_index"] = len(candidates)
         candidates.append(record)
     return records, candidates
 
@@ -1236,7 +1363,7 @@ def _collect_out_of_service(app):
 
 
 def _run_calculation(app, study_case, qds, case_id, name, description,
-                     original_result, logger, temporary_results):
+                     original_result, logger, temporary_results, windows=()):
     snapshot = _temporary_result(study_case, original_result, case_id)
     temporary_results.append(snapshot)
     if not _set_attribute(qds, "results", snapshot):
@@ -1279,7 +1406,8 @@ def _run_calculation(app, study_case, qds, case_id, name, description,
     logger.write("EXTRACTION", "Reading and validating {} results.".format(case_id), 5)
     try:
         snapshot.Load()
-        series, labels, plot_times, unit, absolute, origin = collect_series(snapshot)
+        series, labels, plot_times, unit, absolute, origin = collect_series(
+            snapshot, windows)
         logger.write(
             "EXTRACTION",
             "Validated {} supported series across {} time point(s); time unit '{}'."
@@ -1568,6 +1696,9 @@ def execute_gridlens(app):
     candidates = []
     temporary_results = []
     state_errors = []
+    period = qds_period(qds)
+    records, candidates = classify_planned_outages(app, logger, period)
+    windows = tuple(record["window"] for record in candidates)
     try:
         if RUN_REFERENCE_CASE:
             if not _set_scalar_attribute(qds, PLANNED_OUTAGE_OPTION, 0):
@@ -1579,7 +1710,7 @@ def execute_gridlens(app):
             results.append(_run_calculation(
                 app, study_case, qds, REFERENCE_CASE_ID, "Reference",
                 "Network state without planned outages.",
-                original_result, logger, temporary_results))
+                original_result, logger, temporary_results, windows))
             clock_errors = _restore_study_time(
                 study_time_state, logger, "CALCULATION", 4)
             if clock_errors:
@@ -1587,10 +1718,6 @@ def execute_gridlens(app):
                     "The initial Study Case time could not be restored after "
                     "REF: {}. The outage run was not started.".format(
                         "; ".join(clock_errors)))
-        period = qds_period(qds)
-        if period == (None, None) and results:
-            period = results[0].get("window", (None, None))
-        records, candidates = classify_planned_outages(app, logger, period)
         if candidates:
             if not _set_scalar_attribute(qds, PLANNED_OUTAGE_OPTION, 1):
                 raise GridLensError(
@@ -1606,7 +1733,7 @@ def execute_gridlens(app):
                 app, study_case, qds, OUTAGE_CASE_ID,
                 "Planned outages",
                 "Same period with the planned outages applied by PowerFactory.",
-                original_result, logger, temporary_results))
+                original_result, logger, temporary_results, windows))
         else:
             logger.write(
                 "CALCULATION",

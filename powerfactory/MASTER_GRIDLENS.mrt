@@ -82,7 +82,7 @@
       </ScriptedCases>
       <ScriptedPlannedOutages Ref="6" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
         <Alias>ScriptedPlannedOutages</Alias>
-        <Columns isList="true" count="11">
+        <Columns isList="true" count="21">
           <value>case_id,System.String</value>
           <value>outage_id,System.String</value>
           <value>outage_name,System.String</value>
@@ -94,6 +94,16 @@
           <value>switching_actions,System.String</value>
           <value>start_time,System.String</value>
           <value>end_time,System.String</value>
+          <value>priority,System.Int32</value>
+          <value>assessment,System.String</value>
+          <value>assessment_detail,System.String</value>
+          <value>violation,System.Int32</value>
+          <value>max_loading,System.Double</value>
+          <value>max_loading_element,System.String</value>
+          <value>max_loading_time,System.String</value>
+          <value>reference_max_loading,System.Double</value>
+          <value>min_voltage,System.Double</value>
+          <value>max_voltage,System.Double</value>
         </Columns>
         <CommandTimeout>30</CommandTimeout>
         <Dictionary isRef="1" />
@@ -101,7 +111,7 @@
         <Name>ScriptedPlannedOutages</Name>
         <NameInSource>SQLite</NameInSource>
         <Parameters isList="true" count="0" />
-        <SqlCommand>SELECT * FROM "ScriptedPlannedOutages" ORDER BY "status", "outage_name"</SqlCommand>
+        <SqlCommand>SELECT * FROM "ScriptedPlannedOutages" ORDER BY "status", "start_time", "outage_name"</SqlCommand>
       </ScriptedPlannedOutages>
       <ScriptedCaseMatrix Ref="7" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
         <Alias>ScriptedCaseMatrix</Alias>
@@ -2920,11 +2930,11 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
         <OutagesHeaderBand Ref="91" type="HeaderBand" isKey="true">
           <Brush>Transparent</Brush>
           <ClientRectangle>0,47.45,17,0.62</ClientRectangle>
-          <Components isList="true" count="5">
+          <Components isList="true" count="6">
             <OutagesHeaderCell0 Ref="92" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>[191:191:191]</Brush>
-              <ClientRectangle>0,0,4.4,0.62</ClientRectangle>
+              <ClientRectangle>0,0,3.3,0.62</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9,Bold</Font>
@@ -2940,7 +2950,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
             <OutagesHeaderCell1 Ref="93" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>[191:191:191]</Brush>
-              <ClientRectangle>4.4,0,2.2,0.62</ClientRectangle>
+              <ClientRectangle>3.3,0,2.9,0.62</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9,Bold</Font>
@@ -2948,7 +2958,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>OutagesHeaderCell1</Name>
               <Page isRef="18" />
               <Parent isRef="91" />
-              <Text>Status</Text>
+              <Text>Period</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -2956,15 +2966,16 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
             <OutagesHeaderCell2 Ref="94" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>[191:191:191]</Brush>
-              <ClientRectangle>6.6,0,3.1,0.62</ClientRectangle>
+              <ClientRectangle>6.2,0,0.8,0.62</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9,Bold</Font>
+              <HorAlignment>Center</HorAlignment>
               <Margins>0.12,0.12,0,0</Margins>
               <Name>OutagesHeaderCell2</Name>
               <Page isRef="18" />
               <Parent isRef="91" />
-              <Text>Equipment</Text>
+              <Text>Prio</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -2972,7 +2983,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
             <OutagesHeaderCell3 Ref="95" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>[191:191:191]</Brush>
-              <ClientRectangle>9.7,0,3.1,0.62</ClientRectangle>
+              <ClientRectangle>7,0,3.3,0.62</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9,Bold</Font>
@@ -2980,7 +2991,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>OutagesHeaderCell3</Name>
               <Page isRef="18" />
               <Parent isRef="91" />
-              <Text>Switching actions / period</Text>
+              <Text>Equipment out of service</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -2988,19 +2999,36 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
             <OutagesHeaderCell4 Ref="96" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>[191:191:191]</Brush>
+              <ClientRectangle>10.3,0,2.5,0.62</ClientRectangle>
+              <Conditions isList="true" count="0" />
+              <Expressions isList="true" count="0" />
+              <Font>Segoe UI,9,Bold</Font>
+              <HorAlignment>Center</HorAlignment>
+              <Margins>0.12,0.12,0,0</Margins>
+              <Name>OutagesHeaderCell4</Name>
+              <Page isRef="18" />
+              <Parent isRef="91" />
+              <Text>Assessment</Text>
+              <TextBrush>[55:55:55]</TextBrush>
+              <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
+              <VertAlignment>Center</VertAlignment>
+            </OutagesHeaderCell4>
+            <OutagesHeaderCell5 Ref="724" type="Text" isKey="true">
+              <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
+              <Brush>[191:191:191]</Brush>
               <ClientRectangle>12.8,0,4.2,0.62</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9,Bold</Font>
               <Margins>0.12,0.12,0,0</Margins>
-              <Name>OutagesHeaderCell4</Name>
+              <Name>OutagesHeaderCell5</Name>
               <Page isRef="18" />
               <Parent isRef="91" />
-              <Text>Skip reason</Text>
+              <Text>Worst values inside the window</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
-            </OutagesHeaderCell4>
+            </OutagesHeaderCell5>
           </Components>
           <Conditions isList="true" count="0" />
           <Expressions isList="true" count="0" />
@@ -3041,12 +3069,12 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
           <BusinessObjectGuid isNull="true" />
           <CanBreak>True</CanBreak>
           <ClientRectangle>0,50.27,17,0.55</ClientRectangle>
-          <Components isList="true" count="5">
+          <Components isList="true" count="6">
             <OutagesCell0 Ref="100" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>Transparent</Brush>
               <CanGrow>True</CanGrow>
-              <ClientRectangle>0,0,4.4,0.55</ClientRectangle>
+              <ClientRectangle>0,0,3.3,0.55</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9</Font>
@@ -3054,25 +3082,24 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>OutagesCell0</Name>
               <Page isRef="18" />
               <Parent isRef="99" />
-              <Text>{ScriptedPlannedOutages.outage_name} [{ScriptedPlannedOutages.source_class}]</Text>
+              <Text>{ScriptedPlannedOutages.outage_name}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
             </OutagesCell0>
             <OutagesCell1 Ref="101" type="Text" isKey="true">
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
-              <Brush>[248:248:248]</Brush>
+              <Brush>Transparent</Brush>
               <CanGrow>True</CanGrow>
-              <ClientRectangle>4.4,0,2.2,0.55</ClientRectangle>
+              <ClientRectangle>3.3,0,2.9,0.55</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
-              <Font>Segoe UI,9,Bold</Font>
-              <HorAlignment>Center</HorAlignment>
+              <Font>Segoe UI,9</Font>
               <Margins>0.12,0.12,0,0</Margins>
               <Name>OutagesCell1</Name>
               <Page isRef="18" />
               <Parent isRef="99" />
-              <Text>{ScriptedPlannedOutages.status}</Text>
+              <Text>{ScriptedPlannedOutages.start_time} - {ScriptedPlannedOutages.end_time}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -3081,15 +3108,16 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>Transparent</Brush>
               <CanGrow>True</CanGrow>
-              <ClientRectangle>6.6,0,3.1,0.55</ClientRectangle>
+              <ClientRectangle>6.2,0,0.8,0.55</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9</Font>
+              <HorAlignment>Center</HorAlignment>
               <Margins>0.12,0.12,0,0</Margins>
               <Name>OutagesCell2</Name>
               <Page isRef="18" />
               <Parent isRef="99" />
-              <Text>{ScriptedPlannedOutages.equipment_name} ({ScriptedPlannedOutages.equipment_type})</Text>
+              <Text>{ScriptedPlannedOutages.priority}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -3098,7 +3126,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>Transparent</Brush>
               <CanGrow>True</CanGrow>
-              <ClientRectangle>9.7,0,3.1,0.55</ClientRectangle>
+              <ClientRectangle>7,0,3.3,0.55</ClientRectangle>
               <Conditions isList="true" count="0" />
               <Expressions isList="true" count="0" />
               <Font>Segoe UI,9</Font>
@@ -3106,7 +3134,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>OutagesCell3</Name>
               <Page isRef="18" />
               <Parent isRef="99" />
-              <Text>{ScriptedPlannedOutages.switching_actions} | {ScriptedPlannedOutages.start_time} - {ScriptedPlannedOutages.end_time}</Text>
+              <Text>{ScriptedPlannedOutages.equipment_name}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -3115,19 +3143,41 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
               <Brush>Transparent</Brush>
               <CanGrow>True</CanGrow>
-              <ClientRectangle>12.8,0,4.2,0.55</ClientRectangle>
-              <Conditions isList="true" count="0" />
+              <ClientRectangle>10.3,0,2.5,0.55</ClientRectangle>
+              <Conditions isList="true" count="1">
+                <value>ScriptedPlannedOutages.violation,GreaterThan,_x0030_,,Numeric,[145:13:48],[255:232:237],Segoe_x0020_UI_x002C_9_x002C_Bold,True,False,</value>
+              </Conditions>
               <Expressions isList="true" count="0" />
-              <Font>Segoe UI,9</Font>
+              <Font>Segoe UI,9,Bold</Font>
+              <HorAlignment>Center</HorAlignment>
               <Margins>0.12,0.12,0,0</Margins>
               <Name>OutagesCell4</Name>
               <Page isRef="18" />
               <Parent isRef="99" />
-              <Text>{ScriptedPlannedOutages.skip_reason}</Text>
+              <Text>{ScriptedPlannedOutages.assessment}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
             </OutagesCell4>
+            <OutagesCell5 Ref="725" type="Text" isKey="true">
+              <Border>All;[155:155:155];0.5;Solid;False;4;Black</Border>
+              <Brush>Transparent</Brush>
+              <CanGrow>True</CanGrow>
+              <ClientRectangle>12.8,0,4.2,0.55</ClientRectangle>
+              <Conditions isList="true" count="1">
+                <value>ScriptedPlannedOutages.violation,GreaterThan,_x0030_,,Numeric,[145:13:48],[255:232:237],Segoe_x0020_UI_x002C_9_x002C_Bold,True,False,</value>
+              </Conditions>
+              <Expressions isList="true" count="0" />
+              <Font>Segoe UI,9</Font>
+              <Margins>0.12,0.12,0,0</Margins>
+              <Name>OutagesCell5</Name>
+              <Page isRef="18" />
+              <Parent isRef="99" />
+              <Text>{ScriptedPlannedOutages.assessment_detail}</Text>
+              <TextBrush>[55:55:55]</TextBrush>
+              <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
+              <VertAlignment>Center</VertAlignment>
+            </OutagesCell5>
           </Components>
           <Conditions isList="true" count="0" />
           <DataSourceName>ScriptedPlannedOutages</DataSourceName>

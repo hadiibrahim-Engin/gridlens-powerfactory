@@ -5,6 +5,8 @@ import re
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[1]
 MRT = ROOT / "powerfactory" / "MASTER_GRIDLENS.mrt"
@@ -103,3 +105,61 @@ def test_visible_report_text_is_english():
         re.IGNORECASE,
     )
     assert german.search(visible) is None
+
+
+def _outage_cells(root):
+    header, body = {}, {}
+    for element in root.iter():
+        if element.tag.startswith("OutagesHeaderCell"):
+            header[element.tag] = element
+        elif element.tag.startswith("OutagesCell"):
+            body[element.tag] = element
+    return header, body
+
+
+def test_outage_table_reads_as_an_assessment_not_a_log():
+    header, body = _outage_cells(_root())
+
+    headings = [header["OutagesHeaderCell{}".format(i)].findtext("Text")
+                for i in range(len(header))]
+    assert headings == ["Planned outage", "Period", "Prio",
+                        "Equipment out of service", "Assessment",
+                        "Worst values inside the window"]
+
+    texts = " ".join(body["OutagesCell{}".format(i)].findtext("Text")
+                     for i in range(len(body)))
+    for field in ("outage_name", "start_time", "end_time", "priority",
+                  "equipment_name", "assessment", "assessment_detail"):
+        assert "{ScriptedPlannedOutages.%s}" % field in texts
+    # Internal bookkeeping must not take up column space any more.
+    assert "source_class" not in texts
+    assert "switching_actions" not in texts
+
+
+def test_outage_columns_fill_the_page_width_exactly():
+    header, body = _outage_cells(_root())
+
+    for cells in (header, body):
+        widths = []
+        edge = 0.0
+        for index in range(len(cells)):
+            name = ("OutagesHeaderCell{}" if cells is header else "OutagesCell{}")
+            rectangle = cells[name.format(index)].findtext("ClientRectangle")
+            left, _, width, _ = (float(value) for value in rectangle.split(","))
+            assert left == pytest.approx(edge), "column {} leaves a gap".format(index)
+            edge += width
+            widths.append(width)
+        assert sum(widths) == pytest.approx(17.0)
+
+
+def test_violations_are_highlighted_in_the_outage_table():
+    _, body = _outage_cells(_root())
+
+    flagged = []
+    for name, cell in body.items():
+        conditions = cell.find("Conditions")
+        for condition in conditions.findall("value"):
+            assert condition.text.startswith(
+                "ScriptedPlannedOutages.violation,GreaterThan,")
+            flagged.append(name)
+    assert sorted(flagged) == ["OutagesCell4", "OutagesCell5"]

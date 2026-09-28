@@ -75,6 +75,40 @@ Deaktivierte (`outserv=1`) und außerhalb des simulierten Zeitraums liegende
 Außerbetriebnahmen werden als `SKIPPED` mit Grund ausgewiesen, alle übrigen als
 `CONSIDERED`. Gibt es keine im Zeitraum, entfällt der zweite Rechenlauf.
 
+## Die Tabelle „Planned Outages“
+
+Sie ist die Bewertungsgrundlage für die Freischaltung und hat sechs Spalten:
+
+| Spalte | Inhalt |
+|---|---|
+| Planned outage | Name der Außerbetriebnahme |
+| Period | Zeitfenster aus `starttime`/`endtime` |
+| Prio | `priority` aus PowerFactory |
+| Equipment out of service | die Betriebsmittel aus `components` |
+| Assessment | das Urteil für dieses Fenster |
+| Worst values inside the window | die Zahlen dahinter |
+
+Entscheidend ist, dass jede Zeile **nur ihr eigenes Zeitfenster** bewertet. Zwei
+Freischaltungen an verschiedenen Tagen bekommen dadurch verschiedene Urteile; die
+Kennzahlen der übrigen Kapitel gelten dagegen über den ganzen Zeitraum.
+
+Mögliche Urteile:
+
+| Assessment | Bedeutung |
+|---|---|
+| `NO LIMIT EXCEEDED` | im Fenster keine Auslastung > 100 % und Spannung im Band 0.95–1.05 |
+| `OVERLOAD` | Auslastung überschreitet 100 % |
+| `VOLTAGE BAND` | Spannung verlässt das Band |
+| `OVERLOAD + VOLTAGE BAND` | beides |
+| `NOT SIMULATED` | übersprungen; der Grund steht in der letzten Spalte |
+| `NO RESULT DATA IN WINDOW` | keine Ergebniszeile fällt in das Fenster |
+
+Zeilen mit Grenzwertverletzung werden rot auf hellrot hervorgehoben. Die letzte
+Spalte nennt die höchste Auslastung mit Betriebsmittel und Uhrzeit, den
+Referenzwert desselben Fensters ohne Freischaltung und das Spannungsband. Der
+Referenzwert ist der Kausalitätsnachweis: liegt er bereits über dem Grenzwert,
+ist die Überlastung nicht der Freischaltung anzulasten.
+
 ## Run Mode
 
 Am Anfang von `gridlens_report.py` steht:

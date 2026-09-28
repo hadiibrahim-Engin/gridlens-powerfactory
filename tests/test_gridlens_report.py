@@ -242,9 +242,9 @@ class App:
 
 
 def test_table_contract_is_single_versioned_17_table_contract():
-    assert gl.PUBLISHER_VERSION == "5.0.2"
-    assert gl.TEMPLATE_VERSION == "3.0.0"
-    assert gl.DATA_CONTRACT_VERSION == "3.0"
+    assert gl.PUBLISHER_VERSION == "5.1.0"
+    assert gl.TEMPLATE_VERSION == "3.1.0"
+    assert gl.DATA_CONTRACT_VERSION == "3.1"
     assert len(gl.TABLES) == 17
     tables = dict(gl.TABLES)
     assert "ScriptedCases" in tables
@@ -760,3 +760,139 @@ def test_outage_time_rendering_leaves_other_values_alone():
     assert gl._format_pf_time("2014-01-01") == "2014-01-01"
     assert gl._format_pf_time(None) == ""
     assert gl._format_pf_time(42) == "42"
+
+
+def _window_series(category, name, unit, window_stats):
+    item = {'category': category, 'key': name, 'element_id': name,
+            'element_name': name, 'voltage_level': '345 kV', 'unit': unit,
+            'variable': 'Loading', 'points': [('t', 0.0, 1.0)],
+            'windows': window_stats}
+    stats = {'min': 1.0, 'max': 1.0, 'mean': 1.0, 'p95': 1.0,
+             'time_min': 't', 'time_max': 't'}
+    for reference_key, delta_key, _ in gl.DELTA_KEYS:
+        stats[reference_key] = None
+        stats[delta_key] = None
+    return item, stats
+
+
+def _window_case(case_id, series):
+    by_category = {category: [] for category in gl.VARIABLES}
+    for item, stats in series:
+        by_category[item['category']].append((item, stats))
+    return {'id': case_id, 'name': case_id, 'kind': 'case', 'description': '',
+            'status': gl.CONVERGED, 'error_code': 0, 'message': '',
+            'out_of_service': [], 'is_reference': 1 if case_id == 'REF' else 0,
+            'labels': ['t'], 'plot_times': [0.0], 'time_unit': 'h',
+            'by_category': by_category, 'stats_by_key': {},
+            'window': (None, None)}
+
+
+def _window(minimum, maximum, time_max='2014-01-01 08:00'):
+    return {'min': minimum, 'max': maximum, 'mean': (minimum + maximum) / 2,
+            'time_min': '2014-01-01 03:00', 'time_max': time_max}
+
+
+def test_window_statistics_are_confined_to_their_own_rows():
+    values = [10.0, 20.0, 99.0, 30.0, 40.0]
+    labels = ["h0", "h1", "h2", "h3", "h4"]
+    hours = [0.0, 1.0, 2.0, 3.0, 4.0]
+    bounds = gl.window_bounds(hours, [(0.0, 3600.0), (3 * 3600.0, 4 * 3600.0)])
+
+    stats = gl.window_statistics(values, labels, bounds)
+
+    assert stats[0]['max'] == 20.0, "the 99.0 spike at h2 is outside window 0"
+    assert stats[0]['time_max'] == "h1"
+    assert stats[1]['min'] == 30.0 and stats[1]['max'] == 40.0
+
+
+def test_window_without_result_rows_is_left_out():
+    bounds = gl.window_bounds([0.0, 1.0], [(10 * 3600.0, 12 * 3600.0)])
+
+    assert gl.window_statistics([1.0, 2.0], ["a", "b"], bounds) == {}
+
+
+def test_overload_inside_the_window_is_reported_with_its_element():
+    results = [
+        _window_case('REF', [_window_series('line', 'Line A', '%', {0: _window(50.0, 96.1)})]),
+        _window_case('OUTAGE', [_window_series('line', 'Line A', '%', {0: _window(60.0, 112.4)})]),
+    ]
+
+    judged = gl.assess_outage_window(results, 0)
+
+    assert judged['assessment'] == gl.ASSESSMENT_LOADING
+    assert judged['violation'] == 1
+    assert judged['max_loading'] == 112.4
+    assert judged['max_loading_element'] == 'Line A'
+    assert judged['reference_max_loading'] == 96.1
+    detail = gl.assessment_detail(judged)
+    assert "max 112.4 % on Line A at 2014-01-01 08:00" in detail
+    assert "reference 96.1 %" in detail
+
+
+def test_voltage_band_violation_is_reported_separately():
+    results = [_window_case('OUTAGE', [
+        _window_series('line', 'Line A', '%', {0: _window(50.0, 80.0)}),
+        _window_series('voltage', 'Bus 7', 'p.u.', {0: _window(0.931, 1.01)}),
+    ])]
+
+    judged = gl.assess_outage_window(results, 0)
+
+    assert judged['assessment'] == gl.ASSESSMENT_VOLTAGE
+    assert judged['violation'] == 1
+    assert judged['min_voltage'] == 0.931
+    assert "voltage 0.931 to 1.010 p.u." in gl.assessment_detail(judged)
+
+
+def test_both_kinds_of_violation_are_named_together():
+    results = [_window_case('OUTAGE', [
+        _window_series('line', 'Line A', '%', {0: _window(50.0, 130.0)}),
+        _window_series('voltage', 'Bus 7', 'p.u.', {0: _window(0.90, 1.09)}),
+    ])]
+
+    assert gl.assess_outage_window(results, 0)['assessment'] == gl.ASSESSMENT_BOTH
+
+
+def test_clean_window_is_reported_as_no_limit_exceeded():
+    results = [_window_case('OUTAGE', [
+        _window_series('line', 'Line A', '%', {0: _window(50.0, 100.0)}),
+        _window_series('voltage', 'Bus 7', 'p.u.', {0: _window(0.95, 1.05)}),
+    ])]
+
+    judged = gl.assess_outage_window(results, 0)
+
+    # Values exactly on the limit are not violations.
+    assert judged['assessment'] == gl.ASSESSMENT_OK
+    assert judged['violation'] == 0
+
+
+def test_window_with_no_series_data_is_not_assessed():
+    results = [_window_case('OUTAGE', [_window_series('line', 'Line A', '%', {})])]
+
+    assert gl.assess_outage_window(results, 0) is None
+
+
+def test_report_row_carries_the_verdict_for_each_outage(monkeypatch):
+    app = App((PlannedOutage("Outage A"),))
+    monkeypatch.setattr(gl, "RUN_REFERENCE_CASE", True)
+
+    gl.execute_gridlens(app)
+
+    values = app.report.tables["PlannedOutages"]["values"]
+    assert values[0, "outage_name"] == "Outage A"
+    assert values[0, "priority"] == 1
+    assert values[0, "assessment"] in (
+        gl.ASSESSMENT_OK, gl.ASSESSMENT_LOADING, gl.ASSESSMENT_VOLTAGE,
+        gl.ASSESSMENT_BOTH, gl.ASSESSMENT_NO_DATA)
+    assert (0, "assessment_detail") in values
+
+
+def test_skipped_outage_shows_its_reason_as_the_detail(monkeypatch):
+    app = App((PlannedOutage("Disabled", disabled=True),))
+    monkeypatch.setattr(gl, "RUN_REFERENCE_CASE", True)
+
+    gl.execute_gridlens(app)
+
+    values = app.report.tables["PlannedOutages"]["values"]
+    assert values[0, "assessment"] == gl.ASSESSMENT_SKIPPED
+    assert values[0, "violation"] == 0
+    assert "disabled" in values[0, "assessment_detail"]
