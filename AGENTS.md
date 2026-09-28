@@ -20,7 +20,7 @@ Die gemeinsam auszuliefernde Laufzeit besteht ausschließlich aus:
 - `powerfactory/gridlens_report.py`
 - `powerfactory/MASTER_GRIDLENS.mrt`
 
-Publisher-Version: `5.1.3`; MRT: `3.1.0`; Datenvertrag: `3.1`.
+Publisher-Version: `5.2.0`; MRT: `3.2.0`; Datenvertrag: `3.2`.
 
 Das einzelne ComPython liegt direkt unter dem `IntReport`. Es verwendet das
 aktive `ComStatsim` einschließlich Zeitraum, Zeitschritt, Profilen und
@@ -90,10 +90,15 @@ Grund.
 
 ## Datenvertrag und MRT
 
-PowerFactory ergänzt `Scripted` genau einmal. Python publiziert 17 Tabellen;
+PowerFactory ergänzt `Scripted` genau einmal. Python publiziert 19 Tabellen;
 MRT und `TABLES` in `gridlens_report.py` müssen exakt übereinstimmen.
 Vertragsänderungen erfordern synchrone Anpassungen von Code, MRT, Versionen und
 Tests. `report.Reset()` läuft im erfolgreichen Publikationspfad genau einmal.
+
+Kein Diagramm darf über eine Data Relation gefiltert werden: Die
+PowerFactory-Berichtsengine wendet Relationen auf Diagramme nicht an und
+zeichnet sonst die Daten aller Master-Zeilen in ein Diagramm. Jedes Diagramm
+liest eine eigene Tabelle, die nur seine Reihen enthält (`ScriptedTrend*`).
 
 `<ReportFile />` bleibt leer. Keine lokalen Pfade, Mock-Daten oder externen
 Payload-/Schema-Abhängigkeiten dürfen in die Auslieferung gelangen. Eingebettete

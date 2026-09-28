@@ -163,3 +163,41 @@ def test_violations_are_highlighted_in_the_outage_table():
                 "ScriptedPlannedOutages.violation,GreaterThan,")
             flagged.append(name)
     assert sorted(flagged) == ["OutagesCell4", "OutagesCell5"]
+
+
+def test_no_chart_depends_on_a_data_relation():
+    # PowerFactory's report engine ignores relations on charts and drew the
+    # points of every plot into one chart. Charts must read their own table.
+    root = _root()
+    relations = root.find(".//Relations")
+    assert relations is not None and len(relations) == 0
+    charts = [element for element in root.iter()
+              if element.get("type", "").endswith("StiChart")]
+    assert charts
+    for chart in charts:
+        assert not (chart.findtext("DataRelationName") or "").strip(), chart.tag
+        assert chart.find("MasterComponent") is None, chart.tag
+
+
+def test_each_trend_chart_reads_its_own_table():
+    root = _root()
+    expected = {
+        "TrendLineLoadingBand": "ScriptedTrendLineLoading",
+        "TrendTransformerLoadingBand": "ScriptedTrendTransformerLoading",
+        "TrendVoltageMinBand": "ScriptedTrendVoltageMin",
+        "TrendVoltageMaxBand": "ScriptedTrendVoltageMax",
+    }
+    for band_name, table in expected.items():
+        band = root.find(".//" + band_name)
+        assert band is not None, band_name
+        assert band.findtext("DataSourceName") == "ScriptedReportMeta"
+        chart = next(element for element in band.iter()
+                     if element.get("type", "").endswith("StiChart"))
+        assert chart.findtext("DataSourceName") == table
+        series = next(element for element in chart.iter()
+                      if element.get("type", "").endswith("StiLineSeries"))
+        assert series.findtext("ArgumentDataColumn") == table + ".time_label"
+        assert series.findtext("ValueDataColumn") == table + ".value"
+        # Axis titles do not evaluate placeholders in this engine.
+        for axis in chart.iter("Title"):
+            assert "{" not in (axis.findtext("Text") or "")

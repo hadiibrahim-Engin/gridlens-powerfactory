@@ -1,6 +1,6 @@
 # GridLens – Big Picture
 
-Stand: **28. September 2026** · Publisher `5.1.3` · MRT `3.1.0` · Datenvertrag `3.1`
+Stand: **28. September 2026** · Publisher `5.2.0` · MRT `3.2.0` · Datenvertrag `3.2`
 
 GridLens erzeugt in DIgSILENT PowerFactory 2026 einen Bericht zur technischen
 Vorprüfung geplanter Außerbetriebnahmen (Freischaltungen). Ein Klick auf das
@@ -39,9 +39,9 @@ flowchart LR
     QDS -- "rechnet REF und OUTAGE" --> PY
     OUT -- "Zeitfenster · Betriebsmittel" --> PY
     RES -- "Vorlage für temporäre Kopien" --> PY
-    PY -- "CreateTable · CreateField · SetValue<br/>17 Tabellen" --> REP
+    PY -- "CreateTable · CreateField · SetValue<br/>19 Tabellen" --> REP
     REP --> DB
-    DB -- "17 Scripted*-Datenquellen" --> MRT
+    DB -- "19 Scripted*-Datenquellen" --> MRT
     MRT --> PDF
 ```
 
@@ -50,7 +50,7 @@ Ausgeliefert werden **genau zwei Dateien**, immer aus demselben Release:
 | Datei | Aufgabe |
 |---|---|
 | `powerfactory/gridlens_report.py` | Rechnen, Auswerten, Zustand wiederherstellen, Tabellen publizieren. Nur Standardbibliothek und `powerfactory`. |
-| `powerfactory/MASTER_GRIDLENS.mrt` | Berichtslayout mit 17 Datenquellen, Logos, Lesezeichen, Inhaltsverzeichnis. |
+| `powerfactory/MASTER_GRIDLENS.mrt` | Berichtslayout mit 19 Datenquellen, Logos, Lesezeichen, Inhaltsverzeichnis. |
 
 Zwei Dinge liegen bewusst **außerhalb** der Auslieferung:
 
@@ -93,7 +93,7 @@ sequenceDiagram
     end
 
     Note over GL,Q: 06 RESTORE / CLEANUP<br/>iopt_maint, results, Study Time zurück · Kopien löschen · verifizieren
-    GL->>R: 07 REPORT<br/>Reset · 17 Tabellen · Heartbeat-Fortschritt
+    GL->>R: 07 REPORT<br/>Reset · 19 Tabellen · Heartbeat-Fortschritt
     GL-->>U: Report published successfully
     U->>R: Bericht erzeugen / exportieren
 ```
@@ -235,7 +235,7 @@ stateDiagram-v2
     }
     Restore --> Publizieren: alles verifiziert
     Restore --> Fehler: etwas nicht verifiziert
-    Publizieren --> [*]: 17 Tabellen im IntReport
+    Publizieren --> [*]: 19 Tabellen im IntReport
     Fehler --> [*]: nichts publiziert · manuelle Prüfung
 ```
 
@@ -258,13 +258,13 @@ löscht das Objekt nicht. Aufräumen heißt hier umbenennen, nicht löschen.
 
 ## 6. Vom Datenvertrag zum Bericht
 
-Python publiziert 17 Tabellen. PowerFactory stellt jedem Namen `Scripted`
+Python publiziert 19 Tabellen. PowerFactory stellt jedem Namen `Scripted`
 voran. Die Namen, Felder und Typen müssen exakt mit den Datenquellen der MRT
 übereinstimmen – `tests/test_mrt.py` prüft das feldgenau.
 
 ```mermaid
 flowchart LR
-    subgraph T["17 Tabellen"]
+    subgraph T["19 Tabellen"]
         M["ReportMeta"]
         MQ["ModelQuality"]
         C["Cases"]
@@ -274,7 +274,7 @@ flowchart LR
         B["LineLoadingBars<br/>TransformerLoadingBars<br/>VoltageMagnitudeBars<br/>VoltageAngleBars"]
         RK["Rankings"]
         TP["RelevantTimePoints"]
-        PL["Plots · PlotData"]
+        PL["TrendLineLoading · TrendTransformerLoading<br/>TrendVoltageMin · TrendVoltageMax"]
         ST["Line-/Transformer-/<br/>VoltageStatistics"]
     end
 
@@ -304,8 +304,20 @@ flowchart LR
 | 10 Voltage Magnitudes | `VoltageMagnitudeBars` (Diagramm), `Rankings` |
 | 11 Voltage Angles | `VoltageAngleBars` (Diagramm und Tabelle) |
 | 12 Relevant Time Points | `RelevantTimePoints` |
-| 13 Time Series | `Plots`, `PlotData` |
+| 13 Time Series | `TrendLineLoading`, `TrendTransformerLoading`, `TrendVoltageMin`, `TrendVoltageMax` – je ein Diagramm |
 | 14 Appendix: Detailed Statistics | `LineStatistics`, `TransformerStatistics`, `VoltageStatistics` |
+
+Jedes Diagramm liest eine **eigene** Tabelle. Bis 5.1.3 hingen die vier
+Zeitreihen an einer Master-Detail-Relation `Plots → PlotData`. Die
+PowerFactory-Berichtsengine wendet solche Relationen auf Diagramme nicht an und
+hat die Punkte aller vier Plots in ein Diagramm gezeichnet: Leitung, Trafo und
+zwei Spannungen je Zeitpunkt hintereinander, ein Sägezahn statt der
+PowerFactory-Kurve. Seit 5.2.0 gibt es keine Relation mehr, und
+`tests/test_mrt.py` verhindert, dass wieder eine eingeführt wird.
+
+Die Zeitreihen zeigen dieselben Werte wie PowerFactory, aber als Linie zwischen
+den Zeitpunkten. PowerFactory zeichnet QDS-Ergebnisse als Treppe. An den
+Zeitpunkten selbst stimmen beide Darstellungen überein.
 
 Jede Änderung an Feldern erfordert gleichzeitig Code, MRT, Versionsnummern und
 Tests. Die Vorlage bindet ausschließlich über Platzhalter; Statuswerte wie

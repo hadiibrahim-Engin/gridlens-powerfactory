@@ -249,11 +249,11 @@ class App:
         return []
 
 
-def test_table_contract_is_single_versioned_17_table_contract():
-    assert gl.PUBLISHER_VERSION == "5.1.3"
-    assert gl.TEMPLATE_VERSION == "3.1.0"
-    assert gl.DATA_CONTRACT_VERSION == "3.1"
-    assert len(gl.TABLES) == 17
+def test_table_contract_is_single_versioned_19_table_contract():
+    assert gl.PUBLISHER_VERSION == "5.2.0"
+    assert gl.TEMPLATE_VERSION == "3.2.0"
+    assert gl.DATA_CONTRACT_VERSION == "3.2"
+    assert len(gl.TABLES) == 19
     tables = dict(gl.TABLES)
     assert "ScriptedCases" in tables
     assert "ScriptedPlannedOutages" in tables
@@ -1267,3 +1267,64 @@ def test_report_states_which_elements_were_assessed(monkeypatch):
     assert "elements named *D7*" in scope
     assert any("Element scope 'D7': 2 series assessed, 1 out of scope" in line
                for line in app.messages)
+
+
+def _trend_results():
+    """REF and OUTAGE with two lines and two buses, three hourly points."""
+    def result(case_id, loading_a, loading_b, bus_low, bus_high):
+        items = []
+        for category, name, unit, values in (
+                ('line', 'D7_L1', '%', loading_a),
+                ('line', 'D7_L2', '%', loading_b),
+                ('voltage', 'D7_B1', 'p.u.', bus_low),
+                ('voltage', 'D7_B2', 'p.u.', bus_high)):
+            item = {'category': category, 'key': name, 'element_id': name,
+                    'element_name': name, 'voltage_level': '110 kV',
+                    'unit': unit, 'variable': 'Loading',
+                    'points': [('2014-01-01 0{}:00'.format(i), float(i), v)
+                               for i, v in enumerate(values)],
+                    'windows': {}}
+            item['statistics'] = gl.statistics(item)
+            items.append(item)
+        return gl.case_result({'id': case_id, 'name': case_id}, items,
+                              ['t0', 't1', 't2'], [0.0, 1.0, 2.0], 'h')
+    return [
+        result('REF', [60.0, 70.0, 80.0], [50.0, 50.0, 50.0],
+               [0.97, 0.96, 0.97], [1.01, 1.02, 1.01]),
+        result('OUTAGE', [90.0, 120.0, 95.0], [55.0, 50.0, 52.0],
+               [0.93, 0.94, 0.96], [1.03, 1.06, 1.02]),
+    ]
+
+
+def test_each_trend_chart_gets_its_own_table_with_one_element():
+    # The PowerFactory report engine ignored the plot-to-data relation and
+    # drew every plot's points into one chart. Each chart now reads a table
+    # that holds exactly the series it shows.
+    payload = gl.empty_payload()
+
+    gl._trends(payload, _trend_results())
+
+    line = payload['ScriptedTrendLineLoading']
+    assert {row['element_name'] for row in line} == {'D7_L1'}
+    assert [row['value'] for row in line if row['case_id'] == 'OUTAGE'] == [
+        90.0, 120.0, 95.0]
+    assert {row['series_label'] for row in line} == {
+        'REF · D7_L1', 'OUTAGE · D7_L1'}
+    assert [row['time_label'] for row in line if row['case_id'] == 'REF'] == [
+        '2014-01-01 00:00', '2014-01-01 01:00', '2014-01-01 02:00']
+
+    assert {row['element_name'] for row in payload['ScriptedTrendVoltageMin']} == {'D7_B1'}
+    assert {row['element_name'] for row in payload['ScriptedTrendVoltageMax']} == {'D7_B2'}
+    assert payload['ScriptedTrendTransformerLoading'] == []
+
+
+def test_trend_shows_the_most_loaded_element_even_within_limits():
+    results = _trend_results()
+    for result in results:
+        for item, stats in result['by_category']['line']:
+            stats['max'] = min(stats['max'], 99.0)
+    payload = gl.empty_payload()
+
+    gl._trends(payload, results)
+
+    assert payload['ScriptedTrendLineLoading'], "the chart must not stay empty"
