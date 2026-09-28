@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import importlib.util
 import re
+import sqlite3
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
 import pytest
 
@@ -994,3 +996,123 @@ def test_publication_write_failure_keeps_cell_context_and_clears_partial_data():
     assert report.reset_calls == 2
     assert report.tables == {}
     assert not any("Publication finished:" in message for message in messages)
+
+
+def _check_emitted_report_against_mrt(report):
+    """Replay recorded IntReport writes into SQLite, not the TABLES constant.
+
+    The host's single Scripted prefix and field type mapping are modeled here;
+    this does not exercise PowerFactory's export/merge or Stimulsoft compiler.
+    """
+    root = ET.parse(ROOT / "powerfactory" / "MASTER_GRIDLENS.mrt").getroot()
+    sources = list(root.find("./Dictionary/DataSources"))
+    emitted = {"Scripted" + name: table
+               for name, table in report.tables.items()}
+    assert set(emitted) == {source.findtext("Name") for source in sources}
+    sql_types = {0: "TEXT", 1: "INTEGER", 2: "REAL"}
+    mrt_types = {"System.String": "TEXT", "System.Int32": "INTEGER",
+                 "System.Double": "REAL"}
+
+    def quote(identifier):
+        return '"' + identifier.replace('"', '""') + '"'
+
+    db = sqlite3.connect(":memory:")
+    try:
+        for name, table in emitted.items():
+            fields = table["fields"]
+            definition = ", ".join(
+                "{} {}".format(quote(field), sql_types[kind])
+                for field, kind in fields.items())
+            db.execute("CREATE TABLE {} ({})".format(quote(name), definition))
+            row_indices = sorted({index for index, _ in table["values"]})
+            for index in row_indices:
+                values = [table["values"].get((index, field)) for field in fields]
+                db.execute("INSERT INTO {} VALUES ({})".format(
+                    quote(name), ", ".join("?" for _ in fields)), values)
+
+        for source in sources:
+            name = source.findtext("Name")
+            expected = []
+            for column in source.findall("./Columns/value"):
+                field, kind = column.text.split(",", 1)
+                expected.append((field, mrt_types[kind]))
+            actual = [(row[1], row[2]) for row in
+                      db.execute("PRAGMA table_info({})".format(quote(name)))]
+            assert actual == expected, "Emitted fields do not match MRT: " + name
+            cursor = db.execute(source.findtext("SqlCommand"))
+            assert [column[0] for column in cursor.description] == [
+                field for field, _ in expected]
+            cursor.fetchall()
+
+        # Includes group conditions, chart expressions, encoded filters and
+        # highlighting rules, not just visible Text components.
+        for element in root.iter():
+            decoded = re.sub(
+                r"_x([0-9A-Fa-f]{4})_",
+                lambda match: chr(int(match[1], 16)), element.text or "")
+            for table, field in re.findall(r"\b(Scripted\w+)\.(\w+)\b", decoded):
+                assert table in emitted, "Unknown expression table: " + table
+                assert field in emitted[table]["fields"], (
+                    "Unknown expression field: {}.{}".format(table, field))
+            if element.tag == "DataSourceName" and decoded:
+                assert decoded in emitted, "Unknown data band source: " + decoded
+
+        sources_by_ref = {source.attrib["Ref"]: source.findtext("Name")
+                          for source in sources}
+        for relation in root.findall("./Dictionary/Relations/*"):
+            for side in ("Parent", "Child"):
+                reference = relation.find(side + "Source").attrib["isRef"]
+                fields = emitted[sources_by_ref[reference]]["fields"]
+                for column in relation.findall("./" + side + "Columns/value"):
+                    assert column.text in fields
+    finally:
+        db.close()
+
+
+@pytest.mark.parametrize("reference,enabled", [
+    (True, True), (False, True), (True, False), (False, False),
+])
+def test_executed_publisher_output_matches_mrt_and_all_sql_queries(
+        monkeypatch, reference, enabled):
+    app = App((PlannedOutage("Outage A", disabled=not enabled),))
+    monkeypatch.setattr(gl, "RUN_REFERENCE_CASE", reference)
+    gl.execute_gridlens(app)
+
+    _check_emitted_report_against_mrt(app.report)
+
+    # Empty tables must still expose the full schema during rendering.
+    assert app.report.tables["CaseMatrix"]["values"] == {}
+    assert app.report.tables["CaseMatrix"]["fields"]["case_id"] == 0
+    if not reference and not enabled:
+        assert app.report.tables["CaseComparison"]["values"] == {}
+        assert app.report.tables["CaseComparison"]["fields"]["metric_value"] == 2
+    outage = app.report.tables["PlannedOutages"]
+    assert outage["fields"]["priority"] == 1
+    assert outage["fields"]["violation"] == 1
+    assert outage["fields"]["assessment"] == 0
+    assert outage["fields"]["assessment_detail"] == 0
+    for field in ("priority", "violation", "assessment", "assessment_detail"):
+        assert (0, field) in outage["values"]
+
+
+@pytest.mark.parametrize("table,field", [
+    ("PlannedOutages", "priority"),
+    ("PlannedOutages", "violation"),
+    ("PlannedOutages", "assessment"),
+    ("PlannedOutages", "assessment_detail"),
+    ("PlannedOutages", None),
+    ("CaseMatrix", None),
+    ("CaseComparison", None),
+])
+def test_emitted_schema_check_catches_missing_tables_and_fields_from_export_log(
+        monkeypatch, table, field):
+    app = App((PlannedOutage("Outage A"),))
+    monkeypatch.setattr(gl, "RUN_REFERENCE_CASE", True)
+    gl.execute_gridlens(app)
+    if field is None:
+        del app.report.tables[table]
+    else:
+        del app.report.tables[table]["fields"][field]
+
+    with pytest.raises(AssertionError):
+        _check_emitted_report_against_mrt(app.report)
