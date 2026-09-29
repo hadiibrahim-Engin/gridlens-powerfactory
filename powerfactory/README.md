@@ -114,15 +114,23 @@ ist die Überlastung nicht der Freischaltung anzulasten.
 Am Anfang von `gridlens_report.py` steht:
 
 ```python
-ELEMENT_NAME_FILTER = 'D7'
+GRID_NAME_FILTER = 'D7'
 ```
 
-Bewertet werden nur Elemente, deren Kurzname diesen Text enthält. Alle übrigen
+Bewertet werden nur Elemente, deren Grid (Attribut „Grid“, `cpGrid`) diesen
+Text im Namen trägt. Alle übrigen
 Reihen im `ElmRes` werden weder gelesen noch berichtet. Das Log nennt je Fall,
 wie viele Reihen bewertet und wie viele ausgelassen wurden; der Bericht nennt
 den Filter im Feld „Assessment scope“. Ein leerer Text bewertet alle Elemente.
-Enthält kein Element den Text, bricht der Lauf mit einem Hinweis auf die
-Konstante ab.
+Gehört kein Element zu einem passenden Grid, bricht der Lauf mit einem
+Hinweis auf die Konstante ab.
+
+Was der Filter im eigenen Projekt auswählt, zeigt `tools/probe_grid_filter.py`.
+Die Datei neben `gridlens_report.py` legen, als eigenes ComPython starten und
+die Ausgabe lesen. Sie listet alle Grids mit `IN`/`out`, zeigt für Beispiele,
+woher das Grid kam, zählt bewertete und ignorierte Elemente je Klasse und
+Grid und nennt für das gebundene Ergebnisobjekt genau die Reihen, die der
+Bericht lesen würde. Das Skript ändert nichts am Projekt.
 
 ## Run Mode
 

@@ -20,7 +20,7 @@ Die gemeinsam auszuliefernde Laufzeit besteht ausschließlich aus:
 - `powerfactory/gridlens_report.py`
 - `powerfactory/MASTER_GRIDLENS.mrt`
 
-Publisher-Version: `5.4.0`; MRT: `3.4.0`; Datenvertrag: `3.4`.
+Publisher-Version: `5.4.1`; MRT: `3.4.0`; Datenvertrag: `3.4`.
 
 Das einzelne ComPython liegt direkt unter dem `IntReport`. Es verwendet das
 aktive `ComStatsim` einschließlich Zeitraum, Zeitschritt, Profilen und
@@ -82,9 +82,13 @@ Balkendiagramme (Verletzungen REF gegen OUTAGE; Verletzungen je
 Freischaltungsfenster). Alle Zahlen berechnet `_overview` in Python; die MRT
 zeigt nur an. Jedes Diagramm liest eine eigene `ScriptedOverview*`-Tabelle.
 
-`ELEMENT_NAME_FILTER` (Standard `'D7'`) begrenzt die Bewertung auf Elemente,
-deren Kurzname den Text enthält; der übrige Modellteil ist Auslandsnetz. Der
+`GRID_NAME_FILTER` (Standard `'D7'`) begrenzt die Bewertung auf Elemente,
+deren Grid den Text im Namen trägt; der übrige Modellteil ist Auslandsnetz.
+Das Grid kommt aus dem Attribut `cpGrid` („Grid“), ersatzweise aus dem
+`ElmNet` im Ablagepfad des Elements. `cpGrid` hat Vorrang, weil Elemente aus
+Varianten in einer Ausbaustufe liegen und ihr Pfad kein Grid enthält. Der
 Filter greift in `collect_series` vor dem Lesen der Werte.
+`tools/probe_grid_filter.py` zeigt im Zielprojekt, was der Filter auswählt.
 
 ## Fachliche Regeln
 

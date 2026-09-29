@@ -1,6 +1,6 @@
 # GridLens – Big Picture
 
-Stand: **28. September 2026** · Publisher `5.4.0` · MRT `3.4.0` · Datenvertrag `3.4`
+Stand: **28. September 2026** · Publisher `5.4.1` · MRT `3.4.0` · Datenvertrag `3.4`
 
 GridLens erzeugt in DIgSILENT PowerFactory 2026 einen Bericht zur technischen
 Vorprüfung geplanter Außerbetriebnahmen (Freischaltungen). Ein Klick auf das
