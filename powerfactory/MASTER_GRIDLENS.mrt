@@ -171,9 +171,9 @@
         <Alias>ScriptedOverviewViolationsByCase</Alias>
         <Columns isList="true" count="4">
           <value>sort_order,System.Int32</value>
-          <value>case_id,System.String</value>
           <value>violation_type,System.String</value>
-          <value>element_count,System.Int32</value>
+          <value>ref_count,System.Int32</value>
+          <value>outage_count,System.Int32</value>
         </Columns>
         <CommandTimeout>30</CommandTimeout>
         <Dictionary isRef="1" />
@@ -185,10 +185,11 @@
       </ScriptedOverviewViolationsByCase>
       <ScriptedOverviewViolationsByOutage Ref="806" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
         <Alias>ScriptedOverviewViolationsByOutage</Alias>
-        <Columns isList="true" count="3">
+        <Columns isList="true" count="4">
           <value>rank,System.Int32</value>
           <value>outage_name,System.String</value>
-          <value>violating_elements,System.Int32</value>
+          <value>ref_count,System.Int32</value>
+          <value>outage_count,System.Int32</value>
         </Columns>
         <CommandTimeout>30</CommandTimeout>
         <Dictionary isRef="1" />
@@ -444,13 +445,12 @@
       </ScriptedRelevantTimePoints>
       <ScriptedTrendLineLoading Ref="726" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
         <Alias>ScriptedTrendLineLoading</Alias>
-        <Columns isList="true" count="7">
-          <value>case_id,System.String</value>
-          <value>series_label,System.String</value>
-          <value>element_name,System.String</value>
+        <Columns isList="true" count="6">
           <value>time_label,System.String</value>
           <value>timestamp,System.Double</value>
-          <value>value,System.Double</value>
+          <value>ref_value,System.Double</value>
+          <value>outage_value,System.Double</value>
+          <value>element_name,System.String</value>
           <value>unit,System.String</value>
         </Columns>
         <CommandTimeout>30</CommandTimeout>
@@ -459,17 +459,16 @@
         <Name>ScriptedTrendLineLoading</Name>
         <NameInSource>SQLite</NameInSource>
         <Parameters isList="true" count="0" />
-        <SqlCommand>SELECT * FROM "ScriptedTrendLineLoading" ORDER BY "case_id", "timestamp"</SqlCommand>
+        <SqlCommand>SELECT * FROM "ScriptedTrendLineLoading" ORDER BY "timestamp"</SqlCommand>
       </ScriptedTrendLineLoading>
       <ScriptedTrendTransformerLoading Ref="727" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
         <Alias>ScriptedTrendTransformerLoading</Alias>
-        <Columns isList="true" count="7">
-          <value>case_id,System.String</value>
-          <value>series_label,System.String</value>
-          <value>element_name,System.String</value>
+        <Columns isList="true" count="6">
           <value>time_label,System.String</value>
           <value>timestamp,System.Double</value>
-          <value>value,System.Double</value>
+          <value>ref_value,System.Double</value>
+          <value>outage_value,System.Double</value>
+          <value>element_name,System.String</value>
           <value>unit,System.String</value>
         </Columns>
         <CommandTimeout>30</CommandTimeout>
@@ -478,17 +477,16 @@
         <Name>ScriptedTrendTransformerLoading</Name>
         <NameInSource>SQLite</NameInSource>
         <Parameters isList="true" count="0" />
-        <SqlCommand>SELECT * FROM "ScriptedTrendTransformerLoading" ORDER BY "case_id", "timestamp"</SqlCommand>
+        <SqlCommand>SELECT * FROM "ScriptedTrendTransformerLoading" ORDER BY "timestamp"</SqlCommand>
       </ScriptedTrendTransformerLoading>
       <ScriptedTrendVoltageMin Ref="728" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
         <Alias>ScriptedTrendVoltageMin</Alias>
-        <Columns isList="true" count="7">
-          <value>case_id,System.String</value>
-          <value>series_label,System.String</value>
-          <value>element_name,System.String</value>
+        <Columns isList="true" count="6">
           <value>time_label,System.String</value>
           <value>timestamp,System.Double</value>
-          <value>value,System.Double</value>
+          <value>ref_value,System.Double</value>
+          <value>outage_value,System.Double</value>
+          <value>element_name,System.String</value>
           <value>unit,System.String</value>
         </Columns>
         <CommandTimeout>30</CommandTimeout>
@@ -497,17 +495,16 @@
         <Name>ScriptedTrendVoltageMin</Name>
         <NameInSource>SQLite</NameInSource>
         <Parameters isList="true" count="0" />
-        <SqlCommand>SELECT * FROM "ScriptedTrendVoltageMin" ORDER BY "case_id", "timestamp"</SqlCommand>
+        <SqlCommand>SELECT * FROM "ScriptedTrendVoltageMin" ORDER BY "timestamp"</SqlCommand>
       </ScriptedTrendVoltageMin>
       <ScriptedTrendVoltageMax Ref="729" type="Stimulsoft.Report.Dictionary.StiSQLiteSource" isKey="true">
         <Alias>ScriptedTrendVoltageMax</Alias>
-        <Columns isList="true" count="7">
-          <value>case_id,System.String</value>
-          <value>series_label,System.String</value>
-          <value>element_name,System.String</value>
+        <Columns isList="true" count="6">
           <value>time_label,System.String</value>
           <value>timestamp,System.Double</value>
-          <value>value,System.Double</value>
+          <value>ref_value,System.Double</value>
+          <value>outage_value,System.Double</value>
+          <value>element_name,System.String</value>
           <value>unit,System.String</value>
         </Columns>
         <CommandTimeout>30</CommandTimeout>
@@ -516,7 +513,7 @@
         <Name>ScriptedTrendVoltageMax</Name>
         <NameInSource>SQLite</NameInSource>
         <Parameters isList="true" count="0" />
-        <SqlCommand>SELECT * FROM "ScriptedTrendVoltageMax" ORDER BY "case_id", "timestamp"</SqlCommand>
+        <SqlCommand>SELECT * FROM "ScriptedTrendVoltageMax" ORDER BY "timestamp"</SqlCommand>
       </ScriptedTrendVoltageMax>
     </DataSources>
     <Relations isList="true" count="0" />
@@ -2497,7 +2494,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
           <Brush>Transparent</Brush>
           <BusinessObjectGuid isNull="true" />
           <CanBreak>False</CanBreak>
-          <ClientRectangle>0,0,17,6.4</ClientRectangle>
+          <ClientRectangle>0,0,17,7.6</ClientRectangle>
           <Components isList="true" count="2">
             <OverviewLoadingPie Ref="820" type="Stimulsoft.Report.Chart.StiChart" isKey="true">
               <Area Ref="859" type="Stimulsoft.Report.Chart.StiPieArea" isKey="true">
@@ -2507,7 +2504,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               </Area>
               <Border>None;Transparent;0;None;False;4;Black</Border>
               <Brush>[255:255:255]</Brush>
-              <ClientRectangle>0,0.2,8.3,6</ClientRectangle>
+              <ClientRectangle>0,0.2,8.3,7.2</ClientRectangle>
               <Conditions isList="true" count="0" />
               <ConstantLines isList="true" count="0" />
               <CustomStyleName />
@@ -2517,8 +2514,8 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                 <Brush>[255:255:255]</Brush>
                 <Chart isRef="820" />
                 <Font>Segoe UI,8</Font>
-                <HorAlignment>Right</HorAlignment>
-                <HorSpacing>2</HorSpacing>
+                <HorAlignment>Center</HorAlignment>
+                <HorSpacing>12</HorSpacing>
                 <LabelsColor>70, 70, 70</LabelsColor>
                 <MarkerSize>8, 8</MarkerSize>
                 <ShowShadow>False</ShowShadow>
@@ -2526,6 +2523,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                 <TitleFont>Segoe UI,10,Bold</TitleFont>
                 <VertSpacing>1</VertSpacing>
                 <Visible>True</Visible>
+                <VertAlignment>BottomOutside</VertAlignment>
               </Legend>
               <Name>OverviewLoadingPie</Name>
               <Page isRef="18" />
@@ -2538,7 +2536,11 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                   <ArgumentDataColumn>ScriptedOverviewLoadingClasses.class_label</ArgumentDataColumn>
                   <BorderColor>White</BorderColor>
                   <Chart isRef="820" />
-                  <Conditions isList="true" count="0" />
+                  <Conditions isList="true" count="3">
+                    <value>[140:150:160],Argument,String,EqualTo,up_x0020_to_x0020_80_x0020__x0025_,Circle,0</value>
+                    <value>[217:140:31],Argument,String,EqualTo,80_x0020_to_x0020_100_x0020__x0025_,Circle,0</value>
+                    <value>[181:18:62],Argument,String,EqualTo,above_x0020_100_x0020__x0025_,Circle,0</value>
+                  </Conditions>
                   <Filters isList="true" count="0" />
                   <SeriesLabels Ref="853" type="Stimulsoft.Report.Chart.StiCenterPieLabels" isKey="true">
                     <BorderColor>Transparent</BorderColor>
@@ -2558,9 +2560,9 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                 <Chart isRef="820" />
                 <Font>Segoe UI,8</Font>
                 <LabelColor>70, 70, 70</LabelColor>
+                <LegendValueType>Argument</LegendValueType>
                 <MarkerSize>8, 6</MarkerSize>
                 <ValueTypeSeparator>-</ValueTypeSeparator>
-                <Visible>False</Visible>
               </SeriesLabels>
               <SeriesLabelsConditions isList="true" count="0" />
               <Sort isList="true" count="0" />
@@ -2582,7 +2584,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               </Area>
               <Border>None;Transparent;0;None;False;4;Black</Border>
               <Brush>[255:255:255]</Brush>
-              <ClientRectangle>8.7,0.2,8.3,6</ClientRectangle>
+              <ClientRectangle>8.7,0.2,8.3,7.2</ClientRectangle>
               <Conditions isList="true" count="0" />
               <ConstantLines isList="true" count="0" />
               <CustomStyleName />
@@ -2592,8 +2594,8 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                 <Brush>[255:255:255]</Brush>
                 <Chart isRef="860" />
                 <Font>Segoe UI,8</Font>
-                <HorAlignment>Right</HorAlignment>
-                <HorSpacing>2</HorSpacing>
+                <HorAlignment>Center</HorAlignment>
+                <HorSpacing>12</HorSpacing>
                 <LabelsColor>70, 70, 70</LabelsColor>
                 <MarkerSize>8, 8</MarkerSize>
                 <ShowShadow>False</ShowShadow>
@@ -2601,6 +2603,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                 <TitleFont>Segoe UI,10,Bold</TitleFont>
                 <VertSpacing>1</VertSpacing>
                 <Visible>True</Visible>
+                <VertAlignment>BottomOutside</VertAlignment>
               </Legend>
               <Name>OverviewVoltagePie</Name>
               <Page isRef="18" />
@@ -2613,7 +2616,11 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                   <ArgumentDataColumn>ScriptedOverviewVoltageClasses.class_label</ArgumentDataColumn>
                   <BorderColor>White</BorderColor>
                   <Chart isRef="860" />
-                  <Conditions isList="true" count="0" />
+                  <Conditions isList="true" count="3">
+                    <value>[181:18:62],Argument,String,EqualTo,below_x0020_0.95_x0020_p.u.,Circle,0</value>
+                    <value>[140:150:160],Argument,String,EqualTo,0.95_x0020_to_x0020_1.05_x0020_p.u.,Circle,0</value>
+                    <value>[217:140:31],Argument,String,EqualTo,above_x0020_1.05_x0020_p.u.,Circle,0</value>
+                  </Conditions>
                   <Filters isList="true" count="0" />
                   <SeriesLabels Ref="893" type="Stimulsoft.Report.Chart.StiCenterPieLabels" isKey="true">
                     <BorderColor>Transparent</BorderColor>
@@ -2633,9 +2640,9 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                 <Chart isRef="860" />
                 <Font>Segoe UI,8</Font>
                 <LabelColor>70, 70, 70</LabelColor>
+                <LegendValueType>Argument</LegendValueType>
                 <MarkerSize>8, 6</MarkerSize>
                 <ValueTypeSeparator>-</ValueTypeSeparator>
-                <Visible>False</Visible>
               </SeriesLabels>
               <SeriesLabelsConditions isList="true" count="0" />
               <Sort isList="true" count="0" />
@@ -2663,7 +2670,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
           <Brush>Transparent</Brush>
           <BusinessObjectGuid isNull="true" />
           <CanBreak>False</CanBreak>
-          <ClientRectangle>0,0,17,6.4</ClientRectangle>
+          <ClientRectangle>0,0,17,7.6</ClientRectangle>
           <Components isList="true" count="2">
             <OverviewCaseBars Ref="901" type="Stimulsoft.Report.Chart.StiChart" isKey="true">
               <Area Ref="902" type="Stimulsoft.Report.Chart.StiClusteredBarArea" isKey="true">
@@ -2701,8 +2708,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                   </DateTimeStep>
                   <Interaction Ref="910" type="Stimulsoft.Report.Chart.StiAxisInteraction" isKey="true" />
                   <Labels Ref="911" type="Stimulsoft.Report.Chart.StiAxisLabels" isKey="true">
-                    <Angle>30</Angle>
-                    <Color>90, 90, 90</Color>
+                                        <Color>90, 90, 90</Color>
                     <Font>Segoe UI,8</Font>
                   </Labels>
                   <LineColor>150, 150, 150</LineColor>
@@ -2767,7 +2773,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               </Area>
               <Border>None;Transparent;0;None;False;4;Black</Border>
               <Brush>[255:255:255]</Brush>
-              <ClientRectangle>0,0.2,8.3,6</ClientRectangle>
+              <ClientRectangle>0,0.2,8.3,7.2</ClientRectangle>
               <Conditions isList="true" count="0" />
               <ConstantLines isList="true" count="0" />
               <CustomStyleName />
@@ -2776,9 +2782,11 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                 <BorderColor>Transparent</BorderColor>
                 <Brush>[255:255:255]</Brush>
                 <Chart isRef="901" />
+                <Columns>2</Columns>
+                <Direction>LeftToRight</Direction>
                 <Font>Segoe UI,8</Font>
-                <HorAlignment>LeftOutside</HorAlignment>
-                <HorSpacing>2</HorSpacing>
+                <HorAlignment>Right</HorAlignment>
+                <HorSpacing>12</HorSpacing>
                 <LabelsColor>70, 70, 70</LabelsColor>
                 <MarkerSize>8, 8</MarkerSize>
                 <ShowShadow>False</ShowShadow>
@@ -2786,27 +2794,26 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                 <TitleFont>Segoe UI,10,Bold</TitleFont>
                 <VertSpacing>1</VertSpacing>
                 <Visible>True</Visible>
+                <VertAlignment>TopOutside</VertAlignment>
               </Legend>
               <Name>OverviewCaseBars</Name>
               <Page isRef="18" />
               <Parent isRef="900" />
-              <Series isList="true" count="1">
-                <Series535 Ref="933" type="Stimulsoft.Report.Chart.StiClusteredBarSeries" isKey="true">
+              <Series isList="true" count="2">
+                <SeriesREF Ref="997" type="Stimulsoft.Report.Chart.StiClusteredBarSeries" isKey="true">
 
                   <AllowApplyBrushNegative>False</AllowApplyBrushNegative>
 
-                  <AllowApplyStyle>True</AllowApplyStyle>
-                  <ValueDataColumn>ScriptedOverviewViolationsByCase.element_count</ValueDataColumn>
-                  <AutoSeriesKeyDataColumn>ScriptedOverviewViolationsByCase.case_id</AutoSeriesKeyDataColumn>
-                  <AutoSeriesTitleDataColumn>ScriptedOverviewViolationsByCase.case_id</AutoSeriesTitleDataColumn>
+                  <AllowApplyStyle>False</AllowApplyStyle>
+                  <ValueDataColumn>ScriptedOverviewViolationsByCase.ref_count</ValueDataColumn>
                   <ArgumentDataColumn>ScriptedOverviewViolationsByCase.violation_type</ArgumentDataColumn>
-                  <BorderColor>181, 18, 62</BorderColor>
-                  <Brush>[181:18:62]</Brush>
-                  <BrushNegative>[181:18:62]</BrushNegative>
+                  <BorderColor>140, 150, 160</BorderColor>
+                  <Brush>[140:150:160]</Brush>
+                  <BrushNegative>[140:150:160]</BrushNegative>
                   <Chart isRef="901" />
                   <Conditions isList="true" count="0" />
                   <Filters isList="true" count="0" />
-                  <SeriesLabels Ref="934" type="Stimulsoft.Report.Chart.StiCenterAxisLabels" isKey="true">
+                  <SeriesLabels Ref="998" type="Stimulsoft.Report.Chart.StiCenterAxisLabels" isKey="true">
                     <BorderColor>Transparent</BorderColor>
                     <Brush>[245:245:245]</Brush>
                     <Chart isRef="901" />
@@ -2815,13 +2822,42 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                     <MarkerSize>8, 6</MarkerSize>
                     <ValueTypeSeparator>-</ValueTypeSeparator>
                   </SeriesLabels>
-                  <Title>Maximum Loading</Title>
-                  <TopN Ref="935" type="Stimulsoft.Report.Chart.StiSeriesTopN" isKey="true" />
-                  <TrendLine Ref="936" type="Stimulsoft.Report.Chart.StiTrendLineNone" isKey="true">
+                  <Title>REF</Title>
+                  <TopN Ref="999" type="Stimulsoft.Report.Chart.StiSeriesTopN" isKey="true" />
+                  <TrendLine Ref="1000" type="Stimulsoft.Report.Chart.StiTrendLineNone" isKey="true">
                     <LineColor>Black</LineColor>
                     <ShowShadow>True</ShowShadow>
                   </TrendLine>
-                </Series535>
+                </SeriesREF>
+                <SeriesOUTAGE Ref="1001" type="Stimulsoft.Report.Chart.StiClusteredBarSeries" isKey="true">
+
+                  <AllowApplyBrushNegative>False</AllowApplyBrushNegative>
+
+                  <AllowApplyStyle>False</AllowApplyStyle>
+                  <ValueDataColumn>ScriptedOverviewViolationsByCase.outage_count</ValueDataColumn>
+                  <ArgumentDataColumn>ScriptedOverviewViolationsByCase.violation_type</ArgumentDataColumn>
+                  <BorderColor>181, 18, 62</BorderColor>
+                  <Brush>[181:18:62]</Brush>
+                  <BrushNegative>[181:18:62]</BrushNegative>
+                  <Chart isRef="901" />
+                  <Conditions isList="true" count="0" />
+                  <Filters isList="true" count="0" />
+                  <SeriesLabels Ref="1002" type="Stimulsoft.Report.Chart.StiCenterAxisLabels" isKey="true">
+                    <BorderColor>Transparent</BorderColor>
+                    <Brush>[245:245:245]</Brush>
+                    <Chart isRef="901" />
+                    <Font>Segoe UI,8</Font>
+                    <LabelColor>70, 70, 70</LabelColor>
+                    <MarkerSize>8, 6</MarkerSize>
+                    <ValueTypeSeparator>-</ValueTypeSeparator>
+                  </SeriesLabels>
+                  <Title>OUTAGE</Title>
+                  <TopN Ref="1003" type="Stimulsoft.Report.Chart.StiSeriesTopN" isKey="true" />
+                  <TrendLine Ref="1004" type="Stimulsoft.Report.Chart.StiTrendLineNone" isKey="true">
+                    <LineColor>Black</LineColor>
+                    <ShowShadow>True</ShowShadow>
+                  </TrendLine>
+                </SeriesOUTAGE>
               </Series>
               <SeriesLabels Ref="937" type="Stimulsoft.Report.Chart.StiInsideEndAxisLabels" isKey="true">
                 <BorderColor>Transparent</BorderColor>
@@ -2831,7 +2867,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                 <LabelColor>70, 70, 70</LabelColor>
                 <MarkerSize>8, 6</MarkerSize>
                 <ValueTypeSeparator>-</ValueTypeSeparator>
-                <Visible>False</Visible>
+                <Visible>True</Visible>
               </SeriesLabels>
               <SeriesLabelsConditions isList="true" count="0" />
               <Sort isList="true" count="0" />
@@ -2881,8 +2917,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                   </DateTimeStep>
                   <Interaction Ref="949" type="Stimulsoft.Report.Chart.StiAxisInteraction" isKey="true" />
                   <Labels Ref="950" type="Stimulsoft.Report.Chart.StiAxisLabels" isKey="true">
-                    <Angle>30</Angle>
-                    <Color>90, 90, 90</Color>
+                                        <Color>90, 90, 90</Color>
                     <Font>Segoe UI,8</Font>
                   </Labels>
                   <LineColor>150, 150, 150</LineColor>
@@ -2947,7 +2982,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               </Area>
               <Border>None;Transparent;0;None;False;4;Black</Border>
               <Brush>[255:255:255]</Brush>
-              <ClientRectangle>8.7,0.2,8.3,6</ClientRectangle>
+              <ClientRectangle>8.7,0.2,8.3,7.2</ClientRectangle>
               <Conditions isList="true" count="0" />
               <ConstantLines isList="true" count="0" />
               <CustomStyleName />
@@ -2956,35 +2991,38 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                 <BorderColor>Transparent</BorderColor>
                 <Brush>[255:255:255]</Brush>
                 <Chart isRef="940" />
+                <Columns>2</Columns>
+                <Direction>LeftToRight</Direction>
                 <Font>Segoe UI,8</Font>
-                <HorAlignment>LeftOutside</HorAlignment>
-                <HorSpacing>2</HorSpacing>
+                <HorAlignment>Right</HorAlignment>
+                <HorSpacing>12</HorSpacing>
                 <LabelsColor>70, 70, 70</LabelsColor>
                 <MarkerSize>8, 8</MarkerSize>
                 <ShowShadow>False</ShowShadow>
                 <TitleColor>70, 70, 70</TitleColor>
                 <TitleFont>Segoe UI,10,Bold</TitleFont>
                 <VertSpacing>1</VertSpacing>
-                <Visible>False</Visible>
+                <Visible>True</Visible>
+                <VertAlignment>TopOutside</VertAlignment>
               </Legend>
               <Name>OverviewOutageBars</Name>
               <Page isRef="18" />
               <Parent isRef="900" />
-              <Series isList="true" count="1">
-                <Series535 Ref="972" type="Stimulsoft.Report.Chart.StiClusteredBarSeries" isKey="true">
+              <Series isList="true" count="2">
+                <SeriesREF Ref="1005" type="Stimulsoft.Report.Chart.StiClusteredBarSeries" isKey="true">
 
                   <AllowApplyBrushNegative>False</AllowApplyBrushNegative>
 
                   <AllowApplyStyle>False</AllowApplyStyle>
-                  <ValueDataColumn>ScriptedOverviewViolationsByOutage.violating_elements</ValueDataColumn>
+                  <ValueDataColumn>ScriptedOverviewViolationsByOutage.ref_count</ValueDataColumn>
                   <ArgumentDataColumn>ScriptedOverviewViolationsByOutage.outage_name</ArgumentDataColumn>
-                  <BorderColor>181, 18, 62</BorderColor>
-                  <Brush>[181:18:62]</Brush>
-                  <BrushNegative>[181:18:62]</BrushNegative>
+                  <BorderColor>140, 150, 160</BorderColor>
+                  <Brush>[140:150:160]</Brush>
+                  <BrushNegative>[140:150:160]</BrushNegative>
                   <Chart isRef="940" />
                   <Conditions isList="true" count="0" />
                   <Filters isList="true" count="0" />
-                  <SeriesLabels Ref="973" type="Stimulsoft.Report.Chart.StiCenterAxisLabels" isKey="true">
+                  <SeriesLabels Ref="1006" type="Stimulsoft.Report.Chart.StiCenterAxisLabels" isKey="true">
                     <BorderColor>Transparent</BorderColor>
                     <Brush>[245:245:245]</Brush>
                     <Chart isRef="940" />
@@ -2993,13 +3031,42 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                     <MarkerSize>8, 6</MarkerSize>
                     <ValueTypeSeparator>-</ValueTypeSeparator>
                   </SeriesLabels>
-                  <Title>Maximum Loading</Title>
-                  <TopN Ref="974" type="Stimulsoft.Report.Chart.StiSeriesTopN" isKey="true" />
-                  <TrendLine Ref="975" type="Stimulsoft.Report.Chart.StiTrendLineNone" isKey="true">
+                  <Title>REF</Title>
+                  <TopN Ref="1007" type="Stimulsoft.Report.Chart.StiSeriesTopN" isKey="true" />
+                  <TrendLine Ref="1008" type="Stimulsoft.Report.Chart.StiTrendLineNone" isKey="true">
                     <LineColor>Black</LineColor>
                     <ShowShadow>True</ShowShadow>
                   </TrendLine>
-                </Series535>
+                </SeriesREF>
+                <SeriesOUTAGE Ref="1009" type="Stimulsoft.Report.Chart.StiClusteredBarSeries" isKey="true">
+
+                  <AllowApplyBrushNegative>False</AllowApplyBrushNegative>
+
+                  <AllowApplyStyle>False</AllowApplyStyle>
+                  <ValueDataColumn>ScriptedOverviewViolationsByOutage.outage_count</ValueDataColumn>
+                  <ArgumentDataColumn>ScriptedOverviewViolationsByOutage.outage_name</ArgumentDataColumn>
+                  <BorderColor>181, 18, 62</BorderColor>
+                  <Brush>[181:18:62]</Brush>
+                  <BrushNegative>[181:18:62]</BrushNegative>
+                  <Chart isRef="940" />
+                  <Conditions isList="true" count="0" />
+                  <Filters isList="true" count="0" />
+                  <SeriesLabels Ref="1010" type="Stimulsoft.Report.Chart.StiCenterAxisLabels" isKey="true">
+                    <BorderColor>Transparent</BorderColor>
+                    <Brush>[245:245:245]</Brush>
+                    <Chart isRef="940" />
+                    <Font>Segoe UI,8</Font>
+                    <LabelColor>70, 70, 70</LabelColor>
+                    <MarkerSize>8, 6</MarkerSize>
+                    <ValueTypeSeparator>-</ValueTypeSeparator>
+                  </SeriesLabels>
+                  <Title>OUTAGE</Title>
+                  <TopN Ref="1011" type="Stimulsoft.Report.Chart.StiSeriesTopN" isKey="true" />
+                  <TrendLine Ref="1012" type="Stimulsoft.Report.Chart.StiTrendLineNone" isKey="true">
+                    <LineColor>Black</LineColor>
+                    <ShowShadow>True</ShowShadow>
+                  </TrendLine>
+                </SeriesOUTAGE>
               </Series>
               <SeriesLabels Ref="976" type="Stimulsoft.Report.Chart.StiInsideEndAxisLabels" isKey="true">
                 <BorderColor>Transparent</BorderColor>
@@ -8842,7 +8909,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>TrendLineLoadingBandTitle</Name>
               <Page isRef="169" />
               <Parent isRef="730" />
-              <Text>Highest line loading</Text>
+              <Text>Highest line loading: {ScriptedTrendLineLoading.element_name}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -8875,7 +8942,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                   <Title Ref="737" type="Stimulsoft.Report.Chart.StiAxisTitle" isKey="true">
                     <Color>140, 140, 140</Color>
                     <Font>Segoe UI,9,Bold</Font>
-                    <Text>Time</Text>
+                    <Text />
                   </Title>
                 </XAxis>
                 <YAxis Ref="738" type="Stimulsoft.Report.Chart.StiYLeftAxis" isKey="true">
@@ -8886,7 +8953,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                     <Color>140, 140, 140</Color>
                     <Direction>BottomToTop</Direction>
                     <Font>Segoe UI,12,Bold</Font>
-                    <Text>Loading [%]</Text>
+                    <Text>%</Text>
                   </Title>
                 </YAxis>
                 <YRightAxis Ref="740" type="Stimulsoft.Report.Chart.StiYRightAxis" isKey="true">
@@ -8918,31 +8985,37 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                 <BorderColor>Transparent</BorderColor>
                 <Brush>[255:255:255]</Brush>
                 <Chart isRef="732" />
+                <Columns>2</Columns>
                 <Direction>LeftToRight</Direction>
                 <Font>Segoe UI,8</Font>
-                <HorAlignment>Center</HorAlignment>
+                <HorAlignment>Right</HorAlignment>
                 <LabelsColor>140, 140, 140</LabelsColor>
                 <MarkerSize>10, 10</MarkerSize>
                 <ShowShadow>False</ShowShadow>
                 <TitleColor>105, 105, 105</TitleColor>
                 <TitleFont>Segoe UI,14,Bold</TitleFont>
-                <VertAlignment>Bottom</VertAlignment>
+                <VertAlignment>TopOutside</VertAlignment>
               </Legend>
               <Name>PlotsChart</Name>
               <Page isRef="169" />
               <Parent isRef="730" />
-              <Series isList="true" count="1">
-                <Item322 Ref="744" type="Stimulsoft.Report.Chart.StiLineSeries" isKey="true">
-                  <AllowApplyStyle>True</AllowApplyStyle>
+              <Series isList="true" count="2">
+                <SeriesREF Ref="981" type="Stimulsoft.Report.Chart.StiLineSeries" isKey="true">
+                  <AllowApplyStyle>False</AllowApplyStyle>
                   <ArgumentDataColumn>ScriptedTrendLineLoading.time_label</ArgumentDataColumn>
-                  <AutoSeriesKeyDataColumn>ScriptedTrendLineLoading.case_id</AutoSeriesKeyDataColumn>
-                  <AutoSeriesTitleDataColumn>ScriptedTrendLineLoading.series_label</AutoSeriesTitleDataColumn>
                   <Chart isRef="732" />
                   <Conditions isList="true" count="0" />
                   <Filters isList="true" count="0" />
                   <Lighting>False</Lighting>
+                  <LineColor>140, 150, 160</LineColor>
                   <LineColorNegative>Firebrick</LineColorNegative>
-                  <SeriesLabels Ref="745" type="Stimulsoft.Report.Chart.StiOutsideEndAxisLabels" isKey="true">
+                  <LineWidth>1.5</LineWidth>
+                  <Marker Ref="1013" type="Stimulsoft.Report.Chart.StiMarker" isKey="true">
+                    <BorderColor>Black</BorderColor>
+                    <Brush>White</Brush>
+                    <Visible>False</Visible>
+                  </Marker>
+                  <SeriesLabels Ref="982" type="Stimulsoft.Report.Chart.StiOutsideEndAxisLabels" isKey="true">
                     <BorderColor>Transparent</BorderColor>
                     <Brush>[119:255:255:255]</Brush>
                     <Chart isRef="732" />
@@ -8953,10 +9026,40 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                     <Width>0</Width>
                   </SeriesLabels>
                   <ShowShadow>False</ShowShadow>
-                  <Title>Series 1</Title>
+                  <Title>REF</Title>
                   <TrendLines isList="true" count="0" />
-                  <ValueDataColumn>ScriptedTrendLineLoading.value</ValueDataColumn>
-                </Item322>
+                  <ValueDataColumn>ScriptedTrendLineLoading.ref_value</ValueDataColumn>
+                </SeriesREF>
+                <SeriesOUTAGE Ref="983" type="Stimulsoft.Report.Chart.StiLineSeries" isKey="true">
+                  <AllowApplyStyle>False</AllowApplyStyle>
+                  <ArgumentDataColumn>ScriptedTrendLineLoading.time_label</ArgumentDataColumn>
+                  <Chart isRef="732" />
+                  <Conditions isList="true" count="0" />
+                  <Filters isList="true" count="0" />
+                  <Lighting>False</Lighting>
+                  <LineColor>181, 18, 62</LineColor>
+                  <LineColorNegative>Firebrick</LineColorNegative>
+                  <LineWidth>2</LineWidth>
+                  <Marker Ref="1014" type="Stimulsoft.Report.Chart.StiMarker" isKey="true">
+                    <BorderColor>Black</BorderColor>
+                    <Brush>White</Brush>
+                    <Visible>False</Visible>
+                  </Marker>
+                  <SeriesLabels Ref="984" type="Stimulsoft.Report.Chart.StiOutsideEndAxisLabels" isKey="true">
+                    <BorderColor>Transparent</BorderColor>
+                    <Brush>[119:255:255:255]</Brush>
+                    <Chart isRef="732" />
+                    <Font>Segoe UI,10</Font>
+                    <LabelColor>50, 58, 69</LabelColor>
+                    <MarkerSize>8, 6</MarkerSize>
+                    <ValueTypeSeparator>-</ValueTypeSeparator>
+                    <Width>0</Width>
+                  </SeriesLabels>
+                  <ShowShadow>False</ShowShadow>
+                  <Title>OUTAGE</Title>
+                  <TrendLines isList="true" count="0" />
+                  <ValueDataColumn>ScriptedTrendLineLoading.outage_value</ValueDataColumn>
+                </SeriesOUTAGE>
               </Series>
               <SeriesLabels Ref="746" type="Stimulsoft.Report.Chart.StiNoneLabels" isKey="true">
                 <Chart isRef="732" />
@@ -8999,7 +9102,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>TrendTransformerLoadingBandTitle</Name>
               <Page isRef="169" />
               <Parent isRef="748" />
-              <Text>Highest transformer loading</Text>
+              <Text>Highest transformer loading: {ScriptedTrendTransformerLoading.element_name}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -9032,7 +9135,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                   <Title Ref="755" type="Stimulsoft.Report.Chart.StiAxisTitle" isKey="true">
                     <Color>140, 140, 140</Color>
                     <Font>Segoe UI,9,Bold</Font>
-                    <Text>Time</Text>
+                    <Text />
                   </Title>
                 </XAxis>
                 <YAxis Ref="756" type="Stimulsoft.Report.Chart.StiYLeftAxis" isKey="true">
@@ -9043,7 +9146,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                     <Color>140, 140, 140</Color>
                     <Direction>BottomToTop</Direction>
                     <Font>Segoe UI,12,Bold</Font>
-                    <Text>Loading [%]</Text>
+                    <Text>%</Text>
                   </Title>
                 </YAxis>
                 <YRightAxis Ref="758" type="Stimulsoft.Report.Chart.StiYRightAxis" isKey="true">
@@ -9075,31 +9178,37 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                 <BorderColor>Transparent</BorderColor>
                 <Brush>[255:255:255]</Brush>
                 <Chart isRef="750" />
+                <Columns>2</Columns>
                 <Direction>LeftToRight</Direction>
                 <Font>Segoe UI,8</Font>
-                <HorAlignment>Center</HorAlignment>
+                <HorAlignment>Right</HorAlignment>
                 <LabelsColor>140, 140, 140</LabelsColor>
                 <MarkerSize>10, 10</MarkerSize>
                 <ShowShadow>False</ShowShadow>
                 <TitleColor>105, 105, 105</TitleColor>
                 <TitleFont>Segoe UI,14,Bold</TitleFont>
-                <VertAlignment>Bottom</VertAlignment>
+                <VertAlignment>TopOutside</VertAlignment>
               </Legend>
               <Name>TrendTransformerLoadingChart</Name>
               <Page isRef="169" />
               <Parent isRef="748" />
-              <Series isList="true" count="1">
-                <Item322 Ref="762" type="Stimulsoft.Report.Chart.StiLineSeries" isKey="true">
-                  <AllowApplyStyle>True</AllowApplyStyle>
+              <Series isList="true" count="2">
+                <SeriesREF Ref="985" type="Stimulsoft.Report.Chart.StiLineSeries" isKey="true">
+                  <AllowApplyStyle>False</AllowApplyStyle>
                   <ArgumentDataColumn>ScriptedTrendTransformerLoading.time_label</ArgumentDataColumn>
-                  <AutoSeriesKeyDataColumn>ScriptedTrendTransformerLoading.case_id</AutoSeriesKeyDataColumn>
-                  <AutoSeriesTitleDataColumn>ScriptedTrendTransformerLoading.series_label</AutoSeriesTitleDataColumn>
                   <Chart isRef="750" />
                   <Conditions isList="true" count="0" />
                   <Filters isList="true" count="0" />
                   <Lighting>False</Lighting>
+                  <LineColor>140, 150, 160</LineColor>
                   <LineColorNegative>Firebrick</LineColorNegative>
-                  <SeriesLabels Ref="763" type="Stimulsoft.Report.Chart.StiOutsideEndAxisLabels" isKey="true">
+                  <LineWidth>1.5</LineWidth>
+                  <Marker Ref="1015" type="Stimulsoft.Report.Chart.StiMarker" isKey="true">
+                    <BorderColor>Black</BorderColor>
+                    <Brush>White</Brush>
+                    <Visible>False</Visible>
+                  </Marker>
+                  <SeriesLabels Ref="986" type="Stimulsoft.Report.Chart.StiOutsideEndAxisLabels" isKey="true">
                     <BorderColor>Transparent</BorderColor>
                     <Brush>[119:255:255:255]</Brush>
                     <Chart isRef="750" />
@@ -9110,10 +9219,40 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                     <Width>0</Width>
                   </SeriesLabels>
                   <ShowShadow>False</ShowShadow>
-                  <Title>Series 1</Title>
+                  <Title>REF</Title>
                   <TrendLines isList="true" count="0" />
-                  <ValueDataColumn>ScriptedTrendTransformerLoading.value</ValueDataColumn>
-                </Item322>
+                  <ValueDataColumn>ScriptedTrendTransformerLoading.ref_value</ValueDataColumn>
+                </SeriesREF>
+                <SeriesOUTAGE Ref="987" type="Stimulsoft.Report.Chart.StiLineSeries" isKey="true">
+                  <AllowApplyStyle>False</AllowApplyStyle>
+                  <ArgumentDataColumn>ScriptedTrendTransformerLoading.time_label</ArgumentDataColumn>
+                  <Chart isRef="750" />
+                  <Conditions isList="true" count="0" />
+                  <Filters isList="true" count="0" />
+                  <Lighting>False</Lighting>
+                  <LineColor>181, 18, 62</LineColor>
+                  <LineColorNegative>Firebrick</LineColorNegative>
+                  <LineWidth>2</LineWidth>
+                  <Marker Ref="1016" type="Stimulsoft.Report.Chart.StiMarker" isKey="true">
+                    <BorderColor>Black</BorderColor>
+                    <Brush>White</Brush>
+                    <Visible>False</Visible>
+                  </Marker>
+                  <SeriesLabels Ref="988" type="Stimulsoft.Report.Chart.StiOutsideEndAxisLabels" isKey="true">
+                    <BorderColor>Transparent</BorderColor>
+                    <Brush>[119:255:255:255]</Brush>
+                    <Chart isRef="750" />
+                    <Font>Segoe UI,10</Font>
+                    <LabelColor>50, 58, 69</LabelColor>
+                    <MarkerSize>8, 6</MarkerSize>
+                    <ValueTypeSeparator>-</ValueTypeSeparator>
+                    <Width>0</Width>
+                  </SeriesLabels>
+                  <ShowShadow>False</ShowShadow>
+                  <Title>OUTAGE</Title>
+                  <TrendLines isList="true" count="0" />
+                  <ValueDataColumn>ScriptedTrendTransformerLoading.outage_value</ValueDataColumn>
+                </SeriesOUTAGE>
               </Series>
               <SeriesLabels Ref="764" type="Stimulsoft.Report.Chart.StiNoneLabels" isKey="true">
                 <Chart isRef="750" />
@@ -9156,7 +9295,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>TrendVoltageMinBandTitle</Name>
               <Page isRef="169" />
               <Parent isRef="766" />
-              <Text>Lowest voltage</Text>
+              <Text>Lowest voltage: {ScriptedTrendVoltageMin.element_name}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -9189,7 +9328,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                   <Title Ref="773" type="Stimulsoft.Report.Chart.StiAxisTitle" isKey="true">
                     <Color>140, 140, 140</Color>
                     <Font>Segoe UI,9,Bold</Font>
-                    <Text>Time</Text>
+                    <Text />
                   </Title>
                 </XAxis>
                 <YAxis Ref="774" type="Stimulsoft.Report.Chart.StiYLeftAxis" isKey="true">
@@ -9200,7 +9339,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                     <Color>140, 140, 140</Color>
                     <Direction>BottomToTop</Direction>
                     <Font>Segoe UI,12,Bold</Font>
-                    <Text>Voltage [p.u.]</Text>
+                    <Text>p.u.</Text>
                   </Title>
                 </YAxis>
                 <YRightAxis Ref="776" type="Stimulsoft.Report.Chart.StiYRightAxis" isKey="true">
@@ -9232,31 +9371,37 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                 <BorderColor>Transparent</BorderColor>
                 <Brush>[255:255:255]</Brush>
                 <Chart isRef="768" />
+                <Columns>2</Columns>
                 <Direction>LeftToRight</Direction>
                 <Font>Segoe UI,8</Font>
-                <HorAlignment>Center</HorAlignment>
+                <HorAlignment>Right</HorAlignment>
                 <LabelsColor>140, 140, 140</LabelsColor>
                 <MarkerSize>10, 10</MarkerSize>
                 <ShowShadow>False</ShowShadow>
                 <TitleColor>105, 105, 105</TitleColor>
                 <TitleFont>Segoe UI,14,Bold</TitleFont>
-                <VertAlignment>Bottom</VertAlignment>
+                <VertAlignment>TopOutside</VertAlignment>
               </Legend>
               <Name>TrendVoltageMinChart</Name>
               <Page isRef="169" />
               <Parent isRef="766" />
-              <Series isList="true" count="1">
-                <Item322 Ref="780" type="Stimulsoft.Report.Chart.StiLineSeries" isKey="true">
-                  <AllowApplyStyle>True</AllowApplyStyle>
+              <Series isList="true" count="2">
+                <SeriesREF Ref="989" type="Stimulsoft.Report.Chart.StiLineSeries" isKey="true">
+                  <AllowApplyStyle>False</AllowApplyStyle>
                   <ArgumentDataColumn>ScriptedTrendVoltageMin.time_label</ArgumentDataColumn>
-                  <AutoSeriesKeyDataColumn>ScriptedTrendVoltageMin.case_id</AutoSeriesKeyDataColumn>
-                  <AutoSeriesTitleDataColumn>ScriptedTrendVoltageMin.series_label</AutoSeriesTitleDataColumn>
                   <Chart isRef="768" />
                   <Conditions isList="true" count="0" />
                   <Filters isList="true" count="0" />
                   <Lighting>False</Lighting>
+                  <LineColor>140, 150, 160</LineColor>
                   <LineColorNegative>Firebrick</LineColorNegative>
-                  <SeriesLabels Ref="781" type="Stimulsoft.Report.Chart.StiOutsideEndAxisLabels" isKey="true">
+                  <LineWidth>1.5</LineWidth>
+                  <Marker Ref="1017" type="Stimulsoft.Report.Chart.StiMarker" isKey="true">
+                    <BorderColor>Black</BorderColor>
+                    <Brush>White</Brush>
+                    <Visible>False</Visible>
+                  </Marker>
+                  <SeriesLabels Ref="990" type="Stimulsoft.Report.Chart.StiOutsideEndAxisLabels" isKey="true">
                     <BorderColor>Transparent</BorderColor>
                     <Brush>[119:255:255:255]</Brush>
                     <Chart isRef="768" />
@@ -9267,10 +9412,40 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                     <Width>0</Width>
                   </SeriesLabels>
                   <ShowShadow>False</ShowShadow>
-                  <Title>Series 1</Title>
+                  <Title>REF</Title>
                   <TrendLines isList="true" count="0" />
-                  <ValueDataColumn>ScriptedTrendVoltageMin.value</ValueDataColumn>
-                </Item322>
+                  <ValueDataColumn>ScriptedTrendVoltageMin.ref_value</ValueDataColumn>
+                </SeriesREF>
+                <SeriesOUTAGE Ref="991" type="Stimulsoft.Report.Chart.StiLineSeries" isKey="true">
+                  <AllowApplyStyle>False</AllowApplyStyle>
+                  <ArgumentDataColumn>ScriptedTrendVoltageMin.time_label</ArgumentDataColumn>
+                  <Chart isRef="768" />
+                  <Conditions isList="true" count="0" />
+                  <Filters isList="true" count="0" />
+                  <Lighting>False</Lighting>
+                  <LineColor>181, 18, 62</LineColor>
+                  <LineColorNegative>Firebrick</LineColorNegative>
+                  <LineWidth>2</LineWidth>
+                  <Marker Ref="1018" type="Stimulsoft.Report.Chart.StiMarker" isKey="true">
+                    <BorderColor>Black</BorderColor>
+                    <Brush>White</Brush>
+                    <Visible>False</Visible>
+                  </Marker>
+                  <SeriesLabels Ref="992" type="Stimulsoft.Report.Chart.StiOutsideEndAxisLabels" isKey="true">
+                    <BorderColor>Transparent</BorderColor>
+                    <Brush>[119:255:255:255]</Brush>
+                    <Chart isRef="768" />
+                    <Font>Segoe UI,10</Font>
+                    <LabelColor>50, 58, 69</LabelColor>
+                    <MarkerSize>8, 6</MarkerSize>
+                    <ValueTypeSeparator>-</ValueTypeSeparator>
+                    <Width>0</Width>
+                  </SeriesLabels>
+                  <ShowShadow>False</ShowShadow>
+                  <Title>OUTAGE</Title>
+                  <TrendLines isList="true" count="0" />
+                  <ValueDataColumn>ScriptedTrendVoltageMin.outage_value</ValueDataColumn>
+                </SeriesOUTAGE>
               </Series>
               <SeriesLabels Ref="782" type="Stimulsoft.Report.Chart.StiNoneLabels" isKey="true">
                 <Chart isRef="768" />
@@ -9313,7 +9488,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
               <Name>TrendVoltageMaxBandTitle</Name>
               <Page isRef="169" />
               <Parent isRef="784" />
-              <Text>Highest voltage</Text>
+              <Text>Highest voltage: {ScriptedTrendVoltageMax.element_name}</Text>
               <TextBrush>[55:55:55]</TextBrush>
               <TextOptions>,,,,WordWrap=True,A=0</TextOptions>
               <VertAlignment>Center</VertAlignment>
@@ -9346,7 +9521,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                   <Title Ref="791" type="Stimulsoft.Report.Chart.StiAxisTitle" isKey="true">
                     <Color>140, 140, 140</Color>
                     <Font>Segoe UI,9,Bold</Font>
-                    <Text>Time</Text>
+                    <Text />
                   </Title>
                 </XAxis>
                 <YAxis Ref="792" type="Stimulsoft.Report.Chart.StiYLeftAxis" isKey="true">
@@ -9357,7 +9532,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                     <Color>140, 140, 140</Color>
                     <Direction>BottomToTop</Direction>
                     <Font>Segoe UI,12,Bold</Font>
-                    <Text>Voltage [p.u.]</Text>
+                    <Text>p.u.</Text>
                   </Title>
                 </YAxis>
                 <YRightAxis Ref="794" type="Stimulsoft.Report.Chart.StiYRightAxis" isKey="true">
@@ -9389,31 +9564,37 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                 <BorderColor>Transparent</BorderColor>
                 <Brush>[255:255:255]</Brush>
                 <Chart isRef="786" />
+                <Columns>2</Columns>
                 <Direction>LeftToRight</Direction>
                 <Font>Segoe UI,8</Font>
-                <HorAlignment>Center</HorAlignment>
+                <HorAlignment>Right</HorAlignment>
                 <LabelsColor>140, 140, 140</LabelsColor>
                 <MarkerSize>10, 10</MarkerSize>
                 <ShowShadow>False</ShowShadow>
                 <TitleColor>105, 105, 105</TitleColor>
                 <TitleFont>Segoe UI,14,Bold</TitleFont>
-                <VertAlignment>Bottom</VertAlignment>
+                <VertAlignment>TopOutside</VertAlignment>
               </Legend>
               <Name>TrendVoltageMaxChart</Name>
               <Page isRef="169" />
               <Parent isRef="784" />
-              <Series isList="true" count="1">
-                <Item322 Ref="798" type="Stimulsoft.Report.Chart.StiLineSeries" isKey="true">
-                  <AllowApplyStyle>True</AllowApplyStyle>
+              <Series isList="true" count="2">
+                <SeriesREF Ref="993" type="Stimulsoft.Report.Chart.StiLineSeries" isKey="true">
+                  <AllowApplyStyle>False</AllowApplyStyle>
                   <ArgumentDataColumn>ScriptedTrendVoltageMax.time_label</ArgumentDataColumn>
-                  <AutoSeriesKeyDataColumn>ScriptedTrendVoltageMax.case_id</AutoSeriesKeyDataColumn>
-                  <AutoSeriesTitleDataColumn>ScriptedTrendVoltageMax.series_label</AutoSeriesTitleDataColumn>
                   <Chart isRef="786" />
                   <Conditions isList="true" count="0" />
                   <Filters isList="true" count="0" />
                   <Lighting>False</Lighting>
+                  <LineColor>140, 150, 160</LineColor>
                   <LineColorNegative>Firebrick</LineColorNegative>
-                  <SeriesLabels Ref="799" type="Stimulsoft.Report.Chart.StiOutsideEndAxisLabels" isKey="true">
+                  <LineWidth>1.5</LineWidth>
+                  <Marker Ref="1019" type="Stimulsoft.Report.Chart.StiMarker" isKey="true">
+                    <BorderColor>Black</BorderColor>
+                    <Brush>White</Brush>
+                    <Visible>False</Visible>
+                  </Marker>
+                  <SeriesLabels Ref="994" type="Stimulsoft.Report.Chart.StiOutsideEndAxisLabels" isKey="true">
                     <BorderColor>Transparent</BorderColor>
                     <Brush>[119:255:255:255]</Brush>
                     <Chart isRef="786" />
@@ -9424,10 +9605,40 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
                     <Width>0</Width>
                   </SeriesLabels>
                   <ShowShadow>False</ShowShadow>
-                  <Title>Series 1</Title>
+                  <Title>REF</Title>
                   <TrendLines isList="true" count="0" />
-                  <ValueDataColumn>ScriptedTrendVoltageMax.value</ValueDataColumn>
-                </Item322>
+                  <ValueDataColumn>ScriptedTrendVoltageMax.ref_value</ValueDataColumn>
+                </SeriesREF>
+                <SeriesOUTAGE Ref="995" type="Stimulsoft.Report.Chart.StiLineSeries" isKey="true">
+                  <AllowApplyStyle>False</AllowApplyStyle>
+                  <ArgumentDataColumn>ScriptedTrendVoltageMax.time_label</ArgumentDataColumn>
+                  <Chart isRef="786" />
+                  <Conditions isList="true" count="0" />
+                  <Filters isList="true" count="0" />
+                  <Lighting>False</Lighting>
+                  <LineColor>181, 18, 62</LineColor>
+                  <LineColorNegative>Firebrick</LineColorNegative>
+                  <LineWidth>2</LineWidth>
+                  <Marker Ref="1020" type="Stimulsoft.Report.Chart.StiMarker" isKey="true">
+                    <BorderColor>Black</BorderColor>
+                    <Brush>White</Brush>
+                    <Visible>False</Visible>
+                  </Marker>
+                  <SeriesLabels Ref="996" type="Stimulsoft.Report.Chart.StiOutsideEndAxisLabels" isKey="true">
+                    <BorderColor>Transparent</BorderColor>
+                    <Brush>[119:255:255:255]</Brush>
+                    <Chart isRef="786" />
+                    <Font>Segoe UI,10</Font>
+                    <LabelColor>50, 58, 69</LabelColor>
+                    <MarkerSize>8, 6</MarkerSize>
+                    <ValueTypeSeparator>-</ValueTypeSeparator>
+                    <Width>0</Width>
+                  </SeriesLabels>
+                  <ShowShadow>False</ShowShadow>
+                  <Title>OUTAGE</Title>
+                  <TrendLines isList="true" count="0" />
+                  <ValueDataColumn>ScriptedTrendVoltageMax.outage_value</ValueDataColumn>
+                </SeriesOUTAGE>
               </Series>
               <SeriesLabels Ref="800" type="Stimulsoft.Report.Chart.StiNoneLabels" isKey="true">
                 <Chart isRef="786" />

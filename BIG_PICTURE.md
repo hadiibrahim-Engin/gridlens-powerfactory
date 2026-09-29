@@ -1,6 +1,6 @@
 # GridLens – Big Picture
 
-Stand: **28. September 2026** · Publisher `5.3.0` · MRT `3.3.0` · Datenvertrag `3.3`
+Stand: **28. September 2026** · Publisher `5.4.0` · MRT `3.4.0` · Datenvertrag `3.4`
 
 GridLens erzeugt in DIgSILENT PowerFactory 2026 einen Bericht zur technischen
 Vorprüfung geplanter Außerbetriebnahmen (Freischaltungen). Ein Klick auf das
@@ -320,7 +320,26 @@ PowerFactory-Kurve. Seit 5.2.0 gibt es keine Relation mehr, und
 
 Die Zeitreihen zeigen dieselben Werte wie PowerFactory, aber als Linie zwischen
 den Zeitpunkten. PowerFactory zeichnet QDS-Ergebnisse als Treppe. An den
-Zeitpunkten selbst stimmen beide Darstellungen überein.
+Zeitpunkten selbst stimmen beide Darstellungen überein. Bis 200 Zeitpunkte
+werden alle Werte geplottet; REF und OUTAGE haben immer dieselben Zeitpunkte.
+REF ist grau, OUTAGE rot – in allen Diagrammen des Berichts.
+
+Das Diagramm „Violating elements inside each outage window“ zeigt je
+Freischaltung REF und OUTAGE **im selben Fenster**. Ohne den REF-Balken wäre
+nicht zu erkennen, ob eine Verletzung von der Freischaltung kommt oder schon
+vorher bestand.
+
+## Vorlagen lokal prüfen
+
+Änderungen an der MRT werden vor der Auslieferung mit
+`Stimulsoft.Reports.Engine.NetCore` 2025.3.5 geladen und gerendert, derselben
+Version, die PowerFactory 2026 SP1 mitbringt. Ohne Lizenz rendert die Engine
+nur die erste Seite vollständig; einzelne Abschnitte werden deshalb gezielt als
+erste Seite gerendert. Zwei Befunde stammen aus dieser Prüfung und wären ohne
+sie erst in PowerFactory aufgefallen: eine leere Komponentenliste, die den
+Designer abstürzen ließ, und REF/OUTAGE-Reihen mit verschiedenen Zeitpunkten.
+Auf dem Mac fehlt die Schrift Segoe UI; Achsentitel verlieren dort ihr letztes
+Zeichen, in PowerFactory nicht.
 
 Jede Änderung an Feldern erfordert gleichzeitig Code, MRT, Versionsnummern und
 Tests. Die Vorlage bindet ausschließlich über Platzhalter; Statuswerte wie

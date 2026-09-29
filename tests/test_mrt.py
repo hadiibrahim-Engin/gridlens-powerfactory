@@ -194,10 +194,14 @@ def test_each_trend_chart_reads_its_own_table():
         chart = next(element for element in band.iter()
                      if element.get("type", "").endswith("StiChart"))
         assert chart.findtext("DataSourceName") == table
-        series = next(element for element in chart.iter()
-                      if element.get("type", "").endswith("StiLineSeries"))
-        assert series.findtext("ArgumentDataColumn") == table + ".time_label"
-        assert series.findtext("ValueDataColumn") == table + ".value"
+        series = [element for element in chart.find("Series")]
+        # Two fixed series with fixed colours: REF grey, OUTAGE red.
+        assert [s.findtext("Title") for s in series] == ["REF", "OUTAGE"]
+        assert [s.findtext("ValueDataColumn") for s in series] == [
+            table + ".ref_value", table + ".outage_value"]
+        assert {s.findtext("ArgumentDataColumn") for s in series} == {table + ".time_label"}
+        assert [s.findtext("LineColor") for s in series] == ["140, 150, 160", "181, 18, 62"]
+        assert all(s.findtext("AutoSeriesKeyDataColumn") is None for s in series)
         # Axis titles do not evaluate placeholders in this engine.
         for axis in chart.iter("Title"):
             assert "{" not in (axis.findtext("Text") or "")
@@ -225,18 +229,27 @@ def test_overview_page_precedes_the_first_chapter_and_reads_its_own_tables():
         "OverviewBarsBand", "OverviewPageBreakBand", "ModelQualityTitleBand"]
     assert root.find(".//OverviewKpiBand").findtext("DataSourceName") == "ScriptedOverview"
 
-    expected = {
-        "OverviewLoadingPie": ("StiPieSeries", "ScriptedOverviewLoadingClasses"),
-        "OverviewVoltagePie": ("StiPieSeries", "ScriptedOverviewVoltageClasses"),
-        "OverviewCaseBars": ("StiClusteredBarSeries", "ScriptedOverviewViolationsByCase"),
-        "OverviewOutageBars": ("StiClusteredBarSeries", "ScriptedOverviewViolationsByOutage"),
-    }
-    for name, (series_type, table) in expected.items():
+    for name, table in (("OverviewLoadingPie", "ScriptedOverviewLoadingClasses"),
+                        ("OverviewVoltagePie", "ScriptedOverviewVoltageClasses")):
+        chart = root.find(".//" + name)
+        assert chart.findtext("DataSourceName") == table, name
+        (series,) = list(chart.find("Series"))
+        assert series.get("type").endswith("StiPieSeries")
+        # Each class has a fixed colour; the style palette must not decide.
+        assert len(series.find("Conditions")) == 3
+        labels = chart.find("SeriesLabels")
+        assert labels.findtext("LegendValueType") == "Argument"
+        assert labels.findtext("Visible") != "False"
+        assert (chart.find("Title").findtext("Text") or "").strip(), name
+    for name, table in (("OverviewCaseBars", "ScriptedOverviewViolationsByCase"),
+                        ("OverviewOutageBars", "ScriptedOverviewViolationsByOutage")):
         chart = root.find(".//" + name)
         assert chart.findtext("DataSourceName") == table, name
         series = list(chart.find("Series"))
-        assert len(series) == 1 and series[0].get("type").endswith(series_type)
-        assert series[0].findtext("ValueDataColumn").startswith(table + ".")
+        assert [s.findtext("Title") for s in series] == ["REF", "OUTAGE"]
+        assert [s.findtext("ValueDataColumn") for s in series] == [
+            table + ".ref_count", table + ".outage_count"]
+        assert [s.findtext("Brush") for s in series] == ["[140:150:160]", "[181:18:62]"]
         assert (chart.find("Title").findtext("Text") or "").strip(), name
 
 

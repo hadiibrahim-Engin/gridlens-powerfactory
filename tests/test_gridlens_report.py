@@ -250,9 +250,9 @@ class App:
 
 
 def test_table_contract_is_single_versioned_24_table_contract():
-    assert gl.PUBLISHER_VERSION == "5.3.0"
-    assert gl.TEMPLATE_VERSION == "3.3.0"
-    assert gl.DATA_CONTRACT_VERSION == "3.3"
+    assert gl.PUBLISHER_VERSION == "5.4.0"
+    assert gl.TEMPLATE_VERSION == "3.4.0"
+    assert gl.DATA_CONTRACT_VERSION == "3.4"
     assert len(gl.TABLES) == 24
     tables = dict(gl.TABLES)
     assert "ScriptedCases" in tables
@@ -1306,12 +1306,10 @@ def test_each_trend_chart_gets_its_own_table_with_one_element():
 
     line = payload['ScriptedTrendLineLoading']
     assert {row['element_name'] for row in line} == {'D7_L1'}
-    assert [row['value'] for row in line if row['case_id'] == 'OUTAGE'] == [
-        90.0, 120.0, 95.0]
-    assert {row['series_label'] for row in line} == {
-        'REF · D7_L1', 'OUTAGE · D7_L1'}
-    assert [row['time_label'] for row in line if row['case_id'] == 'REF'] == [
+    assert [row['time_label'] for row in line] == [
         '2014-01-01 00:00', '2014-01-01 01:00', '2014-01-01 02:00']
+    assert [row['ref_value'] for row in line] == [60.0, 70.0, 80.0]
+    assert [row['outage_value'] for row in line] == [90.0, 120.0, 95.0]
 
     assert {row['element_name'] for row in payload['ScriptedTrendVoltageMin']} == {'D7_B1'}
     assert {row['element_name'] for row in payload['ScriptedTrendVoltageMax']} == {'D7_B2'}
@@ -1392,10 +1390,9 @@ def test_overview_compares_violations_between_ref_and_outage():
 
     gl._overview(payload, _overview_results(), [])
 
-    rows = {(row['case_id'], row['violation_type']): row['element_count']
-            for row in payload['ScriptedOverviewViolationsByCase']}
-    assert rows == {('REF', 'Overload'): 1, ('OUTAGE', 'Overload'): 2,
-                    ('REF', 'Voltage band'): 0, ('OUTAGE', 'Voltage band'): 2}
+    rows = [(row['violation_type'], row['ref_count'], row['outage_count'])
+            for row in payload['ScriptedOverviewViolationsByCase']]
+    assert rows == [('Overload', 1, 2), ('Voltage band', 0, 2)]
     summary = payload['ScriptedOverview'][0]
     assert summary['chart_case_id'] == 'OUTAGE'
     assert summary['assessed_elements'] == 8
@@ -1413,10 +1410,11 @@ def test_overview_counts_violations_inside_each_outage_window():
 
     gl._overview(payload, _overview_results(), outages)
 
-    rows = [(row['outage_name'], row['violating_elements'])
+    rows = [(row['outage_name'], row['ref_count'], row['outage_count'])
             for row in payload['ScriptedOverviewViolationsByOutage']]
-    # Window 0: D7_L2 at 105 % and D7_B1 at 0.93 p.u.; window 1 is clean.
-    assert rows == [('Line 04 - 14', 2), ('Line 15 - 16', 0)]
+    # Window 0 in OUTAGE: D7_L2 at 105 % and D7_B1 at 0.93 p.u.; REF has no
+    # window statistics in this fixture. Window 1 is clean.
+    assert rows == [('Line 04 - 14', 0, 2), ('Line 15 - 16', 0, 0)]
     summary = payload['ScriptedOverview'][0]
     assert summary['outages_text'] == '2 / 3'
 
@@ -1430,3 +1428,44 @@ def test_overview_without_outages_says_so_instead_of_an_empty_chart():
     assert [row['outage_name'] for row in rows] == ['No planned outage in scope']
     assert payload['ScriptedOverview'][0]['chart_case_id'] == 'REF'
     assert payload['ScriptedOverview'][0]['overload_text'] == '1'
+
+
+
+def test_outage_chart_separates_existing_from_added_violations():
+    # An element that is already overloaded without the outage must count in
+    # the REF bar of that window, so the outage's own effect stays visible.
+    results = _overview_results()
+    window = {0: {'min': 80.0, 'max': 104.0, 'mean': 90.0,
+                  'time_min': 't0', 'time_max': 't1'}}
+    for item, _ in results[0]['by_category']['line']:
+        if item['key'] == 'D7_L2':
+            item['windows'] = window
+    outages = [{'name': 'Line 04 - 14', 'status': gl.OUTAGE_CONSIDERED, 'window_index': 0}]
+    payload = gl.empty_payload()
+
+    gl._overview(payload, results, outages)
+
+    row = payload['ScriptedOverviewViolationsByOutage'][0]
+    assert (row['ref_count'], row['outage_count']) == (1, 2)
+
+
+def test_ref_and_outage_are_sampled_at_identical_times():
+    # Per-series extremes used to be added to the sample, so REF and OUTAGE
+    # got different time points and the chart axis ran out of order.
+    def item(peak_at):
+        values = [50.0] * 500
+        values[peak_at] = 140.0
+        return {'points': [('t{}'.format(i), float(i), v) for i, v in enumerate(values)]}
+
+    ref = gl.sampled_plot_points(item(17))
+    outage = gl.sampled_plot_points(item(333))
+
+    assert [point[0] for point in ref] == [point[0] for point in outage]
+    assert len(ref) == gl.MAX_PLOT_POINTS
+    assert ref[0][0] == 't0' and ref[-1][0] == 't499'
+
+
+def test_short_studies_are_plotted_without_thinning():
+    points = [('t{}'.format(i), float(i), 1.0) for i in range(168)]
+
+    assert gl.sampled_plot_points({'points': points}) == points

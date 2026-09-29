@@ -20,7 +20,7 @@ Die gemeinsam auszuliefernde Laufzeit besteht ausschließlich aus:
 - `powerfactory/gridlens_report.py`
 - `powerfactory/MASTER_GRIDLENS.mrt`
 
-Publisher-Version: `5.3.0`; MRT: `3.3.0`; Datenvertrag: `3.3`.
+Publisher-Version: `5.4.0`; MRT: `3.4.0`; Datenvertrag: `3.4`.
 
 Das einzelne ComPython liegt direkt unter dem `IntReport`. Es verwendet das
 aktive `ComStatsim` einschließlich Zeitraum, Zeitschritt, Profilen und
@@ -112,6 +112,22 @@ Kein Diagramm darf über eine Data Relation gefiltert werden: Die
 PowerFactory-Berichtsengine wendet Relationen auf Diagramme nicht an und
 zeichnet sonst die Daten aller Master-Zeilen in ein Diagramm. Jedes Diagramm
 liest eine eigene Tabelle, die nur seine Reihen enthält (`ScriptedTrend*`).
+
+Diagramme, die REF und OUTAGE vergleichen, lesen Tabellen im Breitformat
+(`ref_value`/`outage_value` bzw. `ref_count`/`outage_count`) und haben zwei
+feste Serien: REF grau `[140:150:160]`, OUTAGE rot `[181:18:62]`. Kreise färben
+ihre Klassen über `Conditions` auf dem Argument; die Legende zeigt über
+`LegendValueType=Argument` die Klassennamen. Die Palette des Diagrammstils
+darf keine Bedeutung tragen.
+
+Leere Listen werden selbstschließend geschrieben
+(`<Components isList="true" count="0" />`): Stimulsoft 2025.3 liest den
+Leerraum zwischen Öffnungs- und Schluss-Tag als String-Eintrag, und der
+Designer bricht mit `InvalidCastException` ab.
+
+Zeitreihen werden bis `MAX_PLOT_POINTS = 200` ungekürzt geplottet, darüber auf
+einem Raster, das nur von der Punktzahl abhängt. REF und OUTAGE haben so immer
+dieselben Zeitpunkte; eigene Extremwerte pro Reihe werden nicht ergänzt.
 
 `<ReportFile />` bleibt leer. Keine lokalen Pfade, Mock-Daten oder externen
 Payload-/Schema-Abhängigkeiten dürfen in die Auslieferung gelangen. Eingebettete
