@@ -126,8 +126,10 @@ Gehört kein Element zu einem passenden Grid, bricht der Lauf mit einem
 Hinweis auf die Konstante ab.
 
 Was der Filter im eigenen Projekt auswählt, zeigt `tools/probe_grid_filter.py`.
-Die Datei neben `gridlens_report.py` legen, als eigenes ComPython starten und
-die Ausgabe lesen. Sie listet alle Grids mit `IN`/`out`, zeigt für Beispiele,
+Das Skript ist eigenständig und braucht nur PowerFactory: als eigenes
+ComPython anlegen, starten und die Ausgabe lesen. Den Filter trägt es als
+Kopie in sich; `tests/test_probe_grid_filter.py` stellt sicher, dass er sich
+genauso verhält wie der im Bericht. Sie listet alle Grids mit `IN`/`out`, zeigt für Beispiele,
 woher das Grid kam, zählt bewertete und ignorierte Elemente je Klasse und
 Grid und nennt für das gebundene Ergebnisobjekt genau die Reihen, die der
 Bericht lesen würde. Das Skript ändert nichts am Projekt.

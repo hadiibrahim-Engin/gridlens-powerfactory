@@ -1,12 +1,10 @@
 """GridLens probe: show which elements the grid filter assesses and ignores.
 
-This is a diagnostic tool, not part of the GridLens delivery. It only reads:
+A stand-alone diagnostic: it needs nothing but PowerFactory. It only reads;
 nothing is calculated, written or published.
 
-Put this file in the same folder as gridlens_report.py, create a separate
-ComPython for it anywhere in the active study case and run it once. It loads
-gridlens_report.py and calls the very functions the report uses, so what it
-prints is what the report will do:
+Create a ComPython for this file anywhere in the active study case and run it
+once. It applies the same grid filter as gridlens_report.py and prints
 
 1. every grid in the project and whether GRID_NAME_FILTER selects it,
 2. for a few elements per class, how the grid was determined,
@@ -17,12 +15,7 @@ prints is what the report will do:
    the report would assess and which it would skip, grouped by grid.
 """
 
-import importlib.util
-import os
 import time
-
-# Where gridlens_report.py lives if it is not next to this file.
-GRIDLENS_SCRIPT = r""
 
 ELEMENT_CLASSES = ("ElmLne", "ElmTr2", "ElmTr3", "ElmTerm")
 EXAMPLES_PER_GROUP = 5
@@ -43,39 +36,82 @@ def emit(app, message=""):
     print(message, flush=True)
 
 
-def load_gridlens(app):
-    candidates = []
-    if GRIDLENS_SCRIPT:
-        candidates.append(GRIDLENS_SCRIPT)
+# --- The grid filter, kept identical to gridlens_report.py ------------------
+# tests/test_probe_grid_filter.py fails if the two ever behave differently.
+
+GRID_NAME_FILTER = 'D7'
+VARIABLES = {'line': ('c:loading', 'm:loading'), 'transformer': ('c:loading', 'm:loading'), 'voltage': ('m:u', 'm:u1'), 'voltage_angle': ('m:phiu', 'm:phiu1')}
+CLASS_CATEGORIES = {'ElmLne': ('line',), 'ElmTr2': ('transformer',), 'ElmTr3': ('transformer',), 'ElmTerm': ('voltage', 'voltage_angle')}
+
+
+def safe_attr(obj, name, default=None):
     try:
-        candidates.append(os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                       "gridlens_report.py"))
-    except NameError:
+        value = getattr(obj, name)
+        return default if value is None else value
+    except Exception:
+        return default
+
+
+def object_key(obj):
+    try:
+        value = obj.GetFullName()
+        if value:
+            return str(value)
+    except Exception:
         pass
-    for path in candidates:
-        if os.path.isfile(path):
-            spec = importlib.util.spec_from_file_location("gridlens_report_probe", path)
-            module = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(module)
-            return module, path
-    emit(app, "gridlens_report.py was not found. Tried: {}".format(
-        ", ".join(candidates) or "<nothing>"))
-    emit(app, "Put this probe next to gridlens_report.py or set GRIDLENS_SCRIPT.")
-    return None, None
+    return str(safe_attr(obj, 'loc_name', 'unknown'))
 
 
-def grid_source(gl, obj):
+def object_name(obj):
+    value = safe_attr(obj, 'loc_name', '')
+    return str(value) if value else object_key(obj).rsplit('\\', 1)[-1]
+
+
+def class_name(obj):
+    try:
+        return str(obj.GetClassName())
+    except Exception:
+        return ''
+
+
+def element_grid_name(obj):
+    """Name of the grid an element belongs to; '' when it has none."""
+    grid = safe_attr(obj, 'cpGrid')
+    if grid is not None and not isinstance(grid, (str, int, float, bool)):
+        name = object_name(grid)
+        if name:
+            return name
+    for part in reversed(object_key(obj).split('\\')):
+        if part.endswith('.ElmNet'):
+            return part[:-len('.ElmNet')]
+    return ''
+
+
+def element_in_scope(obj):
+    return not GRID_NAME_FILTER or GRID_NAME_FILTER in element_grid_name(obj)
+
+
+def result_category(obj, variable):
+    for category in CLASS_CATEGORIES.get(class_name(obj), ()):
+        if variable in VARIABLES[category]:
+            return category
+    return None
+
+
+# --- Probe --------------------------------------------------------------------
+
+def grid_source(obj):
     """How element_grid_name found the grid: cpGrid, path or none."""
-    grid = gl.safe_attr(obj, "cpGrid")
-    if grid is not None and not isinstance(grid, (str, int, float, bool)) and gl.object_name(grid):
+    grid = safe_attr(obj, "cpGrid")
+    if grid is not None and not isinstance(grid, (str, int, float, bool)) and object_name(grid):
         return "cpGrid"
-    if any(part.endswith(".ElmNet") for part in gl.object_key(obj).split("\\")):
+    if any(part.endswith(".ElmNet") for part in object_key(obj).split("\\")):
         return "path"
     return "none"
 
 
-def path_grid(gl, obj):
-    for part in reversed(gl.object_key(obj).split("\\")):
+def path_grid(obj):
+    for part in reversed(object_key(obj).split("\\")):
         if part.endswith(".ElmNet"):
             return part[:-len(".ElmNet")]
     return ""
@@ -98,28 +134,28 @@ def section(app, title):
     emit(app, "=== {} ===".format(title))
 
 
-def report_grids(app, gl):
+def report_grids(app):
     section(app, "1. GRIDS")
     grids = {}
     for grid in calc_relevant(app, "*.ElmNet"):
-        grids[gl.object_key(grid)] = (grid, "active")
+        grids[object_key(grid)] = (grid, "active")
     try:
         project = app.GetActiveProject()
         for grid in project.GetContents("*.ElmNet", 1) or []:
-            grids.setdefault(gl.object_key(grid), (grid, "inactive"))
+            grids.setdefault(object_key(grid), (grid, "inactive"))
     except Exception:
         pass
     if not grids:
         emit(app, "  No ElmNet found in the active project.")
         return
-    for key in sorted(grids, key=lambda k: gl.object_name(grids[k][0]).casefold()):
+    for key in sorted(grids, key=lambda k: object_name(grids[k][0]).casefold()):
         grid, state = grids[key]
-        name = gl.object_name(grid)
-        selected = not gl.GRID_NAME_FILTER or gl.GRID_NAME_FILTER in name
+        name = object_name(grid)
+        selected = not GRID_NAME_FILTER or GRID_NAME_FILTER in name
         emit(app, "  [{}] {:<40} {:<8}".format("IN " if selected else "out", name, state))
 
 
-def report_examples(app, gl):
+def report_examples(app):
     section(app, "2. HOW THE GRID IS DETERMINED (examples)")
     for element_class in ELEMENT_CLASSES:
         objects = calc_relevant(app, "*." + element_class)
@@ -129,15 +165,15 @@ def report_examples(app, gl):
             if shown >= 3:
                 break
             shown += 1
-            raw = gl.safe_attr(obj, "cpGrid")
-            raw_text = "{} '{}'".format(gl.class_name(raw), gl.object_name(raw)) if raw is not None and hasattr(raw, "GetClassName") else repr(raw)
+            raw = safe_attr(obj, "cpGrid")
+            raw_text = "{} '{}'".format(class_name(raw), object_name(raw)) if raw is not None and hasattr(raw, "GetClassName") else repr(raw)
             emit(app, "    {:<32} cpGrid={:<36} path-grid='{}' -> grid='{}' via {} -> {}".format(
-                gl.object_name(obj)[:32], raw_text[:36], path_grid(gl, obj),
-                gl.element_grid_name(obj), grid_source(gl, obj),
-                "ASSESSED" if gl.element_in_scope(obj) else "ignored"))
+                object_name(obj)[:32], raw_text[:36], path_grid(obj),
+                element_grid_name(obj), grid_source(obj),
+                "ASSESSED" if element_in_scope(obj) else "ignored"))
 
 
-def report_elements(app, gl):
+def report_elements(app):
     section(app, "3. ALL CALCULATION-RELEVANT ELEMENTS")
     for element_class in ELEMENT_CLASSES:
         objects = calc_relevant(app, "*." + element_class)
@@ -147,39 +183,39 @@ def report_elements(app, gl):
         by_grid = {}
         disagree_examples = []
         for obj in objects:
-            grid = gl.element_grid_name(obj)
+            grid = element_grid_name(obj)
             by_grid[grid or "<no grid>"] = by_grid.get(grid or "<no grid>", 0) + 1
             if not grid:
                 no_grid += 1
-            if gl.element_in_scope(obj):
+            if element_in_scope(obj):
                 inside += 1
             else:
                 outside += 1
-            stored = path_grid(gl, obj)
+            stored = path_grid(obj)
             if grid and stored and grid != stored:
                 disagree += 1
                 if len(disagree_examples) < EXAMPLES_PER_GROUP:
                     disagree_examples.append("{} (cpGrid '{}', stored in '{}')".format(
-                        gl.object_name(obj), grid, stored))
+                        object_name(obj), grid, stored))
         emit(app, "  {:<8} total {:>6}{} | assessed {:>6} | ignored {:>6} | without grid {:>4} | cpGrid differs from path {:>4}".format(
             element_class, total, " (first {} inspected)".format(len(objects)) if total > len(objects) else "",
             inside, outside, no_grid, disagree))
         for grid, count in sorted(by_grid.items(), key=lambda entry: -entry[1])[:8]:
-            selected = grid != "<no grid>" and (not gl.GRID_NAME_FILTER or gl.GRID_NAME_FILTER in grid)
+            selected = grid != "<no grid>" and (not GRID_NAME_FILTER or GRID_NAME_FILTER in grid)
             emit(app, "      [{}] {:<40} {:>6}".format("IN " if selected else "out", grid, count))
         for example in disagree_examples:
             emit(app, "      differs: " + example)
 
 
-def report_result_series(app, gl):
+def report_result_series(app):
     section(app, "4. RESULT SERIES THE REPORT WOULD READ")
     getter = getattr(app, "GetFromStudyCase", None)
     qds = getter("ComStatsim") if callable(getter) else None
-    result = gl.safe_attr(qds, "results") if qds is not None else None
+    result = safe_attr(qds, "results") if qds is not None else None
     if result is None:
         emit(app, "  No ComStatsim.results bound; nothing to inspect.")
         return
-    emit(app, "  Result object: '{}'".format(gl.object_name(result)))
+    emit(app, "  Result object: '{}'".format(object_name(result)))
     try:
         result.Load()
     except Exception as exc:
@@ -202,22 +238,22 @@ def report_result_series(app, gl):
         try:
             obj = result.GetObject(column)
             variable = str(result.GetVariable(column))
-            category = gl.result_category(obj, variable)
+            category = result_category(obj, variable)
         except Exception:
             unsupported += 1
             continue
-        if not category or variable not in gl.VARIABLES[category]:
+        if not category or variable not in VARIABLES[category]:
             unsupported += 1
             continue
-        grid = gl.element_grid_name(obj) or "<no grid>"
-        if gl.element_in_scope(obj):
+        grid = element_grid_name(obj) or "<no grid>"
+        if element_in_scope(obj):
             assessed[grid] = assessed.get(grid, 0) + 1
             if len(examples_in) < EXAMPLES_PER_GROUP:
-                examples_in.append("{} {} [{}] in '{}'".format(gl.class_name(obj), gl.object_name(obj), variable, grid))
+                examples_in.append("{} {} [{}] in '{}'".format(class_name(obj), object_name(obj), variable, grid))
         else:
             skipped[grid] = skipped.get(grid, 0) + 1
             if len(examples_out) < EXAMPLES_PER_GROUP:
-                examples_out.append("{} {} [{}] in '{}'".format(gl.class_name(obj), gl.object_name(obj), variable, grid))
+                examples_out.append("{} {} [{}] in '{}'".format(class_name(obj), object_name(obj), variable, grid))
     elapsed = time.monotonic() - started
     emit(app, "  Columns: {}{}; not a GridLens variable: {}; filter time {:.1f} s ({:.0f} us per column)".format(
         columns, " (first {} inspected)".format(inspected) if inspected < columns else "",
@@ -247,16 +283,11 @@ def main():
     if app is None:
         print("PowerFactory returned no application object.", flush=True)
         return
-    gl, path = load_gridlens(app)
-    if gl is None:
-        return
     emit(app, "=== GridLens grid-filter probe (read-only) ===")
-    emit(app, "gridlens_report.py : {}".format(path))
-    emit(app, "Publisher version  : {}".format(gl.PUBLISHER_VERSION))
-    emit(app, "GRID_NAME_FILTER   : {!r}".format(gl.GRID_NAME_FILTER))
+    emit(app, "GRID_NAME_FILTER : {!r}".format(GRID_NAME_FILTER))
     for step in (report_grids, report_examples, report_elements, report_result_series):
         try:
-            step(app, gl)
+            step(app)
         except Exception as exc:
             emit(app, "  !! {} failed: {}: {}".format(step.__name__, type(exc).__name__, exc))
     emit(app)

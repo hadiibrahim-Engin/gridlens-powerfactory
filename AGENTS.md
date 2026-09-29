@@ -89,6 +89,9 @@ Das Grid kommt aus dem Attribut `cpGrid` („Grid“), ersatzweise aus dem
 Varianten in einer Ausbaustufe liegen und ihr Pfad kein Grid enthält. Der
 Filter greift in `collect_series` vor dem Lesen der Werte.
 `tools/probe_grid_filter.py` zeigt im Zielprojekt, was der Filter auswählt.
+Es ist eigenständig und enthält eine Kopie des Filters; wer den Filter in
+`gridlens_report.py` ändert, muss die Kopie mitziehen, sonst schlägt
+`tests/test_probe_grid_filter.py` fehl.
 
 ## Fachliche Regeln
 
