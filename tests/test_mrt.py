@@ -238,3 +238,14 @@ def test_overview_page_precedes_the_first_chapter_and_reads_its_own_tables():
         assert len(series) == 1 and series[0].get("type").endswith(series_type)
         assert series[0].findtext("ValueDataColumn").startswith(table + ".")
         assert (chart.find("Title").findtext("Text") or "").strip(), name
+
+
+def test_empty_lists_are_self_closing():
+    # Stimulsoft 2025.3 reads the whitespace inside
+    # <Components isList="true" count="0">...</Components> as a string item;
+    # the designer then fails with "Unable to cast object of type
+    # 'System.String' to type 'StiComponent'". An XML parser hides this, so
+    # the raw text is checked.
+    text = MRT.read_text(encoding="utf-8")
+    offenders = re.findall(r'<(\w+) isList="true" count="0">\s*</\1>', text)
+    assert offenders == []

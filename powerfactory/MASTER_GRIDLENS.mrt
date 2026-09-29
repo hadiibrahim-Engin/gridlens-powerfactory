@@ -3038,8 +3038,7 @@ BAgQIECAQEEC/we+W8zijWuN2gAAAABJRU5ErkJggg==</ImageBytes>
           <BusinessObjectGuid isNull="true" />
           <CanBreak>False</CanBreak>
           <ClientRectangle>0,0,17,0.01</ClientRectangle>
-          <Components isList="true" count="0">
-          </Components>
+          <Components isList="true" count="0" />
           <Conditions isList="true" count="0" />
           <DataSourceName>ScriptedReportMeta</DataSourceName>
           <Expressions isList="true" count="0" />
