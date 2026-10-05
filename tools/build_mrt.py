@@ -616,6 +616,9 @@ def build_page(b: Builder, logo: str) -> str:
           "ScriptedTrendMostLoaded", "MostLoadedChart")
     trend("trenddelta", "11", "Largest Delta vs Reference - Time Plot", "Named line with the greatest change between Reference and each outage.",
           "ScriptedTrendLargestDelta", "DeltaTrendChart")
+    none_filter = [META + '.has_cases == "0"']
+    note_box(flow, "TrendDeltaNone", "No planned outage case was calculated, so there is no change against Reference to show.", filters=none_filter,
+             height=1.1, font="{},9,Bold".format(FONT))
 
     # --- LODF ranking
     section_title(flow, "lodf", "12", "Line Impact Ranking by Outage vs Reference",
@@ -627,6 +630,8 @@ def build_page(b: Builder, logo: str) -> str:
         col("Delta", "delta_text", 3.0, "ScriptedLodfRanking", align="Right"), col("Status", "status_label", 2.5, "ScriptedLodfRanking", align="Center")],
         conditions=violation_conditions("ScriptedLodfRanking"), group={
             "condition": "{ScriptedLodfRanking.case_order}", "title": "{ScriptedLodfRanking.case_name}", "note": "{ScriptedLodfRanking.basis_text}"})
+    note_box(flow, "LodfNone", "No planned outage case was calculated, so there is no ranking to show.", filters=none_filter, height=1.1,
+             font="{},9,Bold".format(FONT))
     note_box(flow, "LodfNote",
              "LODF = change of the flow on the line caused by the outage / flow the outaged equipment carried before (signed, bus1 side). Delta = maximum "
              "loading in the outage case minus maximum loading in Reference inside the outage window, in percentage points (pp). Lines switched off by the "
