@@ -621,10 +621,10 @@ def build_page(b: Builder, logo: str) -> str:
     section_title(flow, "lodf", "12", "Line Impact Ranking by Outage vs Reference",
                   "Lines ranked by their line outage distribution factor (LODF) from PowerFactory; the measured loading change stands next to it.")
     table(flow, "Lodf", "ScriptedLodfRanking", [
-        col("Rank", "rank", 1.4, "ScriptedLodfRanking", align="Center"), col("Line", "element_name", 7.2, "ScriptedLodfRanking"),
-        col("Voltage", "voltage_level", 2.4, "ScriptedLodfRanking"), col("LODF", "lodf_text", 2.6, "ScriptedLodfRanking", align="Right"),
-        col("REF max", "ref_text", 2.8, "ScriptedLodfRanking", align="Right"), col("Case max", "outage_text", 2.8, "ScriptedLodfRanking", align="Right"),
-        col("Delta", "delta_text", 2.8, "ScriptedLodfRanking", align="Right"), col("Status", "status_label", 2.9, "ScriptedLodfRanking", align="Center")],
+        col("Rank", "rank", 1.6, "ScriptedLodfRanking", align="Center"), col("Line", "element_name", 8.2, "ScriptedLodfRanking"),
+        col("Voltage", "voltage_level", 2.6, "ScriptedLodfRanking"), col("LODF", "lodf_text", 2.8, "ScriptedLodfRanking", align="Right"),
+        col("REF max", "ref_text", 3.0, "ScriptedLodfRanking", align="Right"), col("Case max", "outage_text", 3.0, "ScriptedLodfRanking", align="Right"),
+        col("Delta", "delta_text", 3.0, "ScriptedLodfRanking", align="Right"), col("Status", "status_label", 2.5, "ScriptedLodfRanking", align="Center")],
         conditions=violation_conditions("ScriptedLodfRanking"), group={
             "condition": "{ScriptedLodfRanking.case_order}", "title": "{ScriptedLodfRanking.case_name}", "note": "{ScriptedLodfRanking.basis_text}"})
     note_box(flow, "LodfNote",
