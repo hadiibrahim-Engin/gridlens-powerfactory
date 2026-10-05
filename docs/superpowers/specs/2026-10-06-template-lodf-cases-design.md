@@ -110,3 +110,17 @@ Python (`TABLES`) und MRT müssen exakt übereinstimmen. Neu/geändert (Feldlist
 - Es wird **keine** Produktionsfreigabe behauptet: der echte PowerFactory-2026-Test (Einzel-Cases mit `outserv`, LODF im
   Assessment, `ElmRes`-Zeitstempel am Fensterende) steht aus und wird in `powerfactory/README.md` vermerkt.
 - Merge: Feature-Branch → `main` lokal; Push nach Rückfrage.
+
+## Entscheidungen bei der Umsetzung
+
+- **Fenster oder ganzer Zeitraum.** Zeilen je Case (Calculated Cases, Metric View, Kennzahlenkarten, LODF-Ranking, Delta)
+  vergleichen Case und REF im Zeitfenster der Außerbetriebnahme. Tabellen und Diagramme mit **gemeinsamer** REF-Spalte
+  (Zählungen, Radar, Top 10 je Case, Anhänge, Balken) zeigen die Maxima des ganzen Zeitraums, wie das Template es beschreibt.
+  Ein einzelner Case verändert nur sein Fenster; ganzzeitliche Maxima würden dort sonst überall das REF-Maximum zeigen.
+- **Variable Spaltenzahl ohne leere Spalten.** Statt leerer Slots enthält die MRT je Spaltenzahl ein Band-Paar (Tabellen, 0–6) und
+  je Anzahl gezeichneter Cases ein Diagramm (Radar, Zeitplots, 1–7); Filter auf `col_count` bzw. `ReportMeta.chart_cases`.
+- **LODF-Ranking je Case als eigener Block** (Gruppenkopf mit Begründung), nicht als Spalten nebeneinander: drei Werte je Case
+  (LODF, Case-Maximum, Delta) passen nicht in 6 Spalten.
+- **Inhaltsverzeichnis ohne Seitenzahlen** (klickbare Lesezeichen); Stimulsoft kennt statisch keine Seitenzahl eines Lesezeichens.
+- **Anhang C (Generatoren)** entfällt, der Spannungsanhang heißt dadurch Anhang C.
+- Der Satz „Linienplot statt Radar“ des Templates entfällt; Linienplots und Radar bleiben beide.

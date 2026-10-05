@@ -1,12 +1,14 @@
 # GridLens – Big Picture
 
-Stand: **29. September 2026** · Publisher `6.0.0` · MRT `4.0.0` · Datenvertrag `4.0`
+Stand: **6. Oktober 2026** · Publisher `7.0.0` · MRT `5.0.0` · Datenvertrag `5.0`
 
 GridLens erzeugt in DIgSILENT PowerFactory 2026 einen Bericht zur technischen
 Vorprüfung geplanter Außerbetriebnahmen (Freischaltungen). Ein Klick auf das
-ComPython rechnet das Netz einmal ohne und einmal mit den Freischaltungen,
-bewertet jede Freischaltung in ihrem eigenen Zeitfenster und füllt die
-Tabellen, aus denen PowerFactory den Bericht rendert.
+ComPython rechnet das Netz einmal ohne Freischaltungen (`REF`) und danach
+**jede Freischaltung als eigenen Case**, bewertet jeden Case gegen `REF` in
+seinem Zeitfenster, ergänzt die LODF aus PowerFactory und füllt die Tabellen,
+aus denen PowerFactory den Bericht im Layout des Templates
+`GridLens_Template_Optimiert_v2.pdf` rendert.
 
 Der Bericht ist eine technische Vorprüfung. Er ist keine betriebliche Freigabe
 und kein Nachweis für N-1-Sicherheit, Schutzkoordination,
@@ -74,6 +76,7 @@ sequenceDiagram
     autonumber
     participant U as Anwender
     participant GL as gridlens_report.py
+    participant V as ComVstab (LODF)
     participant Q as ComStatsim
     participant E as ElmRes (temporär)
     participant R as IntReport
@@ -81,26 +84,29 @@ sequenceDiagram
     U->>GL: ComPython starten
     Note over GL: 01 STARTUP · 02 CONTEXT/SETTINGS<br/>Zeitraum, iopt_maint, Study Time erfassen
     Note over GL: 03 OUTAGES<br/>Freischaltungen finden und gegen den Zeitraum prüfen
+    GL->>V: 03 LODF · eigene Contingency Analysis, Execute, _LODF lesen<br/>Einstellungen zurück · Hilfsobjekte löschen
 
     GL->>Q: iopt_maint = 0 · results → Kopie REF
     Q->>E: 04 CALCULATION REF
     GL->>E: 05 EXTRACTION<br/>Gesamt- und Fensterstatistik
 
-    alt mindestens eine Freischaltung im Zeitraum
-        GL->>Q: iopt_maint = 1 · results → Kopie OUTAGE
-        Q->>E: 04 CALCULATION OUTAGE<br/>PowerFactory wendet Freischaltungen an
+    loop je Freischaltung im Zeitraum (OUT01, OUT02, …)
+        GL->>Q: iopt_maint = 1 · outserv der übrigen = 1 · results → neue Kopie
+        Q->>E: 04 CALCULATION OUTnn<br/>PowerFactory wendet nur diese Freischaltung an
         GL->>E: 05 EXTRACTION
+        Note over GL: outserv zurück und verifiziert<br/>Fehler → Case NOT EVALUATED, nächster Case
     end
 
     Note over GL,Q: 06 RESTORE / CLEANUP<br/>iopt_maint, results, Study Time zurück · Kopien löschen · verifizieren
-    GL->>R: 07 REPORT<br/>Reset · 20 Tabellen · Heartbeat-Fortschritt
+    GL->>R: 07 REPORT<br/>Reset · 18 Tabellen · Heartbeat-Fortschritt
     GL-->>U: Report published successfully
     U->>R: Bericht erzeugen / exportieren
 ```
 
 Kein Lauf erzeugt Operation Scenarios, Network Variations oder weitere Study
-Cases. Gibt es keine Freischaltung im Zeitraum, entfällt `OUTAGE`; der Bericht
-wird trotzdem mit QA- und Freischaltungsstatus publiziert.
+Cases. Gibt es keine Freischaltung im Zeitraum, entfallen die Outage-Cases; der
+Bericht wird trotzdem mit QA- und Freischaltungsstatus publiziert. Die Läufe
+folgen einander, die Laufzeit wächst mit der Zahl der Freischaltungen.
 
 ---
 
@@ -110,7 +116,9 @@ In PowerFactory 2026 ist `IntPlannedout` ein **reines Datenobjekt**. Es hat
 kein `Apply`, `Reset` oder `Check`. GridLens schaltet deshalb nichts selbst.
 Es setzt am `ComStatsim` die Option `iopt_maint`, die PowerFactory mit
 „Planned Outages“ beschriftet, und PowerFactory wendet jede Freischaltung
-während der Rechnung **in ihrem eigenen Zeitfenster** an.
+während der Rechnung **in ihrem eigenen Zeitfenster** an. Damit je Case nur eine
+wirkt, setzt GridLens das `outserv` („Ignored“) aller übrigen auf 1 und stellt
+es danach zurück.
 
 Das ist genauer als pauschales Schalten. Beispiel aus dem Abnahmeprojekt
 „39 Bus New England System“:
@@ -134,9 +142,9 @@ Die Freischaltung „Line 04 - 14“ schaltet `Line 08 - 09` und `Line 09 - 39`.
 Eine dritte Freischaltung im März läge außerhalb des Zeitraums und würde als
 `SKIPPED` geführt, ohne gerechnet zu werden.
 
-Im `OUTAGE`-Lauf fehlen `Line 08 - 09` und `Line 09 - 39` nur am 01.01.,
-`Line 15 - 16` nur am 02.01. Am 03. und 04.01. sind `REF` und `OUTAGE`
-identisch. Der Name einer Freischaltung ist Freitext – welche Betriebsmittel
+Im Case „Line 04 - 14“ fehlen `Line 08 - 09` und `Line 09 - 39` nur am 01.01.,
+im Case „Line 15 - 16“ fehlt `Line 15 - 16` nur am 02.01. Am 03. und 04.01. sind
+`REF` und die Cases identisch. Der Name einer Freischaltung ist Freitext – welche Betriebsmittel
 sie schaltet, steht ausschließlich in `components`.
 
 Vor der ersten Rechnung ordnet GridLens jede Freischaltung ein:
@@ -150,7 +158,7 @@ flowchart TD
     C -- ja --> E{"Fenster überlappt<br/>ComStatsim.startTime..endTime?"}
     E -- nein --> S2["SKIPPED<br/>outside the simulated period"]
     E -- ja --> F["CONSIDERED<br/>PowerFactory wendet sie an"]
-    D --> G["zählt für den OUTAGE-Lauf"]
+    D --> G["bekommt einen eigenen Case"]
     F --> G
 ```
 
@@ -162,10 +170,12 @@ für die Bewertung braucht.
 
 ## 4. Bewertung je Zeitfenster
 
-Die Tabelle **Planned Outages** (Kapitel 2 des Berichts) ist die
-Bewertungsgrundlage. Jede Zeile beurteilt **nur ihr eigenes Zeitfenster**.
-Eine Statistik über den ganzen Zeitraum wäre für alle Freischaltungen dieselbe
-und könnte sie nicht unterscheiden.
+Die Tabelle **Calculated Cases and Planned Outages** (Kapitel 4 des Berichts) ist die
+Bewertungsgrundlage. Jede Zeile beurteilt **nur ihr eigenes Zeitfenster** und
+ihren eigenen Case. Eine Statistik über den ganzen Zeitraum wäre für alle
+Freischaltungen dieselbe und könnte sie nicht unterscheiden. Die Tabellen mit
+gemeinsamer REF-Spalte (Zählungen, Radar, Top 10 je Case, Anhänge) zeigen dagegen die
+Maxima des ganzen Zeitraums, wie im Template.
 
 ```mermaid
 flowchart TD
@@ -212,7 +222,7 @@ nicht der Freischaltung anzulasten, und das Urteil lautet
 
 ## 5. Zustand verändern und zurücksetzen
 
-GridLens verändert während eines Laufs genau vier Dinge und stellt alle vier
+GridLens verändert während eines Laufs genau fünf Dinge und stellt alle
 wieder her, bevor irgendetwas publiziert wird. Ein nicht verifizierter Restore
 ist ein harter Fehler.
 
@@ -241,13 +251,15 @@ stateDiagram-v2
     }
     Restore --> Publizieren: alles verifiziert
     Restore --> Fehler: etwas nicht verifiziert
-    Publizieren --> [*]: 20 Tabellen im IntReport
+    Publizieren --> [*]: 18 Tabellen im IntReport
     Fehler --> [*]: nichts publiziert · manuelle Prüfung
 ```
 
 | Was | Während des Laufs | Danach |
 |---|---|---|
-| `ComStatsim.iopt_maint` | `0` für REF, `1` für OUTAGE | Ausgangswert, verifiziert |
+| `ComStatsim.iopt_maint` | `0` für REF, `1` für jeden Outage-Case | Ausgangswert, verifiziert |
+| `IntPlannedout.outserv` | je Case `1` an allen außer der geprüften | Ausgangswert, verifiziert (`StateGuard`) |
+| `ComVstab` (LODF) | `pComSimoutage`, `isContSens`, `calcLodf`, `lodflim` | Ausgangswerte; angelegte Contingency-Objekte gelöscht |
 | `ComStatsim.results` | temporäre Kopie `GridLens_TMP_…` | ursprüngliches `ElmRes`, verifiziert |
 | Study Time (`SetTime.cDate/cTime`) | läuft durch den QDS-Zeitraum | Ausgangswert, verifiziert |
 | temporäre `ElmRes` | je Fall eine Kopie | gelöscht |
@@ -264,80 +276,62 @@ löscht das Objekt nicht. Aufräumen heißt hier umbenennen, nicht löschen.
 
 ## 6. Vom Datenvertrag zum Bericht
 
-Python publiziert 20 Tabellen. PowerFactory stellt jedem Namen `Scripted`
+Python publiziert 18 Tabellen. PowerFactory stellt jedem Namen `Scripted`
 voran. Die Namen, Felder und Typen müssen exakt mit den Datenquellen der MRT
-übereinstimmen – `tests/test_mrt.py` prüft das feldgenau.
+übereinstimmen – `tests/test_mrt.py` und der Emissionstest in
+`tests/test_gridlens_report.py` prüfen das feldgenau, auch jeden Ausdruck und
+jede SQL-Abfrage der MRT. Die MRT selbst erzeugt `tools/build_mrt.py` aus
+`TABLES` und den Seitenbausteinen.
 
-```mermaid
-flowchart LR
-    subgraph T["20 Tabellen"]
-        M["ReportMeta<br/>mit Kernsätzen je Kapitel"]
-        OV["Overview · LoadingClasses · VoltageClasses<br/>ViolationsByCase · ViolationsByOutage"]
-        PO["PlannedOutages"]
-        LR["LoadingRanking"]
-        B["LineLoadingBars<br/>TransformerLoadingBars"]
-        VV["VoltageViolations"]
-        PL["TrendLineLoading · TrendTransformerLoading<br/>TrendVoltageMin · TrendVoltageMax"]
-        MQ["ModelQuality"]
-        C["Cases"]
-        ST["Line-/Transformer-/<br/>VoltageStatistics"]
-    end
-
-    M --> K0["Deckblatt · Inhalt · Kernsätze · 8 Study Definition"]
-    OV --> K1["1 Assessment Overview"]
-    PO --> K2["2 Planned Outages<br/>(Bewertung)"]
-    LR --> K3["3 Line Loading · 4 Transformer Loading"]
-    B --> K3
-    VV --> K5["5 Voltage"]
-    PL --> K6["6 Time Series"]
-    MQ --> K7["7 Model Quality Assurance"]
-    C --> K8["8 Calculated Cases"]
-    ST --> K9["9 Appendix"]
-```
-
-| Berichtskapitel | Datenquelle(n) |
+| Berichtsseite | Datenquelle(n) |
 |---|---|
-| Deckblatt, Inhaltsverzeichnis | `ReportMeta` |
-| 1 Assessment Overview | `Overview` (Kennzahlen), `OverviewLoadingClasses`, `OverviewVoltageClasses` (Kreise), `OverviewViolationsByCase`, `OverviewViolationsByOutage` (Balken) |
-| 2 Planned Outages | `PlannedOutages` |
-| 3 Line Loading | `ReportMeta.line_summary`, `LineLoadingBars` (Diagramm), `LoadingRanking` (`line_highest`, `line_increase`) |
-| 4 Transformer Loading | `ReportMeta.transformer_summary`, `TransformerLoadingBars`, `LoadingRanking` (`transformer_*`) |
-| 5 Voltage | `ReportMeta.voltage_summary`, `ReportMeta.voltage_limits`, `VoltageViolations` |
-| 6 Time Series | `TrendLineLoading`, `TrendTransformerLoading`, `TrendVoltageMin`, `TrendVoltageMax` – je ein Diagramm |
-| 7 Model Quality Assurance | `ModelQuality` |
-| 8 Study Definition and Calculated Cases | `ReportMeta`, `Cases` |
-| 9 Appendix: Detailed Statistics | `LineStatistics`, `TransformerStatistics`, `VoltageStatistics` |
+| Titelseite, Inhaltsverzeichnis | `ReportMeta` |
+| Model Quality Assurance | `ModelQuality` |
+| Calculated Cases and Planned Outages | `Cases` (eine Zeile je Case) |
+| Reference Case – Base State | `PieLines`, `PieTransformers`, `ReferenceExceeded` |
+| Metric View | `CaseMetrics`, `Kpis` |
+| Case Comparison | `CaseCounts` (drei Linienplots) |
+| Radar Comparison | `Radar` (Diagramm), `CaseCounts` (Tabelle) |
+| Top 10 Maximum Loaded Lines | `LineLoadingBars` |
+| Most Loaded Line / Largest Delta | `TrendMostLoaded`, `TrendLargestDelta` |
+| Line Impact Ranking | `LodfRanking` (je Case nach \|LODF\|, mit gemessenem Delta) |
+| Top 10 Strongly Loaded Lines by Case | `TopLinesByCase` |
+| Appendix A / B / C | `AppendixLine`, `AppendixTransformer`, `AppendixVoltage` |
 
-Seit 6.0.0 zeigt jede Tabelle REF und OUTAGE nebeneinander in einer Zeile, mit
-Delta und Status, und nennt jedes Betriebsmittel nur mit seinem Namen. Die
-Out-of-Service-Matrix entfiel: Sie las das statische `outserv`, das
-`iopt_maint` nicht verändert, und war für REF und OUTAGE daher immer gleich.
-Ebenso entfielen Winkel, „Governing Results“, „Metric Overview“ und „Relevant
-Time Points“, die nur wiederholten, was die Auslastungs- und Spannungskapitel
-zeigen.
+**Case-Spalten.** Tabellen mit einer Spalte je Case (`TopLinesByCase`, `Appendix*`)
+tragen `block`, `col_count` und die Spaltenköpfe `h1_name…h6_name` in jeder Zeile.
+Mehr als sechs Cases laufen in einen zweiten Block. Die MRT enthält je Spaltenzahl
+(6…0) ein Paar aus Gruppenkopf und Datenband, das auf `col_count` filtert, damit
+keine leeren Spalten stehen. Diagramme mit einer Serie je Case (Radar, Zeitplots)
+gibt es ebenso je Anzahl gezeichneter Cases (`ReportMeta.chart_cases`, 1 bis 7).
 
 Jedes Diagramm liest eine **eigene** Tabelle. Bis 5.1.3 hingen die vier
 Zeitreihen an einer Master-Detail-Relation `Plots → PlotData`. Die
 PowerFactory-Berichtsengine wendet solche Relationen auf Diagramme nicht an und
-hat die Punkte aller vier Plots in ein Diagramm gezeichnet: Leitung, Trafo und
-zwei Spannungen je Zeitpunkt hintereinander, ein Sägezahn statt der
-PowerFactory-Kurve. Seit 5.2.0 gibt es keine Relation mehr, und
-`tests/test_mrt.py` verhindert, dass wieder eine eingeführt wird.
+hat die Punkte aller vier Plots in ein Diagramm gezeichnet. Seit 5.2.0 gibt es
+keine Relation mehr, und `tests/test_mrt.py` verhindert, dass wieder eine eingeführt
+wird.
 
 Die Zeitreihen zeigen dieselben Werte wie PowerFactory, aber als Linie zwischen
-den Zeitpunkten. PowerFactory zeichnet QDS-Ergebnisse als Treppe. An den
-Zeitpunkten selbst stimmen beide Darstellungen überein. Bis 200 Zeitpunkte
-werden alle Werte geplottet; REF und OUTAGE haben immer dieselben Zeitpunkte.
-REF ist grau, OUTAGE rot – in allen Diagrammen des Berichts.
+den Zeitpunkten. PowerFactory zeichnet QDS-Ergebnisse als Treppe. Bis 200 Zeitpunkte
+werden alle Werte geplottet; REF und alle Cases haben immer dieselben Zeitpunkte.
+REF ist grau, die Cases haben feste Farben (nur zur Unterscheidung).
 
-Das Diagramm „Violating elements inside each outage window“ zeigt je
-Freischaltung REF und OUTAGE **im selben Fenster**. Ohne den REF-Balken wäre
-nicht zu erkennen, ob eine Verletzung von der Freischaltung kommt oder schon
-vorher bestand.
+## LODF
+
+Die LODF stammt aus PowerFactorys *Sensitivities / Distribution Factors*
+(`ComVstab`), nicht aus eigener Rechnung. Sie wird einmal vor dem ersten Lauf
+berechnet, weil sie nur von der Topologie abhängt. Das Line Impact Ranking
+zeigt je Freischaltung die zehn Leitungen mit dem größten |LODF|, daneben das
+gemessene Delta. Fehlt die LODF, steht der Grund im Bericht und das Ranking
+fällt beschriftet auf die gemessene Laständerung zurück. Details und Grenzen
+stehen in `powerfactory/README.md`; Vorbild ist `nahriva-grid-analysis`
+(`docs/LODF.md`).
 
 ## Vorlagen lokal prüfen
 
-Änderungen an der MRT werden vor der Auslieferung mit
+Die MRT wird nicht von Hand bearbeitet, sondern mit `python3 tools/build_mrt.py`
+erzeugt. Sie wird vor der Auslieferung mit
 `Stimulsoft.Reports.Engine.NetCore` 2025.3.5 geladen und gerendert, derselben
 Version, die PowerFactory 2026 SP1 mitbringt. Ohne Lizenz rendert die Engine
 nur die erste Seite vollständig; einzelne Abschnitte werden deshalb gezielt als
@@ -410,7 +404,7 @@ Diese Fakten wurden im Zielbuild direkt an den Objekten abgefragt – mit
 | `IntPlannedout` | reines Datenobjekt; **kein** `Apply`, `Reset`, `Check`, `IsInStudyTime` |
 | `IntPlannedout.starttime`, `endtime` | Epoch-Sekunden |
 | `IntPlannedout.components` | die geschalteten Betriebsmittel („Components“) |
-| `IntPlannedout.outserv` | „Ignored“ |
+| `IntPlannedout.outserv` | „Ignored“; ab 7.0.0 von GridLens je Case zeitweise gesetzt – Wirkung noch nicht im Zielbuild geprüft |
 | `SetTime.cDate`, `cTime` | **Strings**, Format `YYYYMMDD` und `HHMMSS` |
 | implizite QDS-Zeitskala (`ElmRes`, Spalte −1) | Einheit `s`, aber **absolute** Epoch-Sekunden |
 | `DataObject.GetAttributes()` | wirft; Attributnamen kommen über `dir()` |
@@ -426,6 +420,10 @@ geführt, der auf nicht existierende Methoden setzte.
 
 - **Fachliche Sichtprüfung des PDF** am Abnahmeprojekt: Hängen die Deltas an
   den Betriebsmitteln aus `components` und nur in deren Fenstern?
+- **Einzel-Cases und LODF in PowerFactory** (seit 7.0.0): Wirkt `outserv=1` an einer
+  `IntPlannedout` bei gesetztem `iopt_maint`? Läuft der LODF-Ablauf im Bericht
+  Ende-zu-Ende? Wie lang dauern 1+N Läufe?
+- **Rendern der Variantenbänder** der MRT in PowerFactory (Querformat, Gruppenköpfe).
 - **Extraktionsdauer bei großen Netzen**: 90 s für 229 325 Reihen und drei
   Zeitpunkte, weil jede Zelle einzeln gelesen wird. Ob `GetColumnValues` mit
   einem `IntVec`-Argument im Zielbuild schneller ist, ist eine Frage für die

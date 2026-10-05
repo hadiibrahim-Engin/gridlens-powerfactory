@@ -7,8 +7,8 @@ PowerFactory-Rechner:
 
 | Datei | Aufgabe |
 |---|---|
-| `gridlens_report.py` | Einzeldatei für Planned-Outage-Discovery, QDS-Läufe, Ergebnisprüfung und `IntReport`-Publikation |
-| `MASTER_GRIDLENS.mrt` | Reportlayout und 20 `Scripted*`-Datenquellen |
+| `gridlens_report.py` | Einzeldatei für Planned-Outage-Discovery, LODF, QDS-Läufe je Außerbetriebnahme, Ergebnisprüfung und `IntReport`-Publikation |
+| `MASTER_GRIDLENS.mrt` | Reportlayout (Querformat) und 18 `Scripted*`-Datenquellen; erzeugt von `tools/build_mrt.py` |
 
 Weitere Python-Pakete, JSON-Payloads, Schemas oder Datenbanken werden nicht
 benötigt. Die PowerFactory-Laufzeit verwendet nur die Python-Standardbibliothek
@@ -28,12 +28,14 @@ Vor dem Start müssen im aktiven Study Case vorhanden sein:
 - die zu prüfenden Planned Outages in der Operational Library,
 - ein `IntReport`, das `MASTER_GRIDLENS.mrt` verwendet.
 
-GridLens ändert **genau eine** QDS-Option: `iopt_maint`, in PowerFactory mit
-„Planned Outages“ beschriftet. Zeitraum, Zeitschritt, Profile und alle
+GridLens ändert an `ComStatsim` **genau eine** Option: `iopt_maint`, in PowerFactory
+mit „Planned Outages“ beschriftet. Zeitraum, Zeitschritt, Profile und alle
 weiteren Einstellungen stammen unverändert aus dem aktiven `ComStatsim`.
-Zusätzlich wird dessen `results`-Bindung für temporäre, aus dem konfigurierten
-`ElmRes` kopierte Ergebnisobjekte umgebunden. Beides wird nach dem Lauf
-wiederhergestellt und verifiziert.
+Zusätzlich setzt GridLens für jeden Outage-Case zeitweise das Attribut `outserv`
+(„Ignored“) der übrigen `IntPlannedout` und bindet `ComStatsim.results` an
+temporäre, aus dem konfigurierten `ElmRes` kopierte Ergebnisobjekte um. Die
+LODF-Berechnung stellt ihre `ComVstab`-Einstellungen ebenfalls zurück. Alles wird
+nach dem Lauf wiederhergestellt und verifiziert.
 
 ## Installation und Ausführung
 
@@ -47,16 +49,23 @@ wiederhergestellt und verifiziert.
 
 Die Standardreihenfolge ist:
 
-1. `REF`: Lauf mit `iopt_maint=0`, also ohne geplante Außerbetriebnahmen.
-2. Discovery aller `IntPlannedout`-Objekte; `IntOutage` wird nur als
+1. Discovery aller `IntPlannedout`-Objekte; `IntOutage` wird nur als
    Legacy-Kompatibilität erkannt.
-3. Vergleich jedes Outage-Fensters (`starttime`/`endtime`) mit dem simulierten
+2. Vergleich jedes Outage-Fensters (`starttime`/`endtime`) mit dem simulierten
    Zeitraum (`ComStatsim.startTime`/`endTime`).
-4. `OUTAGE`: ein einziger QDS-Lauf mit `iopt_maint=1`. PowerFactory wendet
-   jede Außerbetriebnahme in ihrem eigenen Zeitfenster an.
-5. Wiederherstellung von `iopt_maint` und `ComStatsim.results`, Löschen der
-   temporären Ergebnisse.
-6. Publikation aller 20 Tabellen in das `IntReport`.
+3. **LODF:** einmal `Sensitivities / Distribution Factors` (`ComVstab`) für alle
+   Außerbetriebnahmen im Zeitraum (siehe unten).
+4. `REF`: Lauf mit `iopt_maint=0`, also ohne geplante Außerbetriebnahmen.
+5. Je Außerbetriebnahme im Zeitraum **ein eigener Case** `OUT01`, `OUT02` …: `iopt_maint=1`,
+   `outserv=1` an allen anderen `IntPlannedout`, ein QDS-Lauf, Ergebnisse lesen,
+   `outserv` zurücksetzen. Die Läufe folgen einander; die Laufzeit ist
+   ungefähr (1 + Anzahl Außerbetriebnahmen) mal die eines Laufs.
+6. Wiederherstellung von `iopt_maint`, `ComStatsim.results` und Studienzeit,
+   Löschen der temporären Ergebnisse.
+7. Publikation aller 18 Tabellen in das `IntReport`.
+
+Schlägt ein Outage-Case fehl, erscheint er als `NOT EVALUATED` mit der Ursache im Bericht
+und in der QA, und die übrigen Cases laufen weiter. Schlägt `REF` fehl, endet der Lauf.
 
 ## Warum GridLens die Außerbetriebnahmen nicht selbst anwendet
 
@@ -66,30 +75,51 @@ direkt an den Objekten. Relevant sind stattdessen `starttime`, `endtime`,
 `components` (die geschalteten Betriebsmittel), `outserv` und `priority`.
 
 PowerFactory wendet eine Außerbetriebnahme während der Rechnung selbst an,
-sobald `iopt_maint` gesetzt ist. Das ist genauer als ein pauschales Schalten:
-bei einem mehrtägigen QDS-Lauf wirkt jede Außerbetriebnahme exakt in ihren
-eigenen Zeitschritten.
+sobald `iopt_maint` gesetzt ist und ihr `outserv` 0 ist. Das ist genauer als ein
+pauschales Schalten: bei einem mehrtägigen QDS-Lauf wirkt jede Außerbetriebnahme exakt
+in ihren eigenen Zeitschritten. GridLens wählt über `outserv` nur aus, welche gilt, damit
+sich überlappende Zeitfenster nicht gegenseitig beeinflussen.
 
 Deaktivierte (`outserv=1`) und außerhalb des simulierten Zeitraums liegende
 Außerbetriebnahmen werden als `SKIPPED` mit Grund ausgewiesen, alle übrigen als
-`CONSIDERED`. Gibt es keine im Zeitraum, entfällt der zweite Rechenlauf.
+`CONSIDERED`. Gibt es keine im Zeitraum, entfallen die Outage-Läufe.
 
-## Die Tabelle „Planned Outages“
+## LODF (Line Outage Distribution Factors)
 
-Sie ist die Bewertungsgrundlage für die Freischaltung und hat sechs Spalten:
+Die LODF zeigt, um wie viel sich der Fluss einer Leitung ändert, wenn die
+Außerbetriebnahme das Betriebsmittel abschaltet, bezogen auf dessen Fluss davor
+(vorzeichenbehaftet, am bus1-Ende). Das Line Impact Ranking sortiert je
+Außerbetriebnahme danach und zeigt daneben die gemessene Änderung gegenüber
+`REF` (Delta in %-Punkten, im Fenster der Außerbetriebnahme).
+
+GridLens legt dafür die Contingency Analysis `GridLens LODF` mit einer
+`ComOutage` je Außerbetriebnahme an, verweist `ComVstab.pComSimoutage` darauf, setzt
+`isContSens=1`, `calcLodf=1` und `lodflim=0`, führt `ComVstab` aus, liest das
+`ElmRes` mit der Endung `_LODF` und stellt alles wieder her. Die angelegten Objekte werden
+gelöscht (`LODF_CLEAN_UP = False` lässt sie zur Ansicht stehen; `CALCULATE_LODF =
+False` überspringt den Schritt). Grenzen: nur Leitungen werden überwacht; eine
+Außerbetriebnahme ohne Leitung, Transformator oder Kuppler und ein Contingency
+ohne Lösung (z. B. Generator abgeschnitten) haben keine LODF. Dann steht der Grund
+im Bericht, und das Ranking ist als „nach gemessener Laständerung“ beschriftet.
+
+## Die Tabelle „Calculated Cases and Planned Outages“
+
+Sie ist die Bewertungsgrundlage für die Freischaltung. Je Case eine Zeile mit
+sechs Spalten:
 
 | Spalte | Inhalt |
 |---|---|
-| Planned outage | Name der Außerbetriebnahme |
-| Period | Zeitfenster aus `starttime`/`endtime` |
+| Case | `Reference` oder der Name der Außerbetriebnahme |
+| Period | simulierter Zeitraum bzw. Zeitfenster aus `starttime`/`endtime` |
 | Prio | `priority` aus PowerFactory |
 | Equipment out of service | die Betriebsmittel aus `components` |
 | Assessment | das Urteil für dieses Fenster |
 | Worst values inside the window | die Zahlen dahinter |
 
-Entscheidend ist, dass jede Zeile **nur ihr eigenes Zeitfenster** bewertet. Zwei
-Freischaltungen an verschiedenen Tagen bekommen dadurch verschiedene Urteile; die
-Kennzahlen der übrigen Kapitel gelten dagegen über den ganzen Zeitraum.
+Entscheidend ist, dass jede Zeile **nur ihr eigenes Zeitfenster** bewertet; ihr
+Case enthält dank Einzel-Lauf nur diese eine Außerbetriebnahme. Die Tabellen
+mit gemeinsamer `REF`-Spalte (Zählungen, Radar, Top 10 je Case, Anhänge)
+zeigen dagegen die Maxima des ganzen simulierten Zeitraums.
 
 Jedes Betriebsmittel wird dabei mit sich selbst in `REF` verglichen. Eine
 Verletzung ist `NEW`, wenn sie nur mit der Außerbetriebnahme auftritt,
@@ -101,36 +131,43 @@ Mögliche Urteile:
 
 | Assessment | Bedeutung |
 |---|---|
+| `BASELINE` | die Zeile von `REF` |
 | `NO LIMIT EXCEEDED` | im Fenster keine Überlastung und keine Spannung außerhalb ihres Bands |
 | `NO ADDITIONAL VIOLATION` | Verletzungen im Fenster bestehen alle schon in `REF` (gelb) |
 | `OVERLOAD` | die Außerbetriebnahme verursacht oder verschärft eine Überlastung (rot) |
 | `VOLTAGE BAND` | sie verursacht oder verschärft eine Bandverletzung (rot) |
 | `OVERLOAD + VOLTAGE BAND` | beides (rot) |
 | `NOT SIMULATED` | übersprungen; der Grund steht in der letzten Spalte |
+| `NOT EVALUATED` | der Case ist nicht gerechnet oder nicht vergleichbar; Ursache in der letzten Spalte |
 | `NO RESULT DATA IN WINDOW` | keine Ergebniszeile fällt in das Fenster |
 
 Die letzte Spalte beginnt mit der Auslastung: das Betriebsmittel, das die
 Außerbetriebnahme über 100 % bringt (sonst das höchstbelastete), mit Wert,
-Uhrzeit und seinem Wert in `REF`, danach die Zahl der Überlastungen nach neu,
-verschärft und vorbestehend. Es folgen Spannungsspanne und Bandverletzungen.
+Uhrzeit und seinem Wert in `REF`, dem größten Anstieg, danach der Zahl der Überlastungen
+nach neu, verschärft und vorbestehend. Es folgen Spannungsspanne und Bandverletzungen.
 
 ## Aufbau des Berichts
 
-1. **Assessment Overview** – Kennzahlen (Überlastungen, höchste Auslastung,
-   Spannungsverletzungen, Außerbetriebnahmen), Kreise und Balken.
-2. **Planned Outages** – das Urteil je Zeitfenster.
-3. **Line Loading** und 4. **Transformer Loading** – ein Satz mit der
-   Kernaussage, ein Balkendiagramm REF gegen OUTAGE mit 100-%-Linie, die zehn
-   höchsten Auslastungen und die zehn größten Anstiege mit Delta und Status.
-   Die Tabellen erscheinen auch dann, wenn nichts über 100 % liegt.
-5. **Voltage** – Knoten außerhalb ihres Bands, neue und verschärfte zuerst.
-6. **Time Series** – das Element mit dem größten Anstieg, sonst das
-   höchstbelastete.
-7. **Model Quality Assurance**, 8. **Study Definition and Calculated Cases**,
-   9. **Appendix** – Leitungen und Transformatoren ab 80 % oder mit einer
-   Änderung ab 1 %-Punkt, Knoten außerhalb ihres Bands oder mit einer
-   Änderung ab 0.005 p.u.
+Querformat, ein Kapitel je Seite, in der Reihenfolge des Templates
+`GridLens_Template_Optimiert_v2.pdf` (ohne den Generator-Anhang):
 
+1. Titelseite und klickbares Inhaltsverzeichnis.
+2. **Model Quality Assurance** und **Calculated Cases and Planned Outages**.
+3. **Reference Case – Base State Disclaimer** – Kreise für Leitungen und
+   Transformatoren (bis 80 %, 80–100 %, über 100 %) und die Elemente über 100 % in `REF`.
+4. **Metric View** – je Case höchste Leitungsauslastung, größter Anstieg, Spannungsspanne
+   und zwei Kennzahlenkarten.
+5. **Case Comparison** (drei Linienplots) und **Radar Comparison** mit Zähltabelle.
+6. **Top 10 Maximum Loaded Lines**, **Most Loaded Line** und **Largest Delta**
+   (Zeitplots mit REF und allen Cases).
+7. **Line Impact Ranking** nach |LODF| je Außerbetriebnahme und **Top 10 Strongly
+   Loaded Lines by Case**.
+8. **Anhang A–C** – Leitungen und Transformatoren ab 80 % oder mit einer Änderung ab
+   1 %-Punkt, Knoten außerhalb ihres Bands oder mit einer Änderung ab 0.005 p.u.; je
+   Case eine Spalte, `n/a` für ausgeschaltete oder fehlende Reihen.
+
+Tabellen zeigen `REF` und bis zu sechs Cases nebeneinander, weitere Cases folgen
+darunter; Radar und Zeitplots zeichnen REF und die ersten sechs Cases.
 Jedes Betriebsmittel erscheint nur mit seinem Namen aus PowerFactory
 (`loc_name`).
 
@@ -167,9 +204,10 @@ Am Anfang von `gridlens_report.py` steht:
 RUN_REFERENCE_CASE = True
 ```
 
-- `True`: zuerst `REF`, danach – falls möglich – `OUTAGE`.
-- `False`: nur `OUTAGE`; ohne anwendbaren Outage wird gar keine Berechnung
-  gestartet, aber ein Bericht mit QA- und Outage-Status publiziert.
+- `True`: zuerst `REF`, danach – falls möglich – je Außerbetriebnahme ein Case.
+- `False`: nur die Outage-Cases; ohne anwendbare Außerbetriebnahme wird gar keine
+  Berechnung gestartet, aber ein Bericht mit QA- und Outage-Status publiziert.
+  Ohne `REF` gibt es keine Vergleiche, Deltas und LODF-Delta.
 
 Der gewählte Modus erscheint auf dem Deckblatt. Dort steht außerdem der aktuelle
 Windows-/System-Benutzer als `Generated by`.
@@ -229,7 +267,8 @@ ungefilterten Traceback. Suche immer nach den Phasen `FAILED`, `ABORTED` und
 2. Planned-Outage-Zustände im aktiven Study Case manuell prüfen,
 3. Datum und Uhrzeit des aktiven Study Case mit dem Ausgangszustand vergleichen,
 4. `ComStatsim.results` mit dem ursprünglichen Ergebnisobjekt vergleichen,
-5. `iopt_maint` am `ComStatsim` gegen den Ausgangswert prüfen,
+5. `iopt_maint` am `ComStatsim` gegen den Ausgangswert prüfen und die
+   `outserv`-Werte („Ignored“) aller Planned Outages gegen den Ausgangszustand,
 6. verbliebene Objekte mit Präfix `GridLens_TMP_` prüfen und gegebenenfalls
    kontrolliert entfernen – nicht aber das Objekt, auf das
    `ComStatsim.results` zeigt; das lieber umbenennen,
@@ -260,7 +299,7 @@ bereinigt.
 - Nichtnumerische Werte, `None`, Booleans, NaN und Infinity werden abgelehnt.
 - Pro Objekt/Kategorie gilt die erste vorhandene Variable der oben genannten
   Priorität.
-- Deltas werden nur für dasselbe physische Objekt in `REF` und `OUTAGE`
+- Deltas werden nur für dasselbe physische Objekt in `REF` und im Case
   berechnet; vollständige PowerFactory-Pfade bleiben interne Schlüssel.
 - Ausgeschaltete Elemente erhalten keine künstlichen Nullwerte.
 
@@ -272,15 +311,18 @@ erforderlich:
 
 | Test | Erwartetes Ergebnis | Abbruchkriterium |
 |---|---|---|
-| Outage im Zeitraum | `REF` und `OUTAGE`; die Betriebsmittel aus `components` weichen im Outage-Fenster ab | identische Ergebnisse in beiden Fällen |
-| Kein Outage im Zeitraum | `REF` einmal, kein `OUTAGE`; sauberer Report | zweiter Lauf oder irreführender PASS |
-| Mehrere Outages | genau ein `OUTAGE`-Lauf; jede Außerbetriebnahme wirkt in ihrem Fenster | ein Lauf je Outage oder unvollständige Liste |
+| Outage im Zeitraum | `REF` und ein Case; die Betriebsmittel aus `components` weichen im Outage-Fenster ab | identische Ergebnisse in beiden Fällen |
+| Kein Outage im Zeitraum | `REF` einmal, kein Outage-Case; sauberer Report | zusätzlicher Lauf oder irreführender PASS |
+| Mehrere Outages | je Außerbetriebnahme ein Case; in jedem wirkt nur sie (`outserv` der übrigen = 1), in ihrem Fenster | zwei Outages wirken im selben Case, oder `outserv` bleibt verstellt |
 | Deaktivierter Outage (`outserv=1`) | `SKIPPED` mit Grund | als `CONSIDERED` geführt |
 | Outage vor/nach dem Zeitraum | `SKIPPED` mit Fenster und Zeitraum im Text | als `CONSIDERED` geführt |
 | `iopt_maint` war vorher 1 | `REF` trotzdem ohne Outages; Wert danach wieder 1 | Referenz enthält Outages oder Wert bleibt verstellt |
 | QDS-Fehler oder Abbruch | `iopt_maint` und Resultbindung wiederhergestellt | irgendein unbestimmter Zustand |
 | Extraction-/Reportfehler | Zustand bereits wiederhergestellt; klare Fehlermeldung | alte/teilweise Daten wirken aktuell |
-| `RUN_REFERENCE_CASE=False` | nur `OUTAGE`; keine Referenzdeltas | versteckter Referenzlauf |
+| `RUN_REFERENCE_CASE=False` | nur Outage-Cases; keine Referenzdeltas | versteckter Referenzlauf |
+| `outserv` zurück | nach dem Lauf stehen alle `IntPlannedout` wieder wie vorher | ein verstellter Wert |
+| LODF | `Sensitivities / Distribution Factors` liefert je Outage-Equipment Werte; `ComVstab` und `pComSimoutage` danach wie vorher; Hilfsobjekte gelöscht | Fehler, Reste oder verstellte Einstellungen |
+| Querformat-Rendering | Variantenbänder (Tabellen mit 0–6 Case-Spalten, Diagramme mit 1–7 Serien) zeigen genau eine Variante; Gruppenköpfe wiederholen sich je Block | doppelte oder fehlende Tabellen |
 | Zeitachse | absolute Zeitstempel, Spanne gleich dem konfigurierten Zeitraum | `NNNNN d HH:MM` statt Datum |
 | Fensterlage | `REF` und `OUTAGE` unterscheiden sich in den Zeitschritten **innerhalb** des Outage-Fensters | Abweichung erst im Schritt nach dem Fensterende (so im Testbericht vom 29.09.2026) |
 | Spannungsbänder | die Bänder in `VOLTAGE_LIMITS_KV` entsprechen den eigenen Betriebsgrenzen | abweichende Grenzen |

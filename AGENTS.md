@@ -20,21 +20,30 @@ Die gemeinsam auszuliefernde Laufzeit besteht ausschließlich aus:
 - `powerfactory/gridlens_report.py`
 - `powerfactory/MASTER_GRIDLENS.mrt`
 
-Publisher-Version: `6.0.0`; MRT: `4.0.0`; Datenvertrag: `4.0`.
+Publisher-Version: `7.0.0`; MRT: `5.0.0`; Datenvertrag: `5.0`.
+
+Die MRT wird von `tools/build_mrt.py` aus `gridlens_report.TABLES` und den
+Seitenbausteinen erzeugt (Entwicklungswerkzeug, nicht Teil der Auslieferung).
+Wer die MRT ändert, ändert den Generator und führt ihn aus; ein Test prüft
+Datenquellen, Ausdrücke und SQL gegen den Datenvertrag.
 
 Das einzelne ComPython liegt direkt unter dem `IntReport`. Es verwendet das
 aktive `ComStatsim` einschließlich Zeitraum, Zeitschritt, Profilen und
-Calculation Options. **Genau eine Einstellung wird verändert:** die Option
-`iopt_maint`, die PowerFactory selbst mit „Planned Outages“ beschriftet.
-Berechnet wird:
+Calculation Options. Berechnet wird:
 
 1. `REF` mit `iopt_maint=0`, also ohne geplante Außerbetriebnahmen,
-2. `OUTAGE` mit `iopt_maint=1`, sofern mindestens eine Außerbetriebnahme in
-   den simulierten Zeitraum fällt.
+2. je Außerbetriebnahme im Zeitraum **ein eigener Case** `OUT01 …` mit
+   `iopt_maint=1`, in dem nur diese eine Außerbetriebnahme aktiv ist.
 
-Anschließend wird der ursprüngliche Wert wiederhergestellt und verifiziert.
-Es werden keine Operation Scenarios, Network Variations oder zusätzlichen
-Study Cases erzeugt. `RUN_REFERENCE_CASE=False` überspringt `REF`.
+Jeder Case wird gegen `REF` verglichen. Verändert werden zeitweise genau
+zwei Dinge, beide danach vollständig und verifiziert zurückgesetzt
+(`StateGuard`): die `ComStatsim`-Option `iopt_maint`, die PowerFactory selbst
+mit „Planned Outages“ beschriftet, und das Attribut `outserv` („Ignored“) der
+übrigen `IntPlannedout`. Es werden keine Operation Scenarios, Network Variations
+oder zusätzlichen Study Cases erzeugt. `RUN_REFERENCE_CASE=False` überspringt
+`REF`. Schlägt ein Outage-Case fehl, steht er als `NOT EVALUATED` mit Grund im
+Bericht und die übrigen laufen weiter; ein nicht rücksetzbarer Zustand
+(`StateRestoreError`) stoppt den Lauf.
 
 ## Wie Außerbetriebnahmen angewendet werden
 
@@ -48,72 +57,83 @@ noch `Check`. Maßgeblich sind seine Attribute:
 - `priority`.
 
 PowerFactory wendet eine Außerbetriebnahme während der Rechnung an, sobald
-`iopt_maint` gesetzt ist und die Rechenzeit in ihr Zeitfenster fällt. Der
-simulierte Zeitraum steht am `ComStatsim` in `startTime` und `endTime`.
+`iopt_maint` gesetzt ist, ihr `outserv` 0 ist und die Rechenzeit in ihr
+Zeitfenster fällt. GridLens wählt über `outserv` nur aus, **welche** gilt.
+Der simulierte Zeitraum steht am `ComStatsim` in `startTime` und `endTime`.
 
 GridLens vergleicht beide Fenster und meldet je Außerbetriebnahme `CONSIDERED`
-oder `SKIPPED` mit Grund. Ist die Frage nicht entscheidbar, gilt `CONSIDERED`
-und die Objektoberfläche wird als `DIAGNOSTIC` protokolliert. Fällt keine
-Außerbetriebnahme in den Zeitraum, wird kein zweiter Lauf gestartet.
+oder `SKIPPED` mit Grund. Ist die Frage nicht entscheidbar, gilt `CONSIDERED`,
+das Fenster wird über die ganze Zeitachse bewertet und die Objektoberfläche als
+`DIAGNOSTIC` protokolliert. Fällt keine Außerbetriebnahme in den Zeitraum,
+läuft kein Outage-Case.
 
-## Bewertung je Zeitfenster
+## LODF
 
-`ScriptedPlannedOutages` ist die Bewertungsgrundlage und wird **pro Zeitfenster**
-gefüllt, nicht über den gesamten Zeitraum. Das trennt Freischaltungen, die an
-verschiedenen Tagen liegen; eine Gesamtstatistik würde für alle dasselbe zeigen.
+`calculate_lodf` führt einmal vor dem ersten Rechenlauf PowerFactorys
+*Sensitivities / Distribution Factors* (`ComVstab`) aus. Vorbild ist
+`nahriva-grid-analysis` (`powerfactory/lodf.py`, `docs/LODF.md`). GridLens legt
+eine eigene Contingency Analysis (`GridLens LODF`) mit einer `ComOutage` je
+Außerbetriebnahme an, verweist `ComVstab.pComSimoutage` darauf, setzt
+`isContSens=1`, `calcLodf=1`, `lodflim=0`, liest das `…_LODF`-`ElmRes`
+(`b:outid`, `m:LODF:bus1`, Prozent → Bruchteil) und setzt alles zurück; die
+angelegten Objekte werden gelöscht (`LODF_CLEAN_UP`). Überwacht werden nur
+Leitungen; ein Contingency ohne Lösung (z. B. Generator abgeschnitten) hat
+keine LODF. Fehler sind Warnungen: der Grund steht im Bericht und das Ranking
+fällt sichtbar beschriftet auf die gemessene Laständerung zurück. Nur ein nicht
+rücksetzbarer Zustand stoppt den Lauf. Ende-zu-Ende in PowerFactory ist das
+noch nicht geprüft.
 
-`collect_series` berechnet die Fensterstatistik, solange die Reihe noch
-vollständig ist, also vor dem Downsampling für die Zeitreihen. Die Fenster
-kommen aus der Klassifizierung, die vor dem ersten Rechenlauf steht.
+## Bewertung
+
+Die Bewertung einer Außerbetriebnahme (`assess_case`) vergleicht ihren Case mit
+`REF` **im eigenen Zeitfenster**. Das gilt für die Tabelle „Calculated Cases“,
+die Metric View, die Kennzahlenkarten und das LODF-Ranking. Die Tabellen
+mit einer gemeinsamen `REF`-Spalte (Case-Zählungen, Radar, Top-10 je Case,
+Anhänge, Balkendiagramm) zeigen dagegen die Maxima des **ganzen** simulierten
+Zeitraums, so wie das Template es beschreibt.
 
 Jedes Element wird mit sich selbst in `REF` verglichen (`limit_status`):
-`NEW` (nur in OUTAGE verletzt), `WORSENED` (in beiden verletzt, in OUTAGE
+`NEW` (nur im Case verletzt), `WORSENED` (in beiden verletzt, im Case
 schlimmer als die Toleranz), `PRE-EXISTING` (in beiden verletzt, nicht
 schlimmer), `RESOLVED` (nur in REF verletzt), `EXCEEDED` (verletzt, aber kein
 Vergleichsfall vorhanden), `OK`. Einer Außerbetriebnahme wird nur zugerechnet,
 was sie verursacht oder verschärft.
 
-`assessment` ist genau einer von: `NO LIMIT EXCEEDED`,
-`NO ADDITIONAL VIOLATION` (nur Verletzungen, die schon in REF bestehen),
-`OVERLOAD`, `VOLTAGE BAND`, `OVERLOAD + VOLTAGE BAND` (jeweils neu oder
-verschärft), `NOT SIMULATED`, `NO RESULT DATA IN WINDOW`. `violation` ist 1
-nur für die drei verursachten Fälle und färbt die Zeile rot;
-`NO ADDITIONAL VIOLATION` färbt die MRT gelb. `assessment_detail` nennt zuerst
-die Auslastung (das Element, das die Außerbetriebnahme über die Grenze bringt,
-mit seinem REF-Wert), dann die Spannung, bei übersprungenen Einträgen den
-Grund.
-
-## Übersichtsseite und Elementumfang
+`assessment` je Case ist genau einer von: `BASELINE` (nur REF),
+`NO LIMIT EXCEEDED`, `NO ADDITIONAL VIOLATION`, `OVERLOAD`, `VOLTAGE BAND`,
+`OVERLOAD + VOLTAGE BAND` (jeweils neu oder verschärft), `NOT SIMULATED`,
+`NOT EVALUATED`, `NO RESULT DATA IN WINDOW`. `violation` ist 1 nur für die drei
+verursachten Fälle und färbt die Zeile rot; `NO ADDITIONAL VIOLATION` färbt die
+Zeile gelb. `assessment_detail` nennt zuerst die Auslastung (das Element, das die
+Außerbetriebnahme über die Grenze bringt, mit seinem REF-Wert, dazu den größten
+Anstieg), dann die Spannung, bei übersprungenen Einträgen den Grund.
 
 ## Aufbau des Berichts
 
-Eine Hochformatseite mit festen Kapiteln, Auslastung vor Spannung:
-1 Assessment Overview, 2 Planned Outages, 3 Line Loading, 4 Transformer
-Loading, 5 Voltage, 6 Time Series, 7 Model Quality Assurance, 8 Study
-Definition and Calculated Cases, 9 Appendix. Jede Kapitelüberschrift ist ein
-`HeaderBand`, dem ein Band auf `ScriptedReportMeta` mit einem Satz folgt
-(`line_summary`, `transformer_summary`, `voltage_summary`). So erscheint jedes
-Kapitel auch ohne Datenzeilen, statt eine leere Seite zu hinterlassen.
+Eine **Querformat**-Seite (A4) mit den Kapiteln des Templates
+`GridLens_Template_Optimiert_v2.pdf`, jedes auf eigener Seite (`DataBand` über
+`ScriptedReportMeta` mit `NewPageBefore`, damit es auch ohne Datenzeilen
+erscheint): Titelseite, Inhaltsverzeichnis (klickbar), Model Quality Assurance,
+Calculated Cases and Planned Outages, Reference Case (Kreise, Elemente über
+100 %), Metric View (Tabelle, zwei Karten), Case Comparison (drei
+Linienplots), Radar Comparison, Top 10 Maximum Loaded Lines, Most Loaded Line
+und Largest Delta (Zeitplots mit REF und allen Cases), Line Impact Ranking
+(LODF), Top 10 Strongly Loaded Lines by Case, Anhang A Leitungen, B
+Transformatoren, C Knotenspannungen. Anhang „Generatoren“ des Templates gibt es
+nicht (keine Daten, Scope offen).
 
-Die Auslastungskapitel zeigen immer die zehn höchsten Werte (auch ohne
-Verletzung) und die zehn größten Anstiege, jeweils REF und OUTAGE
-nebeneinander mit Delta und Status (`ScriptedLoadingRanking`), dazu ein
-Balkendiagramm mit 100-%-Linie. Die Zeitreihe zeigt das Element mit dem
-größten Anstieg, sonst das höchstbelastete. Der Anhang enthält Elemente ab
-`LOADING_WARNING` oder mit einer Änderung ab `LOADING_APPENDIX_DELTA`
-bzw. `VOLTAGE_APPENDIX_DELTA`.
+Tabellen mit Case-Spalten zeigen `REF` und bis zu `CASE_SLOTS = 6` Cases; weitere
+Cases folgen als neuer Block (`block`, `col_count`). Die MRT enthält je Spaltenzahl
+(0…6) ein Band-Paar, das auf `col_count` filtert; absteigend angeordnet. Diagramme
+mit einer Serie je Case (Radar, Zeitplots) gibt es ebenso je Anzahl gezeichneter
+Cases (1…7, Filter `ScriptedReportMeta.chart_cases`), damit die Legende nur
+vorhandene Cases nennt. Gezeichnet werden REF und die ersten sechs Cases; ein Hinweis
+nennt das. Farbe ist nur Identität: REF grau, danach feste Palette.
 
 Der Report zeigt für jedes Betriebsmittel nur seinen Namen (`loc_name`), ohne
-Fallpräfix, Pfad, Hash oder Kürzel. Zu lange Texte enden mit „…“.
-
-Kapitel 1 „Assessment Overview“ zeigt vier Kennzahlen (Überlastungen mit
-Anzahl neuer, höchste Auslastung, Spannungsverletzungen mit Anzahl neuer,
-Außerbetriebnahmen im Zeitraum), zwei
-Kreisdiagramme (Auslastungsklassen bis 80 %, 80–100 %, über 100 % für
-Leitungen und Transformatoren; Knoten unter, im und über ihrem Band) und zwei
-Balkendiagramme (Verletzungen REF gegen OUTAGE; Verletzungen je
-Freischaltungsfenster). Alle Zahlen berechnet `_overview` in Python; die MRT
-zeigt nur an. Jedes Diagramm liest eine eigene `ScriptedOverview*`-Tabelle.
+Fallpräfix, Pfad, Hash oder Kürzel. Zu lange Texte enden mit „…“. Der Bericht
+trägt keinen Hinweis auf „synthetische Daten“; Fußzeile und Banner lauten
+`PRE-ASSESSMENT | NOT FOR OPERATIONAL USE`.
 
 `GRID_NAME_FILTER` (Standard `'D7'`) begrenzt die Bewertung auf Elemente,
 deren Grid den Text im Namen trägt; der übrige Modellteil ist Auslandsnetz.
@@ -149,29 +169,29 @@ Es ist eigenständig und enthält eine Kopie des Filters; wer den Filter in
 
 ## Datenvertrag und MRT
 
-PowerFactory ergänzt `Scripted` genau einmal. Python publiziert 20 Tabellen;
+PowerFactory ergänzt `Scripted` genau einmal. Python publiziert 18 Tabellen;
 MRT und `TABLES` in `gridlens_report.py` müssen exakt übereinstimmen.
-Vertragsänderungen erfordern synchrone Anpassungen von Code, MRT, Versionen und
-Tests. `report.Reset()` läuft im erfolgreichen Publikationspfad genau einmal.
+Vertragsänderungen erfordern synchrone Anpassungen von Code, MRT-Generator, Versionen
+und Tests. `report.Reset()` läuft im erfolgreichen Publikationspfad genau einmal.
 
 Kein Diagramm darf über eine Data Relation gefiltert werden: Die
 PowerFactory-Berichtsengine wendet Relationen auf Diagramme nicht an und
 zeichnet sonst die Daten aller Master-Zeilen in ein Diagramm. Jedes Diagramm
-liest eine eigene Tabelle, die nur seine Reihen enthält (`ScriptedTrend*`).
+liest eine eigene Tabelle, die nur seine Reihen enthält (`ScriptedTrend*`,
+`ScriptedRadar`, `ScriptedCaseCounts`, `ScriptedPie*`).
 
-Diagramme, die REF und OUTAGE vergleichen, lesen Tabellen im Breitformat
-(`ref_value`/`outage_value` bzw. `ref_count`/`outage_count`) und haben zwei
-feste Serien: REF grau `[140:150:160]`, OUTAGE rot `[181:18:62]`. Kreise färben
-ihre Klassen über `Conditions` auf dem Argument; die Legende zeigt über
-`LegendValueType=Argument` die Klassennamen. Die Palette des Diagrammstils
-darf keine Bedeutung tragen.
+Diagramme mit REF und mehreren Cases lesen Tabellen im Breitformat
+(`s0_name…s6_name` und `v0…v6`): Slot 0 ist REF grau `[140:150:160]`, Slot 1 bis 6
+haben feste Farben. Kreise färben ihre Klassen über `Conditions` auf dem
+Argument; die Legende zeigt über `LegendValueType=Argument` die Klassennamen.
+Die Palette des Diagrammstils darf keine Bedeutung tragen. Kategorien bleiben in
+Datenreihenfolge (`SortBy=None`, `ORDER BY` in der Datenquelle).
 
 Die MRT setzt `Culture=en-US`; Zahlenformate verwenden
 `UseLocalSetting=False`. Diagramme zeichnet die Engine erst beim Export mit der
 Windows-Kultur, die `Culture` nicht erreicht. Keine Achse darf deshalb ein
 kulturabhängiges Dezimalzeichen drucken: Auslastungsachsen ganzzahlig
-(`0;-0;0`), Zählachsen ohne Beschriftung, Spannungsachsen über die Spalten
-`ref_mpu`/`outage_mpu` (tausendstel p.u.) mit dem Format `0'.'000`.
+(`0;-0;0`), Zählachsen ohne Beschriftung (die Werte stehen an den Punkten).
 
 Datenzellen einer Tabellenzeile tragen `GrowToHeight=True`, damit ein
 umbrechender Name das Zeilenraster nicht zerreißt.
@@ -182,13 +202,13 @@ Leerraum zwischen Öffnungs- und Schluss-Tag als String-Eintrag, und der
 Designer bricht mit `InvalidCastException` ab.
 
 Zeitreihen werden bis `MAX_PLOT_POINTS = 200` ungekürzt geplottet, darüber auf
-einem Raster, das nur von der Punktzahl abhängt. REF und OUTAGE haben so immer
-dieselben Zeitpunkte; eigene Extremwerte pro Reihe werden nicht ergänzt.
+einem Raster, das nur von der Punktzahl abhängt. REF und alle Cases haben so
+immer dieselben Zeitpunkte; eigene Extremwerte pro Reihe werden nicht ergänzt.
 
 `<ReportFile />` bleibt leer. Keine lokalen Pfade, Mock-Daten oder externen
 Payload-/Schema-Abhängigkeiten dürfen in die Auslieferung gelangen. Eingebettete
-Logos, Bookmarks, klickbares Inhaltsverzeichnis, Seitenumbrüche und der einzelne
-`PlotsChart`-Style bleiben erhalten.
+Logos, Bookmarks, klickbares Inhaltsverzeichnis, Seitenumbrüche und genau ein
+`Style` je Diagramm bleiben erhalten.
 
 Code, Kommentare, Variablennamen, Logs, Fehlermeldungen, Tabellenüberschriften
 und Report-Inhalte bleiben Englisch. Die deutsche Betriebsdokumentation ist
@@ -204,7 +224,9 @@ davon ausgenommen.
 4. Keine alten modularen, Scenario-, Variation-, Mock- oder Manifest-Pfade
    wieder einführen. Ebenso wenig `Apply`, `Reset` oder `Check` auf
    `IntPlannedout`: diese Methoden existieren in PowerFactory 2026 nicht.
-   Außer `iopt_maint` darf keine ComStatsim-Einstellung verändert werden.
+   An `ComStatsim` darf nur `iopt_maint` verändert werden, an
+   `IntPlannedout` zeitweise nur `outserv`; beides wird verifiziert
+   zurückgesetzt.
 5. Fehler dürfen weder einen alten Resultstand als aktuell publizieren noch
    einen unbestimmten Outage-Zustand verschweigen.
 6. Änderungen auf einem Feature-Branch entwickeln; keine Produktionsfreigabe
@@ -234,3 +256,15 @@ Fenster 00:00–01:59). Ob PowerFactory das Fenster versetzt anwendet oder ein
 Fensterbewertung die falschen Zeilen treffen. Ebenso zu verifizieren sind `AddCopy`/`CopyObject`,
 `ComStatsim.Execute`, `ElmRes` und `IntReport`. Die vollständige Abnahmematrix
 steht in `powerfactory/README.md`.
+
+Neu offen seit Version 7.0.0, noch nie in PowerFactory gelaufen:
+
+- Ob `outserv=1` an einer `IntPlannedout` sie bei gesetztem `iopt_maint` wirklich
+  ausschließt, sodass je Case nur die eine Außerbetriebnahme wirkt.
+- Der LODF-Ablauf im Bericht (Contingency Analysis anlegen, `ComVstab` ausführen,
+  `…_LODF` lesen, Zustand und Hilfsobjekte zurücksetzen). In nahriva-grid-analysis
+  ist nur die Probe `lodf_probe.py` in PowerFactory gelaufen.
+- Die Laufzeit mit 1+N Rechenläufen und ihr Speicherbedarf.
+- Das Rendern der neuen MRT in PowerFactory (Variantenbänder, Gruppenköpfe,
+  Querformat); lokal ist sie nur mit Stimulsoft 2025.3.5 geprüft, dessen Testversion
+  nur die erste Seite voll rendert.
