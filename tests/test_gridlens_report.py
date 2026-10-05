@@ -249,15 +249,20 @@ class App:
         return []
 
 
-def test_table_contract_is_single_versioned_24_table_contract():
-    assert gl.PUBLISHER_VERSION == "5.4.1"
-    assert gl.TEMPLATE_VERSION == "3.4.0"
-    assert gl.DATA_CONTRACT_VERSION == "3.4"
-    assert len(gl.TABLES) == 24
+def test_table_contract_is_single_versioned_20_table_contract():
+    assert gl.PUBLISHER_VERSION == "6.0.0"
+    assert gl.TEMPLATE_VERSION == "4.0.0"
+    assert gl.DATA_CONTRACT_VERSION == "4.0"
+    assert len(gl.TABLES) == 20
     tables = dict(gl.TABLES)
     assert "ScriptedCases" in tables
     assert "ScriptedPlannedOutages" in tables
-    assert "ScriptedCaseMatrix" in tables
+    assert "ScriptedLoadingRanking" in tables
+    # The static out-of-service matrix could not show what iopt_maint does.
+    for removed in ("ScriptedCaseMatrix", "ScriptedCaseComparison",
+                    "ScriptedRankings", "ScriptedRelevantTimePoints",
+                    "ScriptedVoltageAngleBars", "ScriptedVoltageMagnitudeBars"):
+        assert removed not in tables
     assert "generated_by" in dict(tables["ScriptedReportMeta"])
     assert "run_mode" in dict(tables["ScriptedReportMeta"])
 
@@ -353,9 +358,8 @@ def test_qds_result_reads_implicit_time_scale_from_column_minus_one():
     assert labels == ["00:00", "01:00"]
     assert plot_times == [0.0, 1.0]
     assert time_unit == "h"
-    assert {item["category"] for item in series} == {
-        "line", "voltage", "voltage_angle",
-    }
+    # Voltage angles are no longer read.
+    assert {item["category"] for item in series} == {"line", "voltage"}
 
 
 def test_friendly_exception_respects_suppressed_context():
@@ -556,9 +560,10 @@ def test_payload_validation_rejects_unknown_fields_and_booleans():
         "template_version": gl.TEMPLATE_VERSION,
         "data_contract_version": gl.DATA_CONTRACT_VERSION,
         "result_name": "R", "assessment_scope": "test",
-        "assessment_status": "test", "has_line_bars": "0",
-        "has_transformer_bars": "0", "has_voltage_bars": "0",
-        "has_angle_bars": "0", "unknown": "bad",
+        "assessment_status": "test", "line_summary": "x",
+        "transformer_summary": "x", "voltage_summary": "x",
+        "voltage_limits": "x", "has_line_bars": "0",
+        "has_transformer_bars": "0", "unknown": "bad",
     }]
     with pytest.raises(ValueError, match="unknown fields"):
         gl.validate_payload(payload)
@@ -833,8 +838,8 @@ def test_overload_inside_the_window_is_reported_with_its_element():
     assert judged['max_loading_element'] == 'Line A'
     assert judged['reference_max_loading'] == 96.1
     detail = gl.assessment_detail(judged)
-    assert "max 112.4 % on Line A at 2014-01-01 08:00" in detail
-    assert "reference 96.1 %" in detail
+    assert detail.startswith("Loading max 112.4 % on Line A at 2014-01-01 08:00 (REF 96.1 %)")
+    assert "1 overload: 1 new" in detail
 
 
 def test_voltage_band_violation_is_reported_separately():
@@ -848,7 +853,10 @@ def test_voltage_band_violation_is_reported_separately():
     assert judged['assessment'] == gl.ASSESSMENT_VOLTAGE
     assert judged['violation'] == 1
     assert judged['min_voltage'] == 0.931
-    assert "voltage 0.931 to 1.010 p.u." in gl.assessment_detail(judged)
+    detail = gl.assessment_detail(judged)
+    # Loading comes first, voltage second.
+    assert detail.index("Loading") < detail.index("Voltage 0.931 to 1.010 p.u.")
+    assert "1 node outside the band" in detail
 
 
 def test_both_kinds_of_violation_are_named_together():
@@ -1087,11 +1095,9 @@ def test_executed_publisher_output_matches_mrt_and_all_sql_queries(
     _check_emitted_report_against_mrt(app.report)
 
     # Empty tables must still expose the full schema during rendering.
-    assert app.report.tables["CaseMatrix"]["values"] == {}
-    assert app.report.tables["CaseMatrix"]["fields"]["case_id"] == 0
     if not reference and not enabled:
-        assert app.report.tables["CaseComparison"]["values"] == {}
-        assert app.report.tables["CaseComparison"]["fields"]["metric_value"] == 2
+        assert app.report.tables["LoadingRanking"]["values"] == {}
+        assert app.report.tables["LoadingRanking"]["fields"]["outage_max"] == 2
     outage = app.report.tables["PlannedOutages"]
     assert outage["fields"]["priority"] == 1
     assert outage["fields"]["violation"] == 1
@@ -1107,8 +1113,8 @@ def test_executed_publisher_output_matches_mrt_and_all_sql_queries(
     ("PlannedOutages", "assessment"),
     ("PlannedOutages", "assessment_detail"),
     ("PlannedOutages", None),
-    ("CaseMatrix", None),
-    ("CaseComparison", None),
+    ("LoadingRanking", None),
+    ("VoltageViolations", None),
 ])
 def test_emitted_schema_check_catches_missing_tables_and_fields_from_export_log(
         monkeypatch, table, field):
@@ -1134,7 +1140,7 @@ class _CountingList(list):
         return super().__iter__()
 
 
-def test_statistics_rows_do_not_rescan_the_category_per_critical_element():
+def test_voltage_tables_do_not_rescan_the_category_per_element():
     # A 229 325-series network hung for minutes here: every critical element
     # triggered a linear search through the whole category, once per case.
     results = []
@@ -1156,11 +1162,11 @@ def test_statistics_rows_do_not_rescan_the_category_per_critical_element():
     payload = gl.empty_payload()
     _CountingList.scans = 0
 
-    gl._statistics_rows(payload, results, 'voltage',
-                        'ScriptedVoltageStatistics', gl.VOLTAGE_FIELDS)
+    gl._voltage_tables(payload, results)
 
-    assert len(payload['ScriptedVoltageStatistics']) == 600
-    # critical_keys reads each case once; per-element lookups must not scan.
+    assert len(payload['ScriptedVoltageStatistics']) == 300
+    assert len(payload['ScriptedVoltageViolations']) == gl.MAX_VOLTAGE_ROWS
+    # paired() reads each case once; per-element lookups must not scan.
     assert _CountingList.scans <= len(results)
 
 
@@ -1266,19 +1272,6 @@ def test_no_element_in_scope_names_the_filter(monkeypatch):
 
     with pytest.raises(RuntimeError, match="GRID_NAME_FILTER"):
         gl.collect_series(ScopedElmRes())
-
-
-def test_out_of_service_matrix_only_lists_elements_in_scope(monkeypatch):
-    monkeypatch.setattr(gl, "GRID_NAME_FILTER", "D7")
-    app = App(())
-    own = PFObject("Ltg 12", "ElmLne", outserv=1, cpGrid=D7_GRID)
-    foreign = PFObject("Line 380", "ElmLne", outserv=1, cpGrid=FOREIGN_GRID)
-    app.GetCalcRelevantObjects = (
-        lambda pattern, *_: [own, foreign] if pattern == "*.ElmLne" else [])
-
-    names = [entry[1] for entry in gl._collect_out_of_service(app)]
-
-    assert names == ["Ltg 12"]
 
 
 def test_report_states_which_elements_were_assessed(monkeypatch):
@@ -1410,7 +1403,7 @@ def test_overview_voltage_pie_partitions_every_node_once():
     gl._overview(payload, _overview_results(), [])
 
     assert _counts(payload['ScriptedOverviewVoltageClasses']) == {
-        'below 0.95 p.u.': 1, '0.95 to 1.05 p.u.': 1, 'above 1.05 p.u.': 1}
+        'below band': 1, 'inside band': 1, 'above band': 1}
 
 
 def test_overview_compares_violations_between_ref_and_outage():
@@ -1424,8 +1417,12 @@ def test_overview_compares_violations_between_ref_and_outage():
     summary = payload['ScriptedOverview'][0]
     assert summary['chart_case_id'] == 'OUTAGE'
     assert summary['assessed_elements'] == 8
-    assert summary['overload_text'] == '2 (+1 vs REF)'
-    assert summary['voltage_text'] == '2 (+2 vs REF)'
+    # D7_L2 is new at 105 %, D7_L3 was already overloaded and rises further.
+    assert summary['overload_text'] == '2 (2 new)'
+    assert summary['voltage_text'] == '2 (2 new)'
+    assert summary['max_loading_text'] == '120.0 %'
+    assert summary['scope_text'].startswith('4 lines, 1 transformer and 3 nodes assessed.')
+    assert 'Highest loading on D7_L3.' in summary['scope_text']
 
 
 def test_overview_counts_violations_inside_each_outage_window():
@@ -1497,3 +1494,186 @@ def test_short_studies_are_plotted_without_thinning():
     points = [('t{}'.format(i), float(i), 1.0) for i in range(168)]
 
     assert gl.sampled_plot_points({'points': points}) == points
+
+
+# --- Loading first, statuses against REF, names only ---------------------
+
+def _loading_results(ref_values, outage_values, category='line'):
+    """REF and OUTAGE with one loading series per name, two time points."""
+    def result(case_id, values):
+        items = []
+        for name, (low, high) in values.items():
+            item = {'category': category, 'key': 'Project\\' + name, 'element_id': name,
+                    'element_name': name, 'voltage_level': '110 kV', 'unit': '%',
+                    'variable': 'Loading', 'windows': {},
+                    'points': [('2014-01-01 00:00', 0.0, low), ('2014-01-01 01:00', 1.0, high)]}
+            item['statistics'] = gl.statistics(item)
+            items.append(item)
+        return gl.case_result({'id': case_id, 'name': case_id}, items,
+                              ['t0', 't1'], [0.0, 1.0], 'h')
+    return [result('REF', ref_values), result('OUTAGE', outage_values)]
+
+
+@pytest.mark.parametrize(("ref", "outage", "status"), [
+    (90.0, 105.0, gl.STATUS_NEW),
+    (104.0, 110.0, gl.STATUS_WORSENED),
+    (104.0, 104.05, gl.STATUS_PREEXISTING),
+    (104.0, 95.0, gl.STATUS_RESOLVED),
+    (60.0, 99.0, gl.STATUS_OK),
+])
+def test_each_element_is_judged_against_itself_in_ref(ref, outage, status):
+    results = _loading_results({'Ltg A': (50.0, ref)}, {'Ltg A': (50.0, outage)})
+
+    (record,) = gl.paired(results, 'line')
+
+    assert gl.limit_status(record) == status
+
+
+def test_line_ranking_lists_the_highest_loadings_even_without_a_violation():
+    # The old report dropped the whole line chapter when nothing exceeded 100 %.
+    ref = {'Ltg {:02d}'.format(i): (10.0, 20.0 + i) for i in range(15)}
+    outage = dict(ref, **{'Ltg 03': (10.0, 60.0)})
+    payload = gl.empty_payload()
+
+    gl._loading_tables(payload, _loading_results(ref, outage))
+
+    highest = [row for row in payload['ScriptedLoadingRanking']
+               if row['ranking_type'] == 'line_highest']
+    assert len(highest) == gl.TOP_N
+    assert highest[0]['element_name'] == 'Ltg 03'
+    assert (highest[0]['ref_max'], highest[0]['outage_max']) == (23.0, 60.0)
+    assert highest[0]['delta_max'] == pytest.approx(37.0)
+    increases = [row for row in payload['ScriptedLoadingRanking']
+                 if row['ranking_type'] == 'line_increase']
+    assert [row['element_name'] for row in increases] == ['Ltg 03']
+    bars = payload['ScriptedLineLoadingBars']
+    assert [row['element_name'] for row in bars] == [row['element_name'] for row in highest]
+    assert (bars[0]['ref_value'], bars[0]['outage_value']) == (23.0, 60.0)
+
+
+def test_report_shows_the_element_name_and_nothing_else():
+    payload = gl.empty_payload()
+
+    gl._loading_tables(payload, _loading_results({'Ltg A': (1.0, 90.0)},
+                                                 {'Ltg A': (1.0, 95.0)}))
+
+    for table in ('ScriptedLoadingRanking', 'ScriptedLineLoadingBars',
+                  'ScriptedLineStatistics'):
+        assert {row['element_name'] for row in payload[table]} == {'Ltg A'}, table
+    assert 'bar_label' not in dict(dict(gl.TABLES)['ScriptedLineLoadingBars'])
+
+
+def test_long_text_is_shortened_with_an_ellipsis_not_a_hash():
+    assert gl.clip_text('x' * 90, 80) == 'x' * 79 + '…'
+    # A list of switched equipment keeps every name readable.
+    assert gl.text_limit('equipment_name') == gl.MAX_TEXT_LENGTH
+
+
+def test_pre_existing_violation_is_not_blamed_on_the_outage():
+    # The test report marked an outage red for 35 voltage violations that
+    # were all present in REF already.
+    results = [
+        _window_case('REF', [_window_series('line', 'Line A', '%', {0: _window(50.0, 57.3)}),
+                             _window_series('voltage', 'Bus 7', 'p.u.', {0: _window(1.0, 1.127)})]),
+        _window_case('OUTAGE', [_window_series('line', 'Line A', '%', {0: _window(50.0, 57.3)}),
+                                _window_series('voltage', 'Bus 7', 'p.u.', {0: _window(1.0, 1.127)})]),
+    ]
+
+    judged = gl.assess_outage_window(results, 0)
+
+    assert judged['assessment'] == gl.ASSESSMENT_PREEXISTING
+    assert judged['violation'] == 0
+    assert "1 node outside the band: 1 already in REF" in gl.assessment_detail(judged)
+
+
+def test_voltage_band_follows_the_nominal_voltage():
+    lower, upper = gl.voltage_band(380.0)
+    assert (lower * 380.0, upper * 380.0) == pytest.approx((360.0, 420.0))
+    # 1.094 p.u. at 380 kV is 415.7 kV and inside the band.
+    item = {'category': 'voltage', 'limits': gl.voltage_band(380.0)}
+    assert not gl.is_critical(item, {'min': 1.0, 'max': 1.094})
+    assert gl.is_critical(item, {'min': 1.0, 'max': 1.121})
+    # 1.127 p.u. at 110 kV is 124 kV, above 123 kV.
+    item = {'category': 'voltage', 'limits': gl.voltage_band(110.0)}
+    assert gl.is_critical(item, {'min': 1.0, 'max': 1.127})
+    # Unknown levels keep the p.u. band.
+    assert gl.voltage_band(None) == (gl.VOLTAGE_MIN, gl.VOLTAGE_MAX)
+    assert gl.voltage_band(20.0) == (gl.VOLTAGE_MIN, gl.VOLTAGE_MAX)
+
+
+class VoltageElmRes(ElmRes):
+    """An AC bus that is de-energised for one step, a dead bus, a DC bus."""
+
+    def __init__(self):
+        super().__init__()
+        self.ac = PFObject("Bus AC", "ElmTerm", uknom=110, systype=0)
+        self.dead = PFObject("Bus dead", "ElmTerm", uknom=110, systype=0)
+        self.dc = PFObject("Bus DC", "ElmTerm", uknom=320, systype=1)
+        self.variables = ("b:tnow", "m:u", "m:u", "m:u")
+        self.objects = (self.time, self.ac, self.dead, self.dc)
+        self.units = ("h", "p.u.", "p.u.", "p.u.")
+        self.columns = ([0.0, 1.0], [1.01, 0.0], [0.0, 0.0], [-1.01, -1.0])
+
+
+def test_zero_and_dc_voltages_are_not_counted_as_violations():
+    counters = {}
+
+    series = gl.collect_series(VoltageElmRes(), counters=counters)[0]
+
+    (bus,) = series
+    assert bus['element_name'] == 'Bus AC'
+    assert (bus['statistics']['min'], bus['statistics']['max']) == (1.01, 1.01)
+    assert counters['dc_nodes'] == 1
+    assert counters['deenergized_nodes'] == 1
+    assert counters['deenergized_steps'] == 3
+
+
+def test_loading_summary_names_the_governing_element_with_its_ref_value():
+    results = _loading_results({'Ltg A': (1.0, 57.3), 'Ltg B': (1.0, 104.0)},
+                               {'Ltg A': (1.0, 57.3), 'Ltg B': (1.0, 112.4)})
+
+    text = gl.loading_summary(results, 'line')
+
+    assert text == ('2 lines assessed. 1 above 100 %: 1 worsened. '
+                    'Highest loading 112.4 % on Ltg B (REF 104.0 %).')
+    assert gl.loading_summary(results, 'transformer').startswith('No transformer was assessed')
+
+
+def test_trend_follows_the_line_the_outages_change_most():
+    # A line overloaded in both cases draws two identical curves; the line the
+    # outages load up tells the reader more.
+    results = _loading_results({'Ltg hot': (140.0, 146.5), 'Ltg B': (40.0, 70.0)},
+                               {'Ltg hot': (140.0, 146.5), 'Ltg B': (40.0, 102.0)})
+    payload = gl.empty_payload()
+
+    gl._trends(payload, results)
+
+    rows = payload['ScriptedTrendLineLoading']
+    assert {row['element_name'] for row in rows} == {'Ltg B'}
+    assert rows[0]['chart_title'] == 'Largest line loading increase: Ltg B (+32.0 %-points)'
+
+
+def test_voltage_trend_carries_thousandths_for_a_culture_free_axis():
+    payload = gl.empty_payload()
+
+    gl._trends(payload, _trend_results())
+
+    row = payload['ScriptedTrendVoltageMin'][0]
+    assert (row['ref_value'], row['ref_mpu']) == (0.97, 970.0)
+    assert row['outage_mpu'] == 930.0
+
+
+def test_outage_detail_names_the_element_the_outage_overloads():
+    results = [
+        _window_case('REF', [_window_series('line', 'Ltg hot', '%', {0: _window(50.0, 140.5)}),
+                             _window_series('line', 'Ltg new', '%', {0: _window(50.0, 70.0)})]),
+        _window_case('OUTAGE', [_window_series('line', 'Ltg hot', '%', {0: _window(50.0, 140.5)}),
+                                _window_series('line', 'Ltg new', '%', {0: _window(50.0, 102.0)})]),
+    ]
+
+    judged = gl.assess_outage_window(results, 0)
+
+    assert judged['max_loading_element'] == 'Ltg new'
+    assert gl.assessment_detail(judged).startswith(
+        "Loading max 102.0 % on Ltg new at 2014-01-01 08:00 (REF 70.0 %); "
+        "2 overloads: 1 new, 1 already in REF.")

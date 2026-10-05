@@ -1,6 +1,6 @@
 # GridLens – Big Picture
 
-Stand: **28. September 2026** · Publisher `5.4.1` · MRT `3.4.0` · Datenvertrag `3.4`
+Stand: **29. September 2026** · Publisher `6.0.0` · MRT `4.0.0` · Datenvertrag `4.0`
 
 GridLens erzeugt in DIgSILENT PowerFactory 2026 einen Bericht zur technischen
 Vorprüfung geplanter Außerbetriebnahmen (Freischaltungen). Ein Klick auf das
@@ -39,9 +39,9 @@ flowchart LR
     QDS -- "rechnet REF und OUTAGE" --> PY
     OUT -- "Zeitfenster · Betriebsmittel" --> PY
     RES -- "Vorlage für temporäre Kopien" --> PY
-    PY -- "CreateTable · CreateField · SetValue<br/>24 Tabellen" --> REP
+    PY -- "CreateTable · CreateField · SetValue<br/>20 Tabellen" --> REP
     REP --> DB
-    DB -- "24 Scripted*-Datenquellen" --> MRT
+    DB -- "20 Scripted*-Datenquellen" --> MRT
     MRT --> PDF
 ```
 
@@ -50,7 +50,7 @@ Ausgeliefert werden **genau zwei Dateien**, immer aus demselben Release:
 | Datei | Aufgabe |
 |---|---|
 | `powerfactory/gridlens_report.py` | Rechnen, Auswerten, Zustand wiederherstellen, Tabellen publizieren. Nur Standardbibliothek und `powerfactory`. |
-| `powerfactory/MASTER_GRIDLENS.mrt` | Berichtslayout mit 24 Datenquellen, Logos, Lesezeichen, Inhaltsverzeichnis. |
+| `powerfactory/MASTER_GRIDLENS.mrt` | Berichtslayout mit 20 Datenquellen, Logos, Lesezeichen, Inhaltsverzeichnis. |
 
 Zwei Dinge liegen bewusst **außerhalb** der Auslieferung:
 
@@ -93,7 +93,7 @@ sequenceDiagram
     end
 
     Note over GL,Q: 06 RESTORE / CLEANUP<br/>iopt_maint, results, Study Time zurück · Kopien löschen · verifizieren
-    GL->>R: 07 REPORT<br/>Reset · 24 Tabellen · Heartbeat-Fortschritt
+    GL->>R: 07 REPORT<br/>Reset · 20 Tabellen · Heartbeat-Fortschritt
     GL-->>U: Report published successfully
     U->>R: Bericht erzeugen / exportieren
 ```
@@ -162,7 +162,7 @@ für die Bewertung braucht.
 
 ## 4. Bewertung je Zeitfenster
 
-Die Tabelle **Planned Outages** (Kapitel 4 des Berichts) ist die
+Die Tabelle **Planned Outages** (Kapitel 2 des Berichts) ist die
 Bewertungsgrundlage. Jede Zeile beurteilt **nur ihr eigenes Zeitfenster**.
 Eine Statistik über den ganzen Zeitraum wäre für alle Freischaltungen dieselbe
 und könnte sie nicht unterscheiden.
@@ -170,37 +170,43 @@ und könnte sie nicht unterscheiden.
 ```mermaid
 flowchart TD
     X["Zeitreihe je Betriebsmittel<br/>vollständig, vor dem Downsampling"] --> W["Statistik je Fenster<br/>min · max · Zeitpunkt"]
-    W --> L["höchste Auslastung<br/>Leitungen + Transformatoren"]
-    W --> V["Spannungsband<br/>min und max aller Knoten"]
-    W --> R["Referenzwert<br/>dasselbe Fenster in REF"]
+    W --> P["je Betriebsmittel:<br/>OUTAGE neben REF desselben Fensters"]
+    P --> S["Status je Betriebsmittel<br/>NEW · WORSENED · PRE-EXISTING · RESOLVED · OK"]
 
-    L --> Q1{"max > 100 %?"}
-    V --> Q2{"min < 0.95 oder<br/>max > 1.05 p.u.?"}
+    S --> Q1{"Überlastung<br/>NEW oder WORSENED?"}
+    S --> Q2{"Spannung außerhalb des Bands<br/>NEW oder WORSENED?"}
 
-    Q1 -- ja --> Q3{"Spannung auch<br/>verletzt?"}
+    Q1 -- ja --> Q3{"Spannung auch?"}
     Q3 -- ja --> A3["OVERLOAD + VOLTAGE BAND"]
     Q3 -- nein --> A1["OVERLOAD"]
     Q1 -- nein --> Q2
     Q2 -- ja --> A2["VOLTAGE BAND"]
-    Q2 -- nein --> A0["NO LIMIT EXCEEDED"]
+    Q2 -- nein --> Q4{"Verletzungen,<br/>die schon in REF bestehen?"}
+    Q4 -- ja --> A4["NO ADDITIONAL VIOLATION"]
+    Q4 -- nein --> A0["NO LIMIT EXCEEDED"]
 ```
+
+Das Spannungsband richtet sich nach der Nennspannung des Knotens
+(`VOLTAGE_LIMITS_KV`, z. B. 360–420 kV im 380-kV-Netz), nicht nach einem
+pauschalen 0.95–1.05 p.u.
 
 Zusätzlich gibt es `NOT SIMULATED` (übersprungen, Grund in der letzten Spalte)
 und `NO RESULT DATA IN WINDOW` (keine Ergebniszeile fällt ins Fenster).
 
-Werte genau auf dem Grenzwert sind keine Verletzung. Zeilen mit Verletzung
-werden in derselben roten Hervorhebung wie die Spannungstabellen dargestellt.
+Werte genau auf dem Grenzwert sind keine Verletzung. Verursachte Verletzungen
+sind rot hervorgehoben, Verletzungen, die schon in REF bestehen, gelb.
 
 Die Tabelle hat sechs Spalten über 17 cm. Illustrative Zeile mit den Fenstern
 des Abnahmeprojekts und synthetischen Messwerten:
 
 | Planned outage | Period | Prio | Equipment out of service | Assessment | Worst values inside the window |
 |---|---|---|---|---|---|
-| Line 04 - 14 | 2014-01-01 00:00 - 23:59 | 1 | Line 08 - 09, Line 09 - 39 | **OVERLOAD** | max 111.0 % on Line 08 - 09 at 2014-01-01 03:00 (reference 74.0 %); voltage 1.000 to 1.000 p.u. |
+| Line 04 - 14 | 2014-01-01 00:00 - 23:59 | 1 | Line 08 - 09, Line 09 - 39 | **OVERLOAD** | Loading max 111.0 % on Line 08 - 09 at 2014-01-01 03:00 (REF 74.0 %); 1 overload: 1 new. Voltage 1.000 to 1.000 p.u.; no node outside the band. |
 
 Der **Referenzwert** ist der Kausalitätsnachweis. Liegt er bereits über
 100 %, war das Netz schon ohne Freischaltung zu eng – die Überlastung ist dann
-nicht der Freischaltung anzulasten.
+nicht der Freischaltung anzulasten, und das Urteil lautet
+`NO ADDITIONAL VIOLATION`.
 
 ---
 
@@ -235,7 +241,7 @@ stateDiagram-v2
     }
     Restore --> Publizieren: alles verifiziert
     Restore --> Fehler: etwas nicht verifiziert
-    Publizieren --> [*]: 24 Tabellen im IntReport
+    Publizieren --> [*]: 20 Tabellen im IntReport
     Fehler --> [*]: nichts publiziert · manuelle Prüfung
 ```
 
@@ -258,57 +264,57 @@ löscht das Objekt nicht. Aufräumen heißt hier umbenennen, nicht löschen.
 
 ## 6. Vom Datenvertrag zum Bericht
 
-Python publiziert 24 Tabellen. PowerFactory stellt jedem Namen `Scripted`
+Python publiziert 20 Tabellen. PowerFactory stellt jedem Namen `Scripted`
 voran. Die Namen, Felder und Typen müssen exakt mit den Datenquellen der MRT
 übereinstimmen – `tests/test_mrt.py` prüft das feldgenau.
 
 ```mermaid
 flowchart LR
-    subgraph T["24 Tabellen"]
-        M["ReportMeta"]
+    subgraph T["20 Tabellen"]
+        M["ReportMeta<br/>mit Kernsätzen je Kapitel"]
         OV["Overview · LoadingClasses · VoltageClasses<br/>ViolationsByCase · ViolationsByOutage"]
+        PO["PlannedOutages"]
+        LR["LoadingRanking"]
+        B["LineLoadingBars<br/>TransformerLoadingBars"]
+        VV["VoltageViolations"]
+        PL["TrendLineLoading · TrendTransformerLoading<br/>TrendVoltageMin · TrendVoltageMax"]
         MQ["ModelQuality"]
         C["Cases"]
-        PO["PlannedOutages"]
-        CM["CaseMatrix"]
-        CC["CaseComparison"]
-        B["LineLoadingBars<br/>TransformerLoadingBars<br/>VoltageMagnitudeBars<br/>VoltageAngleBars"]
-        RK["Rankings"]
-        TP["RelevantTimePoints"]
-        PL["TrendLineLoading · TrendTransformerLoading<br/>TrendVoltageMin · TrendVoltageMax"]
         ST["Line-/Transformer-/<br/>VoltageStatistics"]
     end
 
-    M --> K0["Deckblatt · Inhalt · 2 Study Definition"]
-    OV --> KO["Assessment Overview"]
-    MQ --> K1["1 Model Quality Assurance"]
-    C --> K3["3 Calculated Cases"]
-    PO --> K4["4 Planned Outages<br/>(Bewertung)"]
-    CM --> K5["5 Out-of-Service Matrix"]
-    CC --> K6["6 Governing Results · 7 Metric Overview"]
-    B --> K8["8–11 Balkendiagramme"]
-    RK --> K8
-    TP --> K12["12 Relevant Time Points"]
-    PL --> K13["13 Time Series"]
-    ST --> K14["14 Appendix"]
+    M --> K0["Deckblatt · Inhalt · Kernsätze · 8 Study Definition"]
+    OV --> K1["1 Assessment Overview"]
+    PO --> K2["2 Planned Outages<br/>(Bewertung)"]
+    LR --> K3["3 Line Loading · 4 Transformer Loading"]
+    B --> K3
+    VV --> K5["5 Voltage"]
+    PL --> K6["6 Time Series"]
+    MQ --> K7["7 Model Quality Assurance"]
+    C --> K8["8 Calculated Cases"]
+    ST --> K9["9 Appendix"]
 ```
 
 | Berichtskapitel | Datenquelle(n) |
 |---|---|
-| Deckblatt, Inhaltsverzeichnis, 2 Study Definition | `ReportMeta` |
-| Assessment Overview (vor Kapitel 1) | `Overview` (Kennzahlen), `OverviewLoadingClasses`, `OverviewVoltageClasses` (Kreise), `OverviewViolationsByCase`, `OverviewViolationsByOutage` (Balken) |
-| 1 Model Quality Assurance | `ModelQuality` |
-| 3 Calculated Cases | `Cases` |
-| 4 Planned Outages | `PlannedOutages` |
-| 5 Out-of-Service Matrix | `CaseMatrix` |
-| 6 Governing Results, 7 Metric Overview | `CaseComparison` |
-| 8 Line Analysis | `LineLoadingBars` (Diagramm), `Rankings` |
-| 9 Transformer Analysis | `TransformerLoadingBars` (Diagramm), `Rankings` |
-| 10 Voltage Magnitudes | `VoltageMagnitudeBars` (Diagramm), `Rankings` |
-| 11 Voltage Angles | `VoltageAngleBars` (Diagramm und Tabelle) |
-| 12 Relevant Time Points | `RelevantTimePoints` |
-| 13 Time Series | `TrendLineLoading`, `TrendTransformerLoading`, `TrendVoltageMin`, `TrendVoltageMax` – je ein Diagramm |
-| 14 Appendix: Detailed Statistics | `LineStatistics`, `TransformerStatistics`, `VoltageStatistics` |
+| Deckblatt, Inhaltsverzeichnis | `ReportMeta` |
+| 1 Assessment Overview | `Overview` (Kennzahlen), `OverviewLoadingClasses`, `OverviewVoltageClasses` (Kreise), `OverviewViolationsByCase`, `OverviewViolationsByOutage` (Balken) |
+| 2 Planned Outages | `PlannedOutages` |
+| 3 Line Loading | `ReportMeta.line_summary`, `LineLoadingBars` (Diagramm), `LoadingRanking` (`line_highest`, `line_increase`) |
+| 4 Transformer Loading | `ReportMeta.transformer_summary`, `TransformerLoadingBars`, `LoadingRanking` (`transformer_*`) |
+| 5 Voltage | `ReportMeta.voltage_summary`, `ReportMeta.voltage_limits`, `VoltageViolations` |
+| 6 Time Series | `TrendLineLoading`, `TrendTransformerLoading`, `TrendVoltageMin`, `TrendVoltageMax` – je ein Diagramm |
+| 7 Model Quality Assurance | `ModelQuality` |
+| 8 Study Definition and Calculated Cases | `ReportMeta`, `Cases` |
+| 9 Appendix: Detailed Statistics | `LineStatistics`, `TransformerStatistics`, `VoltageStatistics` |
+
+Seit 6.0.0 zeigt jede Tabelle REF und OUTAGE nebeneinander in einer Zeile, mit
+Delta und Status, und nennt jedes Betriebsmittel nur mit seinem Namen. Die
+Out-of-Service-Matrix entfiel: Sie las das statische `outserv`, das
+`iopt_maint` nicht verändert, und war für REF und OUTAGE daher immer gleich.
+Ebenso entfielen Winkel, „Governing Results“, „Metric Overview“ und „Relevant
+Time Points“, die nur wiederholten, was die Auslastungs- und Spannungskapitel
+zeigen.
 
 Jedes Diagramm liest eine **eigene** Tabelle. Bis 5.1.3 hingen die vier
 Zeitreihen an einer Master-Detail-Relation `Plots → PlotData`. Die

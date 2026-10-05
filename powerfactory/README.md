@@ -8,7 +8,7 @@ PowerFactory-Rechner:
 | Datei | Aufgabe |
 |---|---|
 | `gridlens_report.py` | Einzeldatei für Planned-Outage-Discovery, QDS-Läufe, Ergebnisprüfung und `IntReport`-Publikation |
-| `MASTER_GRIDLENS.mrt` | Reportlayout und 24 `Scripted*`-Datenquellen |
+| `MASTER_GRIDLENS.mrt` | Reportlayout und 20 `Scripted*`-Datenquellen |
 
 Weitere Python-Pakete, JSON-Payloads, Schemas oder Datenbanken werden nicht
 benötigt. Die PowerFactory-Laufzeit verwendet nur die Python-Standardbibliothek
@@ -24,8 +24,7 @@ Vor dem Start müssen im aktiven Study Case vorhanden sein:
 - die benötigten Ergebnisvariablen:
   - `ElmLne`: `c:loading`, ersatzweise `m:loading`,
   - `ElmTr2`/`ElmTr3`: `c:loading`, ersatzweise `m:loading`,
-  - `ElmTerm`: `m:u`, ersatzweise `m:u1`,
-  - `ElmTerm`: `m:phiu`, ersatzweise `m:phiu1`,
+  - `ElmTerm`: `m:u`, ersatzweise `m:u1` (Winkel werden nicht mehr gelesen),
 - die zu prüfenden Planned Outages in der Operational Library,
 - ein `IntReport`, das `MASTER_GRIDLENS.mrt` verwendet.
 
@@ -57,7 +56,7 @@ Die Standardreihenfolge ist:
    jede Außerbetriebnahme in ihrem eigenen Zeitfenster an.
 5. Wiederherstellung von `iopt_maint` und `ComStatsim.results`, Löschen der
    temporären Ergebnisse.
-6. Publikation aller 24 Tabellen in das `IntReport`.
+6. Publikation aller 20 Tabellen in das `IntReport`.
 
 ## Warum GridLens die Außerbetriebnahmen nicht selbst anwendet
 
@@ -92,22 +91,48 @@ Entscheidend ist, dass jede Zeile **nur ihr eigenes Zeitfenster** bewertet. Zwei
 Freischaltungen an verschiedenen Tagen bekommen dadurch verschiedene Urteile; die
 Kennzahlen der übrigen Kapitel gelten dagegen über den ganzen Zeitraum.
 
+Jedes Betriebsmittel wird dabei mit sich selbst in `REF` verglichen. Eine
+Verletzung ist `NEW`, wenn sie nur mit der Außerbetriebnahme auftritt,
+`WORSENED`, wenn sie schon in `REF` besteht und sich verschärft, und
+`PRE-EXISTING`, wenn sie in `REF` genauso besteht. Der Außerbetriebnahme wird
+nur angelastet, was neu oder verschärft ist.
+
 Mögliche Urteile:
 
 | Assessment | Bedeutung |
 |---|---|
-| `NO LIMIT EXCEEDED` | im Fenster keine Auslastung > 100 % und Spannung im Band 0.95–1.05 |
-| `OVERLOAD` | Auslastung überschreitet 100 % |
-| `VOLTAGE BAND` | Spannung verlässt das Band |
-| `OVERLOAD + VOLTAGE BAND` | beides |
+| `NO LIMIT EXCEEDED` | im Fenster keine Überlastung und keine Spannung außerhalb ihres Bands |
+| `NO ADDITIONAL VIOLATION` | Verletzungen im Fenster bestehen alle schon in `REF` (gelb) |
+| `OVERLOAD` | die Außerbetriebnahme verursacht oder verschärft eine Überlastung (rot) |
+| `VOLTAGE BAND` | sie verursacht oder verschärft eine Bandverletzung (rot) |
+| `OVERLOAD + VOLTAGE BAND` | beides (rot) |
 | `NOT SIMULATED` | übersprungen; der Grund steht in der letzten Spalte |
 | `NO RESULT DATA IN WINDOW` | keine Ergebniszeile fällt in das Fenster |
 
-Zeilen mit Grenzwertverletzung werden rot auf hellrot hervorgehoben. Die letzte
-Spalte nennt die höchste Auslastung mit Betriebsmittel und Uhrzeit, den
-Referenzwert desselben Fensters ohne Freischaltung und das Spannungsband. Der
-Referenzwert ist der Kausalitätsnachweis: liegt er bereits über dem Grenzwert,
-ist die Überlastung nicht der Freischaltung anzulasten.
+Die letzte Spalte beginnt mit der Auslastung: das Betriebsmittel, das die
+Außerbetriebnahme über 100 % bringt (sonst das höchstbelastete), mit Wert,
+Uhrzeit und seinem Wert in `REF`, danach die Zahl der Überlastungen nach neu,
+verschärft und vorbestehend. Es folgen Spannungsspanne und Bandverletzungen.
+
+## Aufbau des Berichts
+
+1. **Assessment Overview** – Kennzahlen (Überlastungen, höchste Auslastung,
+   Spannungsverletzungen, Außerbetriebnahmen), Kreise und Balken.
+2. **Planned Outages** – das Urteil je Zeitfenster.
+3. **Line Loading** und 4. **Transformer Loading** – ein Satz mit der
+   Kernaussage, ein Balkendiagramm REF gegen OUTAGE mit 100-%-Linie, die zehn
+   höchsten Auslastungen und die zehn größten Anstiege mit Delta und Status.
+   Die Tabellen erscheinen auch dann, wenn nichts über 100 % liegt.
+5. **Voltage** – Knoten außerhalb ihres Bands, neue und verschärfte zuerst.
+6. **Time Series** – das Element mit dem größten Anstieg, sonst das
+   höchstbelastete.
+7. **Model Quality Assurance**, 8. **Study Definition and Calculated Cases**,
+   9. **Appendix** – Leitungen und Transformatoren ab 80 % oder mit einer
+   Änderung ab 1 %-Punkt, Knoten außerhalb ihres Bands oder mit einer
+   Änderung ab 0.005 p.u.
+
+Jedes Betriebsmittel erscheint nur mit seinem Namen aus PowerFactory
+(`loc_name`).
 
 ## Elementumfang
 
@@ -217,15 +242,27 @@ bereinigt.
 ## Ergebnisregeln
 
 - Auslastungsverletzung: strikt `> 100 %`.
-- Spannungsverletzung: strikt `< 0.95 p.u.` oder `> 1.05 p.u.`.
+- Spannungsverletzung: strikt außerhalb des Bands der Nennspannung. Oben in
+  `gridlens_report.py` steht `VOLTAGE_LIMITS_KV`:
+
+  | Nennspannung | zulässiges Band |
+  |---|---|
+  | 300 bis unter 450 kV | 360–420 kV |
+  | 200 bis unter 300 kV | 198–245 kV |
+  | 100 bis unter 150 kV | 99–123 kV |
+  | jede andere | 0.95–1.05 p.u. |
+
+  Diese Werte sind ein Vorschlag und vor dem Einsatz fachlich zu bestätigen.
 - Werte genau auf dem Grenzwert gelten nicht als Verletzung.
+- Spannungen unter 0.1 p.u. gelten als spannungslos und sind kein Messwert.
+  Knoten, die nie Spannung haben, und DC-Knoten (`systype = 1`) werden nicht
+  bewertet; die QA nennt ihre Anzahl.
 - Nichtnumerische Werte, `None`, Booleans, NaN und Infinity werden abgelehnt.
 - Pro Objekt/Kategorie gilt die erste vorhandene Variable der oben genannten
   Priorität.
 - Deltas werden nur für dasselbe physische Objekt in `REF` und `OUTAGE`
   berechnet; vollständige PowerFactory-Pfade bleiben interne Schlüssel.
 - Ausgeschaltete Elemente erhalten keine künstlichen Nullwerte.
-- Spannungswinkel sind informativ und haben keinen pauschalen Freigabegrenzwert.
 
 ## PowerFactory-2026-Abnahme vor Produktion
 
@@ -245,6 +282,8 @@ erforderlich:
 | Extraction-/Reportfehler | Zustand bereits wiederhergestellt; klare Fehlermeldung | alte/teilweise Daten wirken aktuell |
 | `RUN_REFERENCE_CASE=False` | nur `OUTAGE`; keine Referenzdeltas | versteckter Referenzlauf |
 | Zeitachse | absolute Zeitstempel, Spanne gleich dem konfigurierten Zeitraum | `NNNNN d HH:MM` statt Datum |
+| Fensterlage | `REF` und `OUTAGE` unterscheiden sich in den Zeitschritten **innerhalb** des Outage-Fensters | Abweichung erst im Schritt nach dem Fensterende (so im Testbericht vom 29.09.2026) |
+| Spannungsbänder | die Bänder in `VOLTAGE_LIMITS_KV` entsprechen den eigenen Betriebsgrenzen | abweichende Grenzen |
 | PDF-Sichtprüfung | lesbare QA-/Outage-Tabellen, Navigation, Diagramme und englische Inhalte | abgeschnittene oder falsch gebundene Inhalte |
 
 Erst wenn diese Fälle im eingesetzten PowerFactory-2026-Build bestanden sind,

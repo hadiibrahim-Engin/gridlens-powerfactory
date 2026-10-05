@@ -1,6 +1,6 @@
 # Agent Context: GridLens
 
-Diese Datei gilt für das gesamte Repository. Stand: **11. September 2026**.
+Diese Datei gilt für das gesamte Repository. Stand: **29. September 2026**.
 
 ## Produktziel
 
@@ -20,7 +20,7 @@ Die gemeinsam auszuliefernde Laufzeit besteht ausschließlich aus:
 - `powerfactory/gridlens_report.py`
 - `powerfactory/MASTER_GRIDLENS.mrt`
 
-Publisher-Version: `5.4.1`; MRT: `3.4.0`; Datenvertrag: `3.4`.
+Publisher-Version: `6.0.0`; MRT: `4.0.0`; Datenvertrag: `4.0`.
 
 Das einzelne ComPython liegt direkt unter dem `IntReport`. Es verwendet das
 aktive `ComStatsim` einschließlich Zeitraum, Zeitschritt, Profilen und
@@ -63,21 +63,54 @@ gefüllt, nicht über den gesamten Zeitraum. Das trennt Freischaltungen, die an
 verschiedenen Tagen liegen; eine Gesamtstatistik würde für alle dasselbe zeigen.
 
 `collect_series` berechnet die Fensterstatistik, solange die Reihe noch
-vollständig ist, also vor dem Downsampling für `ScriptedPlotData`. Die Fenster
+vollständig ist, also vor dem Downsampling für die Zeitreihen. Die Fenster
 kommen aus der Klassifizierung, die vor dem ersten Rechenlauf steht.
 
-`assessment` ist genau einer von: `NO LIMIT EXCEEDED`, `OVERLOAD`,
-`VOLTAGE BAND`, `OVERLOAD + VOLTAGE BAND`, `NOT SIMULATED`,
-`NO RESULT DATA IN WINDOW`. `violation` ist 1, sobald ein Grenzwert im Fenster
-überschritten wird, und steuert die farbliche Hervorhebung in der MRT.
-`assessment_detail` nennt die Zahlen dahinter, bei übersprungenen Einträgen den
+Jedes Element wird mit sich selbst in `REF` verglichen (`limit_status`):
+`NEW` (nur in OUTAGE verletzt), `WORSENED` (in beiden verletzt, in OUTAGE
+schlimmer als die Toleranz), `PRE-EXISTING` (in beiden verletzt, nicht
+schlimmer), `RESOLVED` (nur in REF verletzt), `EXCEEDED` (verletzt, aber kein
+Vergleichsfall vorhanden), `OK`. Einer Außerbetriebnahme wird nur zugerechnet,
+was sie verursacht oder verschärft.
+
+`assessment` ist genau einer von: `NO LIMIT EXCEEDED`,
+`NO ADDITIONAL VIOLATION` (nur Verletzungen, die schon in REF bestehen),
+`OVERLOAD`, `VOLTAGE BAND`, `OVERLOAD + VOLTAGE BAND` (jeweils neu oder
+verschärft), `NOT SIMULATED`, `NO RESULT DATA IN WINDOW`. `violation` ist 1
+nur für die drei verursachten Fälle und färbt die Zeile rot;
+`NO ADDITIONAL VIOLATION` färbt die MRT gelb. `assessment_detail` nennt zuerst
+die Auslastung (das Element, das die Außerbetriebnahme über die Grenze bringt,
+mit seinem REF-Wert), dann die Spannung, bei übersprungenen Einträgen den
 Grund.
 
 ## Übersichtsseite und Elementumfang
 
-Vor Kapitel 1 steht die Seite „Assessment Overview“: vier Kennzahlen, zwei
+## Aufbau des Berichts
+
+Eine Hochformatseite mit festen Kapiteln, Auslastung vor Spannung:
+1 Assessment Overview, 2 Planned Outages, 3 Line Loading, 4 Transformer
+Loading, 5 Voltage, 6 Time Series, 7 Model Quality Assurance, 8 Study
+Definition and Calculated Cases, 9 Appendix. Jede Kapitelüberschrift ist ein
+`HeaderBand`, dem ein Band auf `ScriptedReportMeta` mit einem Satz folgt
+(`line_summary`, `transformer_summary`, `voltage_summary`). So erscheint jedes
+Kapitel auch ohne Datenzeilen, statt eine leere Seite zu hinterlassen.
+
+Die Auslastungskapitel zeigen immer die zehn höchsten Werte (auch ohne
+Verletzung) und die zehn größten Anstiege, jeweils REF und OUTAGE
+nebeneinander mit Delta und Status (`ScriptedLoadingRanking`), dazu ein
+Balkendiagramm mit 100-%-Linie. Die Zeitreihe zeigt das Element mit dem
+größten Anstieg, sonst das höchstbelastete. Der Anhang enthält Elemente ab
+`LOADING_WARNING` oder mit einer Änderung ab `LOADING_APPENDIX_DELTA`
+bzw. `VOLTAGE_APPENDIX_DELTA`.
+
+Der Report zeigt für jedes Betriebsmittel nur seinen Namen (`loc_name`), ohne
+Fallpräfix, Pfad, Hash oder Kürzel. Zu lange Texte enden mit „…“.
+
+Kapitel 1 „Assessment Overview“ zeigt vier Kennzahlen (Überlastungen mit
+Anzahl neuer, höchste Auslastung, Spannungsverletzungen mit Anzahl neuer,
+Außerbetriebnahmen im Zeitraum), zwei
 Kreisdiagramme (Auslastungsklassen bis 80 %, 80–100 %, über 100 % für
-Leitungen und Transformatoren; Spannungsstatus der Knoten) und zwei
+Leitungen und Transformatoren; Knoten unter, im und über ihrem Band) und zwei
 Balkendiagramme (Verletzungen REF gegen OUTAGE; Verletzungen je
 Freischaltungsfenster). Alle Zahlen berechnet `_overview` in Python; die MRT
 zeigt nur an. Jedes Diagramm liest eine eigene `ScriptedOverview*`-Tabelle.
@@ -95,22 +128,28 @@ Es ist eigenständig und enthält eine Kopie des Filters; wer den Filter in
 
 ## Fachliche Regeln
 
-- Priorisierte Variablen: `c:loading`/`m:loading`, `m:u`/`m:u1`,
-  `m:phiu`/`m:phiu1`.
+- Priorisierte Variablen: `c:loading`/`m:loading`, `m:u`/`m:u1`. Winkel
+  werden nicht gelesen.
 - Auslastungsverletzung strikt `> 100 %`.
-- Spannungsverletzung strikt `< 0.95 p.u.` oder `> 1.05 p.u.`.
+- Spannungsverletzung strikt unter bzw. über dem Band der Nennspannung
+  (`VOLTAGE_LIMITS_KV`): 360–420 kV für Nennspannungen von 300 bis unter
+  450 kV, 198–245 kV von 200 bis unter 300 kV, 99–123 kV von 100 bis unter
+  150 kV; jede andere Nennspannung `0.95`–`1.05 p.u.`. Diese Werte sind ein
+  Vorschlag und fachlich zu bestätigen.
 - Werte genau auf dem Grenzwert sind keine Verletzung.
+- Spannungen unter `ENERGIZED_MIN_PU` (0,1 p.u.) gelten als spannungslos und
+  sind kein Messwert; Knoten ohne einen einzigen Wert und DC-Knoten
+  (`ElmTerm.systype == 1`) werden nicht bewertet und in der QA gezählt.
 - NaN, Infinity, `None`, Booleans und unlesbare API-Rückgaben werden nicht als
   Messwerte akzeptiert.
 - Vollständige PowerFactory-Pfade dienen nur als interne Identität; der Report
   zeigt kurze Namen.
 - Deltas entstehen nur für dasselbe Objekt in `REF` und `OUTAGE`.
 - Ausgeschaltete oder fehlende Reihen erhalten keine künstlichen Nullwerte.
-- Winkel sind informativ und besitzen keinen pauschalen Grenzwert.
 
 ## Datenvertrag und MRT
 
-PowerFactory ergänzt `Scripted` genau einmal. Python publiziert 24 Tabellen;
+PowerFactory ergänzt `Scripted` genau einmal. Python publiziert 20 Tabellen;
 MRT und `TABLES` in `gridlens_report.py` müssen exakt übereinstimmen.
 Vertragsänderungen erfordern synchrone Anpassungen von Code, MRT, Versionen und
 Tests. `report.Reset()` läuft im erfolgreichen Publikationspfad genau einmal.
@@ -126,6 +165,16 @@ feste Serien: REF grau `[140:150:160]`, OUTAGE rot `[181:18:62]`. Kreise färben
 ihre Klassen über `Conditions` auf dem Argument; die Legende zeigt über
 `LegendValueType=Argument` die Klassennamen. Die Palette des Diagrammstils
 darf keine Bedeutung tragen.
+
+Die MRT setzt `Culture=en-US`; Zahlenformate verwenden
+`UseLocalSetting=False`. Diagramme zeichnet die Engine erst beim Export mit der
+Windows-Kultur, die `Culture` nicht erreicht. Keine Achse darf deshalb ein
+kulturabhängiges Dezimalzeichen drucken: Auslastungsachsen ganzzahlig
+(`0;-0;0`), Zählachsen ohne Beschriftung, Spannungsachsen über die Spalten
+`ref_mpu`/`outage_mpu` (tausendstel p.u.) mit dem Format `0'.'000`.
+
+Datenzellen einer Tabellenzeile tragen `GrowToHeight=True`, damit ein
+umbrechender Name das Zeilenraster nicht zerreißt.
 
 Leere Listen werden selbstschließend geschrieben
 (`<Components isList="true" count="0" />`): Stimulsoft 2025.3 liest den
@@ -178,6 +227,10 @@ QA-Layout.
 Offen bleibt der Nachweis, dass `iopt_maint=1` die Ergebnisse tatsächlich
 verändert: dass also die Betriebsmittel aus `components` im Zeitfenster der
 Außerbetriebnahme abweichende Werte liefern. Der REF/OUTAGE-Vergleich selbst
-ist dieser Nachweis. Ebenso zu verifizieren sind `AddCopy`/`CopyObject`,
+ist dieser Nachweis. Im Testbericht vom 29. September 2026 unterschieden sich
+REF und OUTAGE nur im Zeitschritt direkt nach dem Fensterende (02:00 bei einem
+Fenster 00:00–01:59). Ob PowerFactory das Fenster versetzt anwendet oder ein
+`ElmRes`-Zeitstempel das Intervallende markiert, ist offen; bis dahin kann die
+Fensterbewertung die falschen Zeilen treffen. Ebenso zu verifizieren sind `AddCopy`/`CopyObject`,
 `ComStatsim.Execute`, `ElmRes` und `IntReport`. Die vollständige Abnahmematrix
 steht in `powerfactory/README.md`.

@@ -13,22 +13,36 @@ from datetime import datetime
 HOST_TABLE_PREFIX = 'Scripted'
 TOP_N = 10
 MAX_PLOT_POINTS = 200
-MAX_BAR_ITEMS = 12
+MAX_VOLTAGE_ROWS = 30
 LOADING_MAX = 100.0
+# Loading classes and the appendix start here.
+LOADING_WARNING = 80.0
+# Smaller changes count as unchanged: %-points for loading, p.u. for voltage.
+LOADING_DELTA_TOLERANCE = 0.1
+VOLTAGE_DELTA_TOLERANCE = 0.001
+# The appendix also lists elements that change at least this much.
+LOADING_APPENDIX_DELTA = 1.0
+VOLTAGE_APPENDIX_DELTA = 0.005
+# Permitted voltage band per nominal voltage, in kV:
+# (lowest nominal, nominal below which the row applies, minimum, maximum).
+# Any other nominal voltage uses VOLTAGE_MIN to VOLTAGE_MAX in p.u.
+VOLTAGE_LIMITS_KV = ((300.0, 450.0, 360.0, 420.0), (200.0, 300.0, 198.0, 245.0), (100.0, 150.0, 99.0, 123.0))
 VOLTAGE_MIN = 0.95
 VOLTAGE_MAX = 1.05
+# Below this a node counts as de-energised at that time step, not as a value.
+ENERGIZED_MIN_PU = 0.1
 TIME_UNIT_FALLBACK = 'h'
-PUBLISHER_VERSION = '5.4.1'
+PUBLISHER_VERSION = '6.0.0'
 TEMPLATE_NAME = 'MASTER_GRIDLENS'
-TEMPLATE_VERSION = '3.4.0'
-DATA_CONTRACT_VERSION = '3.4'
+TEMPLATE_VERSION = '4.0.0'
+DATA_CONTRACT_VERSION = '4.0'
 RUN_REFERENCE_CASE = True
 # Only elements whose grid (PowerFactory attribute "Grid", cpGrid) has a name
 # containing this text are assessed; every other element in the model is
 # foreign network and ignored. An empty string assesses every element.
 GRID_NAME_FILTER = 'D7'
-VARIABLES = {'line': ('c:loading', 'm:loading'), 'transformer': ('c:loading', 'm:loading'), 'voltage': ('m:u', 'm:u1'), 'voltage_angle': ('m:phiu', 'm:phiu1')}
-CLASS_CATEGORIES = {'ElmLne': ('line',), 'ElmTr2': ('transformer',), 'ElmTr3': ('transformer',), 'ElmTerm': ('voltage', 'voltage_angle')}
+VARIABLES = {'line': ('c:loading', 'm:loading'), 'transformer': ('c:loading', 'm:loading'), 'voltage': ('m:u', 'm:u1')}
+CLASS_CATEGORIES = {'ElmLne': ('line',), 'ElmTr2': ('transformer',), 'ElmTr3': ('transformer',), 'ElmTerm': ('voltage',)}
 MAX_RESULT_ROWS = 35040
 MAX_RESULT_CELLS = 20000000
 MAX_RUN_CELLS = 120000000
@@ -44,12 +58,17 @@ ABSOLUTE_TIME_THRESHOLD_HOURS = 87600.0
 _LABEL_SUFFIXES = ('_id', '_name', '_label', '_type', '_level', '_time')
 _LABEL_FIELDS = ('unit', 'variable', 'status', 'reason', 'action', 'timestamp', 'metric_name', 'check_name', 'ranking_type', 'simulation_status', 'simulation_start', 'simulation_end', 'simulation_time_step', 'generation_date', 'assessment_status')
 
+# Lists of names that must stay readable in full.
+_LONG_LABEL_FIELDS = ('equipment_name',)
+
 def text_limit(field):
+    if field in _LONG_LABEL_FIELDS:
+        return MAX_TEXT_LENGTH
     if field in _LABEL_FIELDS or field.endswith(_LABEL_SUFFIXES):
         return MAX_LABEL_LENGTH
     return MAX_TEXT_LENGTH
-TABLES = (('ScriptedReportMeta', (('study_id', 'string'), ('study_name', 'string'), ('study_description', 'string'), ('model_name', 'string'), ('model_version', 'string'), ('simulation_start', 'string'), ('simulation_end', 'string'), ('simulation_time_step', 'string'), ('generation_date', 'string'), ('generated_by', 'string'), ('run_mode', 'string'), ('template_name', 'string'), ('template_version', 'string'), ('data_contract_version', 'string'), ('result_name', 'string'), ('assessment_scope', 'string'), ('assessment_status', 'string'), ('has_line_bars', 'string'), ('has_transformer_bars', 'string'), ('has_voltage_bars', 'string'), ('has_angle_bars', 'string'))), ('ScriptedModelQuality', (('check_id', 'string'), ('check_name', 'string'), ('status', 'string'), ('message', 'string'), ('affected_element', 'string'))), ('ScriptedCases', (('case_id', 'string'), ('case_name', 'string'), ('is_reference', 'integer'), ('description', 'string'), ('simulation_status', 'string'), ('simulation_start', 'string'), ('simulation_end', 'string'))), ('ScriptedPlannedOutages', (('case_id', 'string'), ('outage_id', 'string'), ('outage_name', 'string'), ('source_class', 'string'), ('status', 'string'), ('skip_reason', 'string'), ('equipment_name', 'string'), ('equipment_type', 'string'), ('switching_actions', 'string'), ('start_time', 'string'), ('end_time', 'string'), ('priority', 'integer'), ('assessment', 'string'), ('assessment_detail', 'string'), ('violation', 'integer'), ('max_loading', 'number'), ('max_loading_element', 'string'), ('max_loading_time', 'string'), ('reference_max_loading', 'number'), ('min_voltage', 'number'), ('max_voltage', 'number'))), ('ScriptedOverview', (('assessed_elements', 'integer'), ('outages_found', 'integer'), ('outages_in_scope', 'integer'), ('chart_case_id', 'string'), ('overloads_ref', 'integer'), ('overloads_outage', 'integer'), ('voltage_violations_ref', 'integer'), ('voltage_violations_outage', 'integer'), ('elements_text', 'string'), ('outages_text', 'string'), ('overload_text', 'string'), ('voltage_text', 'string'))), ('ScriptedOverviewLoadingClasses', (('sort_order', 'integer'), ('class_label', 'string'), ('element_count', 'integer'))), ('ScriptedOverviewVoltageClasses', (('sort_order', 'integer'), ('class_label', 'string'), ('element_count', 'integer'))), ('ScriptedOverviewViolationsByCase', (('sort_order', 'integer'), ('violation_type', 'string'), ('ref_count', 'integer'), ('outage_count', 'integer'))), ('ScriptedOverviewViolationsByOutage', (('rank', 'integer'), ('outage_name', 'string'), ('ref_count', 'integer'), ('outage_count', 'integer'))), ('ScriptedCaseMatrix', (('element_id', 'string'), ('element_name', 'string'), ('element_type', 'string'), ('case_id', 'string'), ('is_out_of_service', 'integer'), ('status_label', 'string'))), ('ScriptedLineStatistics', (('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('voltage_level', 'string'), ('min_loading', 'number'), ('max_loading', 'number'), ('mean_loading', 'number'), ('p95_loading', 'number'), ('time_of_min_loading', 'string'), ('time_of_max_loading', 'string'), ('reference_max_loading', 'number'), ('delta_max_loading', 'number'))), ('ScriptedTransformerStatistics', (('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('voltage_level', 'string'), ('min_loading', 'number'), ('max_loading', 'number'), ('mean_loading', 'number'), ('p95_loading', 'number'), ('time_of_max_loading', 'string'), ('reference_max_loading', 'number'), ('delta_max_loading', 'number'))), ('ScriptedVoltageStatistics', (('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('voltage_level', 'string'), ('min_voltage', 'number'), ('max_voltage', 'number'), ('mean_voltage', 'number'), ('time_of_min_voltage', 'string'), ('time_of_max_voltage', 'string'), ('reference_min_voltage', 'number'), ('reference_max_voltage', 'number'), ('delta_min_voltage', 'number'), ('delta_max_voltage', 'number'))), ('ScriptedLineLoadingBars', (('rank', 'integer'), ('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('bar_label', 'string'), ('voltage_level', 'string'), ('max_loading', 'number'), ('unit', 'string'), ('event_time', 'string'))), ('ScriptedTransformerLoadingBars', (('rank', 'integer'), ('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('bar_label', 'string'), ('voltage_level', 'string'), ('max_loading', 'number'), ('unit', 'string'), ('event_time', 'string'))), ('ScriptedVoltageMagnitudeBars', (('rank', 'integer'), ('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('bar_label', 'string'), ('voltage_level', 'string'), ('min_voltage', 'number'), ('max_voltage', 'number'), ('mean_voltage', 'number'), ('deviation', 'number'), ('status_label', 'string'), ('unit', 'string'))), ('ScriptedVoltageAngleBars', (('rank', 'integer'), ('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('bar_label', 'string'), ('voltage_level', 'string'), ('min_angle', 'number'), ('max_angle', 'number'), ('mean_angle', 'number'), ('max_abs_angle', 'number'), ('angle_span', 'number'), ('event_time', 'string'), ('unit', 'string'))), ('ScriptedCaseComparison', (('metric_key', 'string'), ('metric_name', 'string'), ('unit', 'string'), ('case_id', 'string'), ('metric_value', 'number'), ('element_id', 'string'), ('element_name', 'string'))), ('ScriptedRankings', (('ranking_type', 'string'), ('rank', 'integer'), ('case_id', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('element_type', 'string'), ('metric_name', 'string'), ('metric_value', 'number'), ('unit', 'string'), ('reference_value', 'number'), ('delta_value', 'number'), ('event_time', 'string'))), ('ScriptedRelevantTimePoints', (('timestamp', 'string'), ('case_id', 'string'), ('reason', 'string'), ('element_id', 'string'), ('element_name', 'string'), ('metric_name', 'string'), ('metric_value', 'number'), ('unit', 'string'))), ('ScriptedTrendLineLoading', (('time_label', 'string'), ('timestamp', 'number'), ('ref_value', 'number'), ('outage_value', 'number'), ('element_name', 'string'), ('unit', 'string'))), ('ScriptedTrendTransformerLoading', (('time_label', 'string'), ('timestamp', 'number'), ('ref_value', 'number'), ('outage_value', 'number'), ('element_name', 'string'), ('unit', 'string'))), ('ScriptedTrendVoltageMin', (('time_label', 'string'), ('timestamp', 'number'), ('ref_value', 'number'), ('outage_value', 'number'), ('element_name', 'string'), ('unit', 'string'))), ('ScriptedTrendVoltageMax', (('time_label', 'string'), ('timestamp', 'number'), ('ref_value', 'number'), ('outage_value', 'number'), ('element_name', 'string'), ('unit', 'string'))))
-REQUIRED_FIELDS = {'ScriptedReportMeta': ('study_id', 'study_name', 'model_name', 'model_version', 'generation_date', 'generated_by', 'run_mode', 'template_name', 'template_version', 'data_contract_version', 'result_name', 'assessment_scope', 'assessment_status', 'has_line_bars', 'has_transformer_bars', 'has_voltage_bars', 'has_angle_bars'), 'ScriptedModelQuality': ('check_id', 'check_name', 'status', 'message'), 'ScriptedCases': ('case_id', 'case_name', 'is_reference', 'simulation_status'), 'ScriptedPlannedOutages': ('case_id', 'outage_id', 'outage_name', 'source_class', 'status', 'assessment', 'assessment_detail', 'violation'), 'ScriptedOverview': ('assessed_elements', 'outages_found', 'outages_in_scope', 'elements_text', 'outages_text', 'overload_text', 'voltage_text'), 'ScriptedOverviewLoadingClasses': ('sort_order', 'class_label', 'element_count'), 'ScriptedOverviewVoltageClasses': ('sort_order', 'class_label', 'element_count'), 'ScriptedOverviewViolationsByCase': ('sort_order', 'violation_type'), 'ScriptedOverviewViolationsByOutage': ('rank', 'outage_name'), 'ScriptedCaseMatrix': ('element_id', 'element_name', 'element_type', 'case_id', 'is_out_of_service', 'status_label'), 'ScriptedLineStatistics': ('case_id', 'element_id', 'element_name', 'min_loading', 'max_loading', 'mean_loading', 'p95_loading'), 'ScriptedTransformerStatistics': ('case_id', 'element_id', 'element_name', 'min_loading', 'max_loading', 'mean_loading', 'p95_loading'), 'ScriptedVoltageStatistics': ('case_id', 'element_id', 'element_name', 'min_voltage', 'max_voltage', 'mean_voltage'), 'ScriptedLineLoadingBars': ('rank', 'case_id', 'element_id', 'element_name', 'bar_label', 'max_loading', 'unit'), 'ScriptedTransformerLoadingBars': ('rank', 'case_id', 'element_id', 'element_name', 'bar_label', 'max_loading', 'unit'), 'ScriptedVoltageMagnitudeBars': ('rank', 'case_id', 'element_id', 'element_name', 'bar_label', 'min_voltage', 'max_voltage', 'mean_voltage', 'deviation', 'status_label', 'unit'), 'ScriptedVoltageAngleBars': ('rank', 'case_id', 'element_id', 'element_name', 'bar_label', 'min_angle', 'max_angle', 'mean_angle', 'max_abs_angle', 'angle_span', 'unit'), 'ScriptedCaseComparison': ('metric_key', 'metric_name', 'case_id', 'metric_value'), 'ScriptedRankings': ('ranking_type', 'rank', 'case_id', 'element_id', 'element_name', 'element_type', 'metric_name', 'metric_value', 'unit'), 'ScriptedRelevantTimePoints': ('timestamp', 'case_id', 'reason', 'metric_name', 'metric_value', 'unit'), 'ScriptedTrendLineLoading': ('time_label', 'timestamp', 'element_name', 'unit'), 'ScriptedTrendTransformerLoading': ('time_label', 'timestamp', 'element_name', 'unit'), 'ScriptedTrendVoltageMin': ('time_label', 'timestamp', 'element_name', 'unit'), 'ScriptedTrendVoltageMax': ('time_label', 'timestamp', 'element_name', 'unit')}
+TABLES = (('ScriptedReportMeta', (('study_id', 'string'), ('study_name', 'string'), ('study_description', 'string'), ('model_name', 'string'), ('model_version', 'string'), ('simulation_start', 'string'), ('simulation_end', 'string'), ('simulation_time_step', 'string'), ('generation_date', 'string'), ('generated_by', 'string'), ('run_mode', 'string'), ('template_name', 'string'), ('template_version', 'string'), ('data_contract_version', 'string'), ('result_name', 'string'), ('assessment_scope', 'string'), ('assessment_status', 'string'), ('line_summary', 'string'), ('transformer_summary', 'string'), ('voltage_summary', 'string'), ('voltage_limits', 'string'), ('has_line_bars', 'string'), ('has_transformer_bars', 'string'))), ('ScriptedModelQuality', (('check_id', 'string'), ('check_name', 'string'), ('status', 'string'), ('message', 'string'), ('affected_element', 'string'))), ('ScriptedCases', (('case_id', 'string'), ('case_name', 'string'), ('is_reference', 'integer'), ('description', 'string'), ('simulation_status', 'string'), ('simulation_start', 'string'), ('simulation_end', 'string'))), ('ScriptedPlannedOutages', (('case_id', 'string'), ('outage_id', 'string'), ('outage_name', 'string'), ('source_class', 'string'), ('status', 'string'), ('skip_reason', 'string'), ('equipment_name', 'string'), ('equipment_type', 'string'), ('switching_actions', 'string'), ('start_time', 'string'), ('end_time', 'string'), ('priority', 'integer'), ('assessment', 'string'), ('assessment_detail', 'string'), ('violation', 'integer'), ('max_loading', 'number'), ('max_loading_element', 'string'), ('max_loading_time', 'string'), ('reference_max_loading', 'number'), ('min_voltage', 'number'), ('max_voltage', 'number'))), ('ScriptedOverview', (('assessed_elements', 'integer'), ('outages_found', 'integer'), ('outages_in_scope', 'integer'), ('chart_case_id', 'string'), ('overloads_ref', 'integer'), ('overloads_outage', 'integer'), ('voltage_violations_ref', 'integer'), ('voltage_violations_outage', 'integer'), ('max_loading_text', 'string'), ('scope_text', 'string'), ('outages_text', 'string'), ('overload_text', 'string'), ('voltage_text', 'string'))), ('ScriptedOverviewLoadingClasses', (('sort_order', 'integer'), ('class_label', 'string'), ('element_count', 'integer'))), ('ScriptedOverviewVoltageClasses', (('sort_order', 'integer'), ('class_label', 'string'), ('element_count', 'integer'))), ('ScriptedOverviewViolationsByCase', (('sort_order', 'integer'), ('violation_type', 'string'), ('ref_count', 'integer'), ('outage_count', 'integer'))), ('ScriptedOverviewViolationsByOutage', (('rank', 'integer'), ('outage_name', 'string'), ('ref_count', 'integer'), ('outage_count', 'integer'))), ('ScriptedLoadingRanking', (('ranking_type', 'string'), ('rank', 'integer'), ('element_name', 'string'), ('voltage_level', 'string'), ('ref_max', 'number'), ('outage_max', 'number'), ('delta_max', 'number'), ('time_of_max', 'string'), ('status_label', 'string'), ('violation', 'integer'))), ('ScriptedLineLoadingBars', (('rank', 'integer'), ('element_name', 'string'), ('ref_value', 'number'), ('outage_value', 'number'))), ('ScriptedTransformerLoadingBars', (('rank', 'integer'), ('element_name', 'string'), ('ref_value', 'number'), ('outage_value', 'number'))), ('ScriptedVoltageViolations', (('rank', 'integer'), ('element_name', 'string'), ('voltage_level', 'string'), ('lower_limit', 'number'), ('upper_limit', 'number'), ('ref_min', 'number'), ('ref_max', 'number'), ('outage_min', 'number'), ('outage_max', 'number'), ('time_of_worst', 'string'), ('status_label', 'string'), ('violation', 'integer'))), ('ScriptedLineStatistics', (('element_name', 'string'), ('voltage_level', 'string'), ('ref_max', 'number'), ('outage_max', 'number'), ('delta_max', 'number'), ('time_of_max', 'string'), ('status_label', 'string'), ('violation', 'integer'))), ('ScriptedTransformerStatistics', (('element_name', 'string'), ('voltage_level', 'string'), ('ref_max', 'number'), ('outage_max', 'number'), ('delta_max', 'number'), ('time_of_max', 'string'), ('status_label', 'string'), ('violation', 'integer'))), ('ScriptedVoltageStatistics', (('element_name', 'string'), ('voltage_level', 'string'), ('lower_limit', 'number'), ('upper_limit', 'number'), ('ref_min', 'number'), ('ref_max', 'number'), ('outage_min', 'number'), ('outage_max', 'number'), ('delta_min', 'number'), ('delta_max', 'number'), ('status_label', 'string'), ('violation', 'integer'))), ('ScriptedTrendLineLoading', (('time_label', 'string'), ('timestamp', 'number'), ('ref_value', 'number'), ('outage_value', 'number'), ('element_name', 'string'), ('chart_title', 'string'), ('unit', 'string'))), ('ScriptedTrendTransformerLoading', (('time_label', 'string'), ('timestamp', 'number'), ('ref_value', 'number'), ('outage_value', 'number'), ('element_name', 'string'), ('chart_title', 'string'), ('unit', 'string'))), ('ScriptedTrendVoltageMin', (('time_label', 'string'), ('timestamp', 'number'), ('ref_value', 'number'), ('outage_value', 'number'), ('element_name', 'string'), ('chart_title', 'string'), ('ref_mpu', 'number'), ('outage_mpu', 'number'), ('unit', 'string'))), ('ScriptedTrendVoltageMax', (('time_label', 'string'), ('timestamp', 'number'), ('ref_value', 'number'), ('outage_value', 'number'), ('element_name', 'string'), ('chart_title', 'string'), ('ref_mpu', 'number'), ('outage_mpu', 'number'), ('unit', 'string'))))
+REQUIRED_FIELDS = {'ScriptedReportMeta': ('study_id', 'study_name', 'model_name', 'model_version', 'generation_date', 'generated_by', 'run_mode', 'template_name', 'template_version', 'data_contract_version', 'result_name', 'assessment_scope', 'assessment_status', 'line_summary', 'transformer_summary', 'voltage_summary', 'voltage_limits', 'has_line_bars', 'has_transformer_bars'), 'ScriptedModelQuality': ('check_id', 'check_name', 'status', 'message'), 'ScriptedCases': ('case_id', 'case_name', 'is_reference', 'simulation_status'), 'ScriptedPlannedOutages': ('case_id', 'outage_id', 'outage_name', 'source_class', 'status', 'assessment', 'assessment_detail', 'violation'), 'ScriptedOverview': ('assessed_elements', 'outages_found', 'outages_in_scope', 'max_loading_text', 'scope_text', 'outages_text', 'overload_text', 'voltage_text'), 'ScriptedOverviewLoadingClasses': ('sort_order', 'class_label', 'element_count'), 'ScriptedOverviewVoltageClasses': ('sort_order', 'class_label', 'element_count'), 'ScriptedOverviewViolationsByCase': ('sort_order', 'violation_type'), 'ScriptedOverviewViolationsByOutage': ('rank', 'outage_name'), 'ScriptedLoadingRanking': ('ranking_type', 'rank', 'element_name', 'time_of_max', 'status_label', 'violation'), 'ScriptedLineLoadingBars': ('rank', 'element_name'), 'ScriptedTransformerLoadingBars': ('rank', 'element_name'), 'ScriptedVoltageViolations': ('rank', 'element_name', 'lower_limit', 'upper_limit', 'time_of_worst', 'status_label', 'violation'), 'ScriptedLineStatistics': ('element_name', 'time_of_max', 'status_label', 'violation'), 'ScriptedTransformerStatistics': ('element_name', 'time_of_max', 'status_label', 'violation'), 'ScriptedVoltageStatistics': ('element_name', 'lower_limit', 'upper_limit', 'status_label', 'violation'), 'ScriptedTrendLineLoading': ('time_label', 'timestamp', 'element_name', 'chart_title', 'unit'), 'ScriptedTrendTransformerLoading': ('time_label', 'timestamp', 'element_name', 'chart_title', 'unit'), 'ScriptedTrendVoltageMin': ('time_label', 'timestamp', 'element_name', 'chart_title', 'unit'), 'ScriptedTrendVoltageMax': ('time_label', 'timestamp', 'element_name', 'chart_title', 'unit')}
 
 def safe_attr(obj, name, default=None):
     try:
@@ -59,12 +78,11 @@ def safe_attr(obj, name, default=None):
         return default
 
 def clip_text(value, limit):
+    """Shorten to `limit` characters with a visible ellipsis, nothing else."""
     text = str(value)
     if len(text) <= limit:
         return text
-    marker = '~' + hashlib.sha256(text.encode('utf-8')).hexdigest()[:6]
-    keep = max(0, limit - len(marker))
-    return text[:keep] + marker[:limit]
+    return text[:max(0, limit - 1)] + '\u2026'
 
 def object_key(obj):
     try:
@@ -248,7 +266,8 @@ def time_column(elmres, column_count, row_count):
         'nor a readable implicit time scale at column -1. Inspected result '
         'variables: {}.'.format(variables))
 
-def voltage_level(obj):
+def nominal_voltage(obj):
+    """Nominal voltage in kV of the element or of the terminal it connects to."""
     candidates = [obj]
     for attribute in ('bus1', 'bus2', 'bushv', 'buslv', 'busmv'):
         cubicle = safe_attr(obj, attribute)
@@ -257,9 +276,17 @@ def voltage_level(obj):
             candidates.append(terminal)
     for item in candidates:
         nominal = finite_number(safe_attr(item, 'uknom'))
-        if nominal is not None:
-            return '{:g} kV'.format(nominal)
-    return ''
+        if nominal is not None and nominal > 0:
+            return nominal
+    return None
+
+def voltage_level(obj):
+    nominal = nominal_voltage(obj)
+    return '{:g} kV'.format(nominal) if nominal is not None else ''
+
+def is_dc_terminal(obj):
+    """ElmTerm.systype 1 marks a DC terminal; its voltage is no AC magnitude."""
+    return class_name(obj) == 'ElmTerm' and finite_number(safe_attr(obj, 'systype')) == 1.0
 
 def read_column(elmres, column, rows):
     reader = getattr(elmres, 'GetColumnValues', None)
@@ -320,6 +347,7 @@ def collect_series(elmres, windows=(), counters=None):
     bounds = window_bounds(hours, windows) if absolute and windows else []
     chosen = {}
     out_of_scope = 0
+    dc_nodes = set()
     for column in range(columns):
         try:
             obj = elmres.GetObject(column)
@@ -333,12 +361,18 @@ def collect_series(elmres, windows=(), counters=None):
         if not element_in_scope(obj):
             out_of_scope += 1
             continue
+        if category == 'voltage' and is_dc_terminal(obj):
+            dc_nodes.add(object_key(obj))
+            continue
         key = (category, object_key(obj))
         priority = VARIABLES[category].index(variable)
         if key not in chosen or priority < chosen[key][0]:
             chosen[key] = (priority, column, obj, variable)
     if counters is not None:
         counters['out_of_scope'] = out_of_scope
+        counters['dc_nodes'] = len(dc_nodes)
+        counters['deenergized_nodes'] = 0
+        counters['deenergized_steps'] = 0
     if not chosen and out_of_scope:
         raise RuntimeError(
             'No result series belongs to an element whose grid name contains '
@@ -351,19 +385,31 @@ def collect_series(elmres, windows=(), counters=None):
     series = []
     for (_, _), (_, column, obj, variable) in sorted(chosen.items()):
         points = []
+        category = result_category(obj, variable)
+        dark = 0
         for row, value in enumerate(read_column(elmres, column, rows)):
             if value is None:
                 raise RuntimeError('Invalid result value in ElmRes cell ({}, {}) for {} {}.'.format(row, column, object_name(obj), variable))
+            if category == 'voltage' and value < ENERGIZED_MIN_PU:
+                # PowerFactory reports 0 for a de-energised node: no value.
+                value = None
+                dark += 1
             points.append((labels[row], plot_times[row], value))
-        category = result_category(obj, variable)
+        if counters is not None:
+            counters['deenergized_steps'] += dark
+        if dark == len(points):
+            if counters is not None:
+                counters['deenergized_nodes'] += 1
+            continue
         try:
             unit = str(elmres.GetUnit(column) or '')
         except Exception:
             unit = ''
         if not unit:
-            unit = {'voltage': 'p.u.', 'voltage_angle': 'deg'}.get(category, '%')
+            unit = 'p.u.' if category == 'voltage' else '%'
+        nominal = nominal_voltage(obj)
         values = [value for _, _, value in points]
-        series.append({'category': category, 'object': obj, 'key': object_key(obj), 'element_id': object_id(obj), 'element_name': object_name(obj), 'voltage_level': voltage_level(obj), 'variable_id': variable, 'variable': {'voltage': 'Voltage magnitude', 'voltage_angle': 'Voltage angle'}.get(category, 'Loading'), 'unit': unit, 'points': points})
+        series.append({'category': category, 'object': obj, 'key': object_key(obj), 'element_id': object_id(obj), 'element_name': object_name(obj), 'voltage_level': voltage_level(obj), 'nominal_kv': nominal, 'limits': voltage_band(nominal) if category == 'voltage' else None, 'variable_id': variable, 'variable': 'Voltage magnitude' if category == 'voltage' else 'Loading', 'unit': unit, 'points': points})
         item = series[-1]
         item['statistics'] = statistics(item)
         item['windows'] = window_statistics(values, labels, bounds)
@@ -415,24 +461,27 @@ def window_statistics(values, labels, bounds):
     """Statistics per window, skipping windows without result rows."""
     result = {}
     for index, (lo, hi) in enumerate(bounds):
-        chunk = values[lo:hi]
+        chunk = [(labels[row], values[row]) for row in range(lo, hi) if values[row] is not None]
         if not chunk:
             continue
-        minimum = min(chunk)
-        maximum = max(chunk)
+        minimum = min(value for _, value in chunk)
+        maximum = max(value for _, value in chunk)
         result[index] = {
             'min': minimum, 'max': maximum,
-            'mean': sum(chunk) / len(chunk),
-            'time_min': labels[lo + chunk.index(minimum)],
-            'time_max': labels[lo + chunk.index(maximum)],
+            'mean': sum(value for _, value in chunk) / len(chunk),
+            'time_min': next(label for label, value in chunk if value == minimum),
+            'time_max': next(label for label, value in chunk if value == maximum),
         }
     return result
 
 def statistics(series):
-    values = [value for _, _, value in series['points']]
+    points = [(label, value) for label, _, value in series['points'] if value is not None]
+    if not points:
+        return None
+    values = [value for _, value in points]
     minimum = min(values)
     maximum = max(values)
-    return {'min': minimum, 'max': maximum, 'mean': sum(values) / len(values), 'p95': percentile95(values), 'time_min': next((label for label, _, value in series['points'] if value == minimum)), 'time_max': next((label for label, _, value in series['points'] if value == maximum))}
+    return {'min': minimum, 'max': maximum, 'mean': sum(values) / len(values), 'p95': percentile95(values), 'time_min': next((label for label, value in points if value == minimum)), 'time_max': next((label for label, value in points if value == maximum))}
 
 def format_limit(value):
     return '{:g}'.format(value)
@@ -442,28 +491,36 @@ def has_time_variation(item):
     if stats is not None:
         spread = stats['max'] - stats['min']
     else:
-        values = [value for _, _, value in item['points']]
+        values = [value for _, _, value in item['points'] if value is not None]
         if len(values) < 2:
             return False
         spread = max(values) - min(values)
-    tolerance = {'line': 0.1, 'transformer': 0.1, 'voltage': 0.001, 'voltage_angle': 0.01}.get(item['category'], 1e-06)
+    tolerance = {'line': 0.1, 'transformer': 0.1, 'voltage': 0.001}.get(item['category'], 1e-06)
     return spread > tolerance
 
 def empty_payload():
     return {name: [] for name, _ in TABLES}
 
+def voltage_band(nominal_kv):
+    """Permitted voltage in p.u. of the nominal voltage (lower, upper)."""
+    if nominal_kv:
+        for lowest, highest, minimum, maximum in VOLTAGE_LIMITS_KV:
+            if lowest <= nominal_kv < highest:
+                return minimum / nominal_kv, maximum / nominal_kv
+    return VOLTAGE_MIN, VOLTAGE_MAX
+
+def voltage_limits(item):
+    return item.get('limits') or (VOLTAGE_MIN, VOLTAGE_MAX)
+
 def is_critical(item, stats):
+    if stats is None:
+        return False
     if item['category'] in ('line', 'transformer'):
         return stats['max'] > LOADING_MAX
     if item['category'] == 'voltage':
-        return stats['min'] < VOLTAGE_MIN or stats['max'] > VOLTAGE_MAX
+        lower, upper = voltage_limits(item)
+        return stats['min'] < lower or stats['max'] > upper
     return False
-
-def maximum_absolute(stats):
-    return max(abs(stats['min']), abs(stats['max']))
-
-def voltage_deviation(stats):
-    return max(abs(stats['min'] - 1.0), abs(stats['max'] - 1.0))
 REFERENCE_ID = 'REF'
 CONVERGED = 'CONVERGED'
 AXIS_MISMATCH = 'NOT EVALUATED'
@@ -481,7 +538,7 @@ def case_result(case, series, labels, plot_times, time_unit):
         by_category[item['category']].append((item, stats))
         stats_by_key[item['category'], item['key']] = stats
         item_by_key[item['category'], item['key']] = item
-    return {'id': case['id'], 'name': case['name'], 'kind': case.get('kind', 'case'), 'description': case.get('description', ''), 'status': case.get('status', CONVERGED), 'error_code': case.get('error_code'), 'message': case.get('message', ''), 'out_of_service': list(case.get('out_of_service', ())), 'is_reference': 1 if case['id'] == REFERENCE_ID else 0, 'labels': list(labels), 'plot_times': list(plot_times), 'time_unit': time_unit, 'by_category': by_category, 'stats_by_key': stats_by_key, 'item_by_key': item_by_key}
+    return {'id': case['id'], 'name': case['name'], 'kind': case.get('kind', 'case'), 'description': case.get('description', ''), 'status': case.get('status', CONVERGED), 'error_code': case.get('error_code'), 'message': case.get('message', ''), 'counters': dict(case.get('counters') or {}), 'is_reference': 1 if case['id'] == REFERENCE_ID else 0, 'labels': list(labels), 'plot_times': list(plot_times), 'time_unit': time_unit, 'by_category': by_category, 'stats_by_key': stats_by_key, 'item_by_key': item_by_key}
 
 def find_reference(results, reference_id=REFERENCE_ID):
     for result in results:
@@ -539,122 +596,263 @@ def critical_keys(results, category):
                 keys.add((category, item['key']))
     return keys
 
-def bar_label(case_id, element_name):
-    if case_id == 'AKTIV':
-        return element_name
-    return '{} · {}'.format(case_id, element_name)
+# Each element once, REF and OUTAGE side by side. Deltas and the status below
+# only ever compare the same element (same full PowerFactory path).
+STATUS_NEW = 'NEW'
+STATUS_WORSENED = 'WORSENED'
+STATUS_PREEXISTING = 'PRE-EXISTING'
+STATUS_RESOLVED = 'RESOLVED'
+STATUS_EXCEEDED = 'EXCEEDED'
+STATUS_OK = 'OK'
+CAUSED_STATUSES = (STATUS_NEW, STATUS_WORSENED, STATUS_EXCEEDED)
+EXCEEDED_STATUSES = CAUSED_STATUSES + (STATUS_PREEXISTING,)
 
-def _collect(results, category, only_critical=True, predicate=None):
-    entries = []
-    for result in converged(results):
-        for item, stats in result['by_category'][category]:
-            if only_critical and (not is_critical(item, stats)):
-                continue
-            if predicate is not None and (not predicate(stats)):
-                continue
-            entries.append((result['id'], item, stats))
-    return entries
-LINE_FIELDS = (('min_loading', 'min'), ('max_loading', 'max'), ('mean_loading', 'mean'), ('p95_loading', 'p95'), ('time_of_min_loading', 'time_min'), ('time_of_max_loading', 'time_max'), ('reference_max_loading', 'ref_max'), ('delta_max_loading', 'delta_max'))
-TRANSFORMER_FIELDS = tuple((entry for entry in LINE_FIELDS if entry[0] != 'time_of_min_loading'))
-VOLTAGE_FIELDS = (('min_voltage', 'min'), ('max_voltage', 'max'), ('mean_voltage', 'mean'), ('time_of_min_voltage', 'time_min'), ('time_of_max_voltage', 'time_max'), ('reference_min_voltage', 'ref_min'), ('reference_max_voltage', 'ref_max'), ('delta_min_voltage', 'delta_min'), ('delta_max_voltage', 'delta_max'))
+def paired(results, category, window=None):
+    """One record per element with its REF and OUTAGE statistics.
 
-def _statistics_rows(payload, results, category, table, fields):
-    for _, key in sorted(critical_keys(results, category)):
-        for result in converged(results):
-            stats = result['stats_by_key'].get((category, key))
+    With `window`, the statistics are those inside that outage window.
+    """
+    cases = {result['id']: result for result in converged(results)}
+    records = {}
+    for case_id, side in ((REFERENCE_ID, 'ref'), (OUTAGE_CASE_ID, 'outage')):
+        result = cases.get(case_id)
+        if result is None:
+            continue
+        for item, stats in result['by_category'].get(category, ()):
+            if window is not None:
+                stats = item.get('windows', {}).get(window)
             if stats is None:
                 continue
-            item = result['item_by_key'][category, key]
-            row = {'case_id': result['id'], 'element_id': item['element_id'], 'element_name': item['element_name'], 'voltage_level': item['voltage_level']}
-            row.update({name: stats[source] for name, source in fields})
-            payload[table].append(row)
+            record = records.setdefault(item['key'], {'item': item, 'ref': None, 'outage': None})
+            record[side] = stats
+    return list(records.values())
 
-def _loading_bars(payload, results, category, table):
-    entries = sorted(_collect(results, category), key=lambda entry: entry[2]['max'], reverse=True)
-    for rank, (case_id, item, stats) in enumerate(entries[:MAX_BAR_ITEMS], 1):
-        payload[table].append({'rank': rank, 'case_id': case_id, 'element_id': item['element_id'], 'element_name': item['element_name'], 'bar_label': bar_label(case_id, item['element_name']), 'voltage_level': item['voltage_level'], 'max_loading': stats['max'], 'unit': item['unit'], 'event_time': stats['time_max']})
+def primary(record):
+    """OUTAGE where it was calculated, otherwise REF."""
+    return record['outage'] if record['outage'] is not None else record['ref']
 
-def _voltage_bars(payload, results):
-    entries = sorted(_collect(results, 'voltage'), key=lambda entry: voltage_deviation(entry[2]), reverse=True)
-    for rank, (case_id, item, stats) in enumerate(entries[:MAX_BAR_ITEMS], 1):
-        payload['ScriptedVoltageMagnitudeBars'].append({'rank': rank, 'case_id': case_id, 'element_id': item['element_id'], 'element_name': item['element_name'], 'bar_label': bar_label(case_id, item['element_name']), 'voltage_level': item['voltage_level'], 'min_voltage': stats['min'], 'max_voltage': stats['max'], 'mean_voltage': stats['mean'], 'deviation': voltage_deviation(stats), 'status_label': 'LIMIT VIOLATION', 'unit': item['unit']})
+def _worse(item, ref, outage):
+    if item['category'] in LOADING_CATEGORIES:
+        return outage['max'] - ref['max'] > LOADING_DELTA_TOLERANCE
+    lower, upper = voltage_limits(item)
+    return ((outage['min'] < lower and outage['min'] < ref['min'] - VOLTAGE_DELTA_TOLERANCE)
+            or (outage['max'] > upper and outage['max'] > ref['max'] + VOLTAGE_DELTA_TOLERANCE))
 
-def _angle_bars(payload, results):
-    entries = sorted(_collect(results, 'voltage_angle', only_critical=False), key=lambda entry: maximum_absolute(entry[2]), reverse=True)
-    for rank, (case_id, item, stats) in enumerate(entries[:MAX_BAR_ITEMS], 1):
-        event_time = stats['time_min'] if abs(stats['min']) >= abs(stats['max']) else stats['time_max']
-        payload['ScriptedVoltageAngleBars'].append({'rank': rank, 'case_id': case_id, 'element_id': item['element_id'], 'element_name': item['element_name'], 'bar_label': bar_label(case_id, item['element_name']), 'voltage_level': item['voltage_level'], 'min_angle': stats['min'], 'max_angle': stats['max'], 'mean_angle': stats['mean'], 'max_abs_angle': maximum_absolute(stats), 'angle_span': stats['max'] - stats['min'], 'event_time': event_time, 'unit': item['unit']})
+def limit_status(record):
+    """What the planned outages did to this element's limit."""
+    item, ref, outage = record['item'], record['ref'], record['outage']
+    in_ref = is_critical(item, ref)
+    in_outage = is_critical(item, outage)
+    if ref is None or outage is None:
+        return STATUS_EXCEEDED if in_ref or in_outage else STATUS_OK
+    if in_outage and not in_ref:
+        return STATUS_NEW
+    if in_outage:
+        return STATUS_WORSENED if _worse(item, ref, outage) else STATUS_PREEXISTING
+    return STATUS_RESOLVED if in_ref else STATUS_OK
 
-def _rankings(payload, results, ranking_type, category, metric_name, value_key, time_key, reverse, predicate=None):
-    entries = sorted(_collect(results, category, predicate=predicate), key=lambda entry: entry[2][value_key], reverse=reverse)
-    reference_key = 'ref_min' if value_key == 'min' else 'ref_max'
-    delta_key = 'delta_min' if value_key == 'min' else 'delta_max'
-    for rank, (case_id, item, stats) in enumerate(entries[:TOP_N], 1):
-        payload['ScriptedRankings'].append({'ranking_type': ranking_type, 'rank': rank, 'case_id': case_id, 'element_id': item['element_id'], 'element_name': item['element_name'], 'element_type': item['category'], 'metric_name': metric_name, 'metric_value': stats[value_key], 'unit': item['unit'], 'reference_value': stats[reference_key], 'delta_value': stats[delta_key], 'event_time': stats[time_key]})
-COMPARISON_METRICS = (('max_line_loading', 'Maximum line loading', 'line', 'max', True, None), ('max_transformer_loading', 'Maximum transformer loading', 'transformer', 'max', True, None), ('min_voltage', 'Minimum voltage', 'voltage', 'min', False, lambda stats: stats['min'] < VOLTAGE_MIN), ('max_voltage', 'Maximum voltage', 'voltage', 'max', True, lambda stats: stats['max'] > VOLTAGE_MAX))
+def highlight(status):
+    """1 marks a violation caused or worsened by the outages, 2 one already in REF."""
+    return 1 if status in CAUSED_STATUSES else 2 if status == STATUS_PREEXISTING else 0
 
-def _case_comparison(payload, results):
-    for key, name, category, value_key, reverse, predicate in COMPARISON_METRICS:
-        for result in converged(results):
-            entries = _collect([result], category, predicate=predicate)
-            if not entries:
-                continue
-            _, item, stats = sorted(entries, key=lambda entry: entry[2][value_key], reverse=reverse)[0]
-            payload['ScriptedCaseComparison'].append({'metric_key': key, 'metric_name': name, 'unit': item['unit'], 'case_id': result['id'], 'metric_value': stats[value_key], 'element_id': item['element_id'], 'element_name': item['element_name']})
+def _by_name(record):
+    return record['item']['element_name'].casefold()
 
-def _relevant_time_points(payload, results):
-    selected = []
-    loading = sorted(_collect(results, 'line') + _collect(results, 'transformer'), key=lambda entry: entry[2]['max'], reverse=True)[:TOP_N]
-    for case_id, item, stats in loading:
-        reason = 'Maximum line loading' if item['category'] == 'line' else 'Maximum transformer loading'
-        selected.append((case_id, item, stats, reason, 'max', 'time_max'))
-    low = sorted(_collect(results, 'voltage', predicate=lambda s: s['min'] < VOLTAGE_MIN), key=lambda entry: entry[2]['min'])[:TOP_N]
-    for case_id, item, stats in low:
-        selected.append((case_id, item, stats, 'Minimum voltage', 'min', 'time_min'))
-    high = sorted(_collect(results, 'voltage', predicate=lambda s: s['max'] > VOLTAGE_MAX), key=lambda entry: entry[2]['max'], reverse=True)[:TOP_N]
-    for case_id, item, stats in high:
-        selected.append((case_id, item, stats, 'Maximum voltage', 'max', 'time_max'))
-    for case_id, item, stats, reason, value_key, time_key in selected:
-        payload['ScriptedRelevantTimePoints'].append({'timestamp': stats[time_key], 'case_id': case_id, 'reason': reason, 'element_id': item['element_id'], 'element_name': item['element_name'], 'metric_name': item['variable'], 'metric_value': stats[value_key], 'unit': item['unit']})
+def _loading_delta(record):
+    if record['ref'] is None or record['outage'] is None:
+        return None
+    return record['outage']['max'] - record['ref']['max']
+
+def _loading_row(record):
+    item, ref, outage = record['item'], record['ref'], record['outage']
+    status = limit_status(record)
+    return {'element_name': item['element_name'], 'voltage_level': item['voltage_level'], 'ref_max': ref['max'] if ref else None, 'outage_max': outage['max'] if outage else None, 'delta_max': _loading_delta(record), 'time_of_max': primary(record)['time_max'], 'status_label': status, 'violation': highlight(status)}
+
+def _in_loading_appendix(record):
+    delta = _loading_delta(record)
+    peaks = [stats['max'] for stats in (record['ref'], record['outage']) if stats is not None]
+    return max(peaks) >= LOADING_WARNING or (delta is not None and abs(delta) >= LOADING_APPENDIX_DELTA)
+
+LOADING_SECTIONS = (('line', 'ScriptedLineLoadingBars', 'ScriptedLineStatistics'), ('transformer', 'ScriptedTransformerLoadingBars', 'ScriptedTransformerStatistics'))
+
+def _loading_tables(payload, results):
+    for category, bars, appendix in LOADING_SECTIONS:
+        records = paired(results, category)
+        highest = sorted(records, key=lambda record: (-primary(record)['max'], _by_name(record)))[:TOP_N]
+        for rank, record in enumerate(highest, 1):
+            row = _loading_row(record)
+            payload['ScriptedLoadingRanking'].append(dict(row, ranking_type=category + '_highest', rank=rank))
+            payload[bars].append({'rank': rank, 'element_name': row['element_name'], 'ref_value': row['ref_max'], 'outage_value': row['outage_max']})
+        rising = [record for record in records if (_loading_delta(record) or 0.0) > LOADING_DELTA_TOLERANCE]
+        rising.sort(key=lambda record: (-_loading_delta(record), _by_name(record)))
+        for rank, record in enumerate(rising[:TOP_N], 1):
+            payload['ScriptedLoadingRanking'].append(dict(_loading_row(record), ranking_type=category + '_increase', rank=rank))
+        listed = sorted((record for record in records if _in_loading_appendix(record)), key=lambda record: (-primary(record)['max'], _by_name(record)))
+        payload[appendix].extend(_loading_row(record) for record in listed)
+
+def _voltage_excess(record):
+    lower, upper = voltage_limits(record['item'])
+    stats = primary(record)
+    return max(lower - stats['min'], stats['max'] - upper)
+
+def _voltage_row(record):
+    item, ref, outage = record['item'], record['ref'], record['outage']
+    lower, upper = voltage_limits(item)
+    stats = primary(record)
+    status = limit_status(record)
+    both = ref is not None and outage is not None
+    return {'element_name': item['element_name'], 'voltage_level': item['voltage_level'], 'lower_limit': lower, 'upper_limit': upper, 'ref_min': ref['min'] if ref else None, 'ref_max': ref['max'] if ref else None, 'outage_min': outage['min'] if outage else None, 'outage_max': outage['max'] if outage else None, 'delta_min': outage['min'] - ref['min'] if both else None, 'delta_max': outage['max'] - ref['max'] if both else None, 'time_of_worst': stats['time_min'] if lower - stats['min'] >= stats['max'] - upper else stats['time_max'], 'status_label': status, 'violation': highlight(status)}
+
+VOLTAGE_ORDER = {STATUS_NEW: 0, STATUS_WORSENED: 0, STATUS_EXCEEDED: 0, STATUS_PREEXISTING: 1, STATUS_RESOLVED: 2}
+VOLTAGE_ROW_FIELDS = ('rank', 'element_name', 'voltage_level', 'lower_limit', 'upper_limit', 'ref_min', 'ref_max', 'outage_min', 'outage_max', 'time_of_worst', 'status_label', 'violation')
+VOLTAGE_APPENDIX_FIELDS = ('element_name', 'voltage_level', 'lower_limit', 'upper_limit', 'ref_min', 'ref_max', 'outage_min', 'outage_max', 'delta_min', 'delta_max', 'status_label', 'violation')
+
+def _voltage_tables(payload, results):
+    records = paired(results, 'voltage')
+    outside = [record for record in records if limit_status(record) != STATUS_OK]
+    outside.sort(key=lambda record: (VOLTAGE_ORDER[limit_status(record)], -_voltage_excess(record), _by_name(record)))
+    for rank, record in enumerate(outside[:MAX_VOLTAGE_ROWS], 1):
+        row = dict(_voltage_row(record), rank=rank)
+        payload['ScriptedVoltageViolations'].append({field: row[field] for field in VOLTAGE_ROW_FIELDS})
+    listed = []
+    for record in records:
+        row = _voltage_row(record)
+        change = max(abs(row['delta_min'] or 0.0), abs(row['delta_max'] or 0.0))
+        if row['status_label'] != STATUS_OK or change >= VOLTAGE_APPENDIX_DELTA:
+            listed.append((VOLTAGE_ORDER.get(row['status_label'], 3), -_voltage_excess(record), _by_name(record), row))
+    for *_, row in sorted(listed, key=lambda entry: entry[:3]):
+        payload['ScriptedVoltageStatistics'].append({field: row[field] for field in VOLTAGE_APPENDIX_FIELDS})
+
+def _counted(count, singular, plural):
+    return '{} {}'.format(count, singular if count == 1 else plural)
+
+def _status_breakdown(statuses, both_cases):
+    """'1 new, 2 already in REF' for the exceeded statuses."""
+    if not both_cases:
+        return ''
+    parts = []
+    for status, label in ((STATUS_NEW, 'new'), (STATUS_WORSENED, 'worsened'), (STATUS_PREEXISTING, 'already in REF')):
+        count = statuses.count(status)
+        if count:
+            parts.append('{} {}'.format(count, label))
+    return ': ' + ', '.join(parts) if parts else ''
+
+def _both_cases(results):
+    ids = {result['id'] for result in converged(results)}
+    return REFERENCE_ID in ids and OUTAGE_CASE_ID in ids
+
+def loading_summary(results, category):
+    singular, plural = {'line': ('line', 'lines'), 'transformer': ('transformer', 'transformers')}[category]
+    records = paired(results, category)
+    if not records:
+        return 'No {} was assessed: none lies in the assessed grids or its loading is not recorded in the result object.'.format(singular)
+    both = _both_cases(results)
+    statuses = [limit_status(record) for record in records]
+    exceeded = [status for status in statuses if status in EXCEEDED_STATUSES]
+    text = '{} assessed. '.format(_counted(len(records), singular, plural))
+    if exceeded:
+        text += '{} above {} %{}. '.format(len(exceeded), format_limit(LOADING_MAX), _status_breakdown(statuses, both))
+    else:
+        text += 'None exceeds {} %. '.format(format_limit(LOADING_MAX))
+    resolved = statuses.count(STATUS_RESOLVED)
+    if resolved:
+        text += '{} relieved below the limit by the planned outages. '.format(_counted(resolved, 'overload is', 'overloads are'))
+    top = max(records, key=lambda record: (primary(record)['max'], -len(_by_name(record))))
+    text += 'Highest loading {:.1f} % on {}'.format(primary(top)['max'], top['item']['element_name'])
+    if both and top['ref'] is not None and top['outage'] is not None:
+        text += ' (REF {:.1f} %)'.format(top['ref']['max'])
+    return text + '.'
+
+def voltage_summary(results):
+    records = paired(results, 'voltage')
+    counters = _primary_counters(results)
+    excluded = []
+    if counters.get('dc_nodes'):
+        excluded.append(_counted(counters['dc_nodes'], 'DC node', 'DC nodes'))
+    if counters.get('deenergized_nodes'):
+        excluded.append(_counted(counters['deenergized_nodes'], 'node without voltage', 'nodes without voltage'))
+    tail = ' {} not assessed.'.format(' and '.join(excluded)) if excluded else ''
+    if not records:
+        return 'No node was assessed.' + tail
+    statuses = [limit_status(record) for record in records]
+    exceeded = [status for status in statuses if status in EXCEEDED_STATUSES]
+    text = '{} assessed against the voltage band of their nominal voltage. '.format(_counted(len(records), 'node', 'nodes'))
+    if exceeded:
+        text += '{} outside the band{}.'.format(len(exceeded), _status_breakdown(statuses, _both_cases(results)))
+    else:
+        text += 'All inside the band.'
+    return text + tail
+
+def _primary_counters(results):
+    cases = {result['id']: result for result in converged(results)}
+    case = cases.get(OUTAGE_CASE_ID) or cases.get(REFERENCE_ID)
+    return case.get('counters', {}) if case else {}
 # One table per chart. The report engine does not apply a data relation to a
 # chart, so every chart must read a table that holds only its own series.
-TREND_SLOTS = (('ScriptedTrendLineLoading', 'line', 'max', True), ('ScriptedTrendTransformerLoading', 'transformer', 'max', True), ('ScriptedTrendVoltageMin', 'voltage', 'min', False), ('ScriptedTrendVoltageMax', 'voltage', 'max', True))
+TREND_SLOTS = (('ScriptedTrendLineLoading', 'line'), ('ScriptedTrendTransformerLoading', 'transformer'), ('ScriptedTrendVoltageMin', 'low'), ('ScriptedTrendVoltageMax', 'high'))
+
+def _trend_pick(records, slot):
+    """The element whose curve says most about the outages, and its title."""
+    if slot in LOADING_CATEGORIES:
+        noun = 'line' if slot == 'line' else 'transformer'
+        rising = [record for record in records if (_loading_delta(record) or 0.0) > LOADING_DELTA_TOLERANCE]
+        if rising:
+            record = max(rising, key=lambda record: (_loading_delta(record), primary(record)['max']))
+            return record, 'Largest {} loading increase: {} ({:+.1f} %-points)'.format(noun, record['item']['element_name'], _loading_delta(record))
+        record = max(records, key=lambda record: primary(record)['max'])
+        return record, 'Highest {} loading: {}'.format(noun, record['item']['element_name'])
+    if slot == 'low':
+        record = min(records, key=lambda record: primary(record)['min'] - voltage_limits(record['item'])[0])
+        return record, 'Lowest voltage against its band: {}'.format(record['item']['element_name'])
+    record = max(records, key=lambda record: primary(record)['max'] - voltage_limits(record['item'])[1])
+    return record, 'Highest voltage against its band: {}'.format(record['item']['element_name'])
+
+def _milli(value):
+    # Chart axes format with the Windows culture; thousandths of a p.u. are
+    # printed with a literal point so the axis reads 1.064 everywhere.
+    return None if value is None else round(value * 1000.0, 3)
 
 def _trends(payload, results):
-    for table, category, value_key, highest in TREND_SLOTS:
-        entries = _collect(results, category, only_critical=False)
-        if not entries:
+    for table, slot in TREND_SLOTS:
+        category = slot if slot in LOADING_CATEGORIES else 'voltage'
+        records = paired(results, category)
+        if not records:
             continue
-        pick = max if highest else min
-        key = pick(entries, key=lambda entry: entry[2][value_key])[1]['key']
+        record, chart_title = _trend_pick(records, slot)
+        key = record['item']['key']
         cases = {result['id']: result['item_by_key'].get((category, key)) for result in converged(results)}
         series = {case_id: {label: value for label, _, value in sampled_plot_points(item)} for case_id, item in cases.items() if item is not None}
         axis = next(item for item in cases.values() if item is not None)
         for label, timestamp, _ in sampled_plot_points(axis):
-            payload[table].append({'time_label': label, 'timestamp': timestamp, 'ref_value': series.get(REFERENCE_ID, {}).get(label), 'outage_value': series.get(OUTAGE_CASE_ID, {}).get(label), 'element_name': axis['element_name'], 'unit': axis['unit']})
+            row = {'time_label': label, 'timestamp': timestamp, 'ref_value': series.get(REFERENCE_ID, {}).get(label), 'outage_value': series.get(OUTAGE_CASE_ID, {}).get(label), 'element_name': axis['element_name'], 'chart_title': chart_title, 'unit': axis['unit']}
+            if category == 'voltage':
+                row['ref_mpu'] = _milli(row['ref_value'])
+                row['outage_mpu'] = _milli(row['outage_value'])
+            payload[table].append(row)
 
-LOADING_CLASSES = (('up to 80 %', lambda value: value <= 80.0), ('80 to 100 %', lambda value: value <= LOADING_MAX), ('above 100 %', lambda value: True))
-VOLTAGE_CLASSES = ('below 0.95 p.u.', '0.95 to 1.05 p.u.', 'above 1.05 p.u.')
+LOADING_CLASSES = (('up to 80 %', lambda value: value <= LOADING_WARNING), ('80 to 100 %', lambda value: value <= LOADING_MAX), ('above 100 %', lambda value: True))
+VOLTAGE_CLASSES = ('below band', 'inside band', 'above band')
 NO_OUTAGE_LABEL = 'No planned outage in scope'
 
 def _violates(item, stats):
-    if item['category'] in LOADING_CATEGORIES:
-        return stats['max'] > LOADING_MAX
-    if item['category'] == 'voltage':
-        return stats['min'] < VOLTAGE_MIN or stats['max'] > VOLTAGE_MAX
-    return False
+    return is_critical(item, stats)
 
 def _violation_counts(result):
-    overloads = sum(1 for category in LOADING_CATEGORIES for item, stats in result['by_category'][category] if stats['max'] > LOADING_MAX)
-    voltage = sum(1 for item, stats in result['by_category']['voltage'] if stats['min'] < VOLTAGE_MIN or stats['max'] > VOLTAGE_MAX)
+    overloads = sum(1 for category in LOADING_CATEGORIES for item, stats in result['by_category'][category] if is_critical(item, stats))
+    voltage = sum(1 for item, stats in result['by_category']['voltage'] if is_critical(item, stats))
     return overloads, voltage
 
-def _compared(outage_count, reference_count):
-    if outage_count is None:
-        return '{}'.format(reference_count if reference_count is not None else 0)
-    if reference_count is None:
-        return '{}'.format(outage_count)
-    return '{} ({:+d} vs REF)'.format(outage_count, outage_count - reference_count)
+def _compared(total, caused):
+    if total is None:
+        return '0'
+    if caused is None:
+        return '{}'.format(total)
+    return '{} ({} new)'.format(total, caused)
+
+def _caused(results, categories):
+    if not _both_cases(results):
+        return None
+    return sum(1 for category in categories for record in paired(results, category) if limit_status(record) in (STATUS_NEW, STATUS_WORSENED))
 
 def _overview(payload, results, planned_outages):
     """Figures for the overview page: key numbers, two pies and two bar charts."""
@@ -666,8 +864,9 @@ def _overview(payload, results, planned_outages):
         for category in LOADING_CATEGORIES:
             for _, stats in chart_case['by_category'][category]:
                 loading[next(index for index, (_, fits) in enumerate(LOADING_CLASSES) if fits(stats['max']))] += 1
-        for _, stats in chart_case['by_category']['voltage']:
-            voltage[0 if stats['min'] < VOLTAGE_MIN else 2 if stats['max'] > VOLTAGE_MAX else 1] += 1
+        for item, stats in chart_case['by_category']['voltage']:
+            lower, upper = voltage_limits(item)
+            voltage[0 if stats['min'] < lower else 2 if stats['max'] > upper else 1] += 1
     for order, ((label, _), count) in enumerate(zip(LOADING_CLASSES, loading), 1):
         payload['ScriptedOverviewLoadingClasses'].append({'sort_order': order, 'class_label': label, 'element_count': count})
     for order, (label, count) in enumerate(zip(VOLTAGE_CLASSES, voltage), 1):
@@ -690,137 +889,134 @@ def _overview(payload, results, planned_outages):
     per_outage.sort(key=lambda entry: (-((entry[2] or 0) - (entry[1] or 0)), -(entry[2] or 0), entry[0].casefold()))
     for rank, (name, ref_count, outage_count) in enumerate(per_outage or [(NO_OUTAGE_LABEL, 0, 0)], 1):
         payload['ScriptedOverviewViolationsByOutage'].append({'rank': rank, 'outage_name': name, 'ref_count': ref_count, 'outage_count': outage_count})
-    elements = {item['key'] for result in cases.values() for entries in result['by_category'].values() for item, _ in entries}
-    reference, outage = counts.get(REFERENCE_ID), counts.get(OUTAGE_CASE_ID)
+    sizes = {category: len(paired(results, category)) for category in LOADING_CATEGORIES + ('voltage',)}
+    loading_records = [record for category in LOADING_CATEGORIES for record in paired(results, category)]
+    top = max(loading_records, key=lambda record: primary(record)['max'], default=None)
+    main = counts.get(OUTAGE_CASE_ID) or counts.get(REFERENCE_ID)
     in_scope = sum(1 for item in planned_outages if item.get('status') == OUTAGE_CONSIDERED)
+    scope = '{}, {} and {} assessed{}.'.format(
+        _counted(sizes['line'], 'line', 'lines'), _counted(sizes['transformer'], 'transformer', 'transformers'),
+        _counted(sizes['voltage'], 'node', 'nodes'),
+        ' in grids named *{}*'.format(GRID_NAME_FILTER) if GRID_NAME_FILTER else '')
+    if top is not None:
+        scope += ' Highest loading on {}.'.format(top['item']['element_name'])
     payload['ScriptedOverview'].append({
-        'assessed_elements': len(elements), 'outages_found': len(planned_outages), 'outages_in_scope': in_scope,
+        'assessed_elements': sum(sizes.values()), 'outages_found': len(planned_outages), 'outages_in_scope': in_scope,
         'chart_case_id': chart_case['id'] if chart_case is not None else '',
-        'overloads_ref': reference[0] if reference else None, 'overloads_outage': outage[0] if outage else None,
-        'voltage_violations_ref': reference[1] if reference else None, 'voltage_violations_outage': outage[1] if outage else None,
-        'elements_text': '{:,}'.format(len(elements)).replace(',', ' '),
+        'overloads_ref': counts[REFERENCE_ID][0] if REFERENCE_ID in counts else None,
+        'overloads_outage': counts[OUTAGE_CASE_ID][0] if OUTAGE_CASE_ID in counts else None,
+        'voltage_violations_ref': counts[REFERENCE_ID][1] if REFERENCE_ID in counts else None,
+        'voltage_violations_outage': counts[OUTAGE_CASE_ID][1] if OUTAGE_CASE_ID in counts else None,
+        'max_loading_text': '{:.1f} %'.format(primary(top)['max']) if top is not None else 'n/a',
+        'scope_text': scope,
         'outages_text': '{} / {}'.format(in_scope, len(planned_outages)),
-        'overload_text': _compared(outage[0] if outage else None, reference[0] if reference else None),
-        'voltage_text': _compared(outage[1] if outage else None, reference[1] if reference else None)})
+        'overload_text': _compared(main[0] if main else None, _caused(results, LOADING_CATEGORIES)),
+        'voltage_text': _compared(main[1] if main else None, _caused(results, ('voltage',)))})
+CATEGORY_LABELS = (('line', 'Line loading', 'line', 'lines'), ('transformer', 'Transformer loading', 'transformer', 'transformers'), ('voltage', 'Voltage magnitude', 'node', 'nodes'))
 
-def _element_type(element_class):
-    categories = CLASS_CATEGORIES.get(element_class, ())
-    return categories[0] if categories else element_class
-CATEGORY_LABELS = (('line', 'Line loading'), ('transformer', 'Transformer loading'), ('voltage', 'Voltage magnitude'), ('voltage_angle', 'Voltage angle'))
+def voltage_limits_text():
+    bands = ['{} to {} kV for a nominal voltage from {} kV up to {} kV'.format(format_limit(minimum), format_limit(maximum), format_limit(lowest), format_limit(highest)) for lowest, highest, minimum, maximum in VOLTAGE_LIMITS_KV]
+    return 'Permitted voltage band: {}; {} to {} p.u. for any other nominal voltage. Values on the band limit are no violation.'.format('; '.join(bands), format_limit(VOLTAGE_MIN), format_limit(VOLTAGE_MAX))
 
 def _model_quality(payload, results):
     ok = converged(results)
-    total_series = sum((len(r['by_category'][c]) for r in ok for c, _ in CATEGORY_LABELS))
-    cases_ok = bool(results) and len(ok) == len(results) and all((any((result['by_category'][category] for category, _ in CATEGORY_LABELS)) for result in ok))
+    total_series = sum((len(r['by_category'][c]) for r in ok for c, _, _, _ in CATEGORY_LABELS))
+    cases_ok = bool(results) and len(ok) == len(results) and all((any((result['by_category'][category] for category, _, _, _ in CATEGORY_LABELS)) for result in ok))
     payload['ScriptedModelQuality'].append({'check_id': 'cases', 'check_name': 'Evaluated cases', 'status': 'PASS' if cases_ok else 'FAIL', 'message': '{} of {} cases converged; {} result series'.format(len(ok), len(results), total_series), 'affected_element': ''})
     for result in results:
         if result['status'] == CONVERGED:
             continue
         payload['ScriptedModelQuality'].append({'check_id': 'case_' + result['id'], 'check_name': 'Calculation ' + result['id'], 'status': 'FAIL', 'message': result['message'] or 'Calculation did not converge.', 'affected_element': result['name']})
-    for category, label in CATEGORY_LABELS:
-        total = sum((len(r['by_category'][category]) for r in ok))
-        critical = len(critical_keys(results, category))
-        if category == 'voltage_angle':
-            message = '{} evaluated; informational, without a general limit.'.format(total) if total else 'No angle series; record m:phiu or m:phiu1 in ElmRes.'
-        else:
-            message = '{} evaluated; {} equipment items with a limit violation'.format(total, critical)
-        payload['ScriptedModelQuality'].append({'check_id': 'series_' + category, 'check_name': label, 'status': 'PASS' if total else 'WARNING', 'message': message, 'affected_element': ''})
-    varying = sum((1 for r in ok for c, _ in CATEGORY_LABELS for item, _ in r['by_category'][c] if has_time_variation(item)))
+    for category, label, singular, plural in CATEGORY_LABELS:
+        records = paired(results, category)
+        exceeded = sum(1 for record in records if limit_status(record) in EXCEEDED_STATUSES)
+        message = '{} evaluated; {} the limit.'.format(_counted(len(records), singular, plural), _counted(exceeded, 'exceeds', 'exceed')) if records else 'No {} evaluated.'.format(singular)
+        payload['ScriptedModelQuality'].append({'check_id': 'series_' + category, 'check_name': label, 'status': 'PASS' if records else 'WARNING', 'message': message, 'affected_element': ''})
+    counters = _primary_counters(results)
+    if counters.get('dc_nodes') or counters.get('deenergized_nodes') or counters.get('deenergized_steps'):
+        payload['ScriptedModelQuality'].append({'check_id': 'voltage_data', 'check_name': 'Voltage data', 'status': 'INFO', 'message': '{} and {} left out; {} below {} p.u. ignored as de-energised.'.format(_counted(counters.get('dc_nodes', 0), 'DC node', 'DC nodes'), _counted(counters.get('deenergized_nodes', 0), 'node without voltage', 'nodes without voltage'), _counted(counters.get('deenergized_steps', 0), 'time step', 'time steps'), format_limit(ENERGIZED_MIN_PU)), 'affected_element': ''})
+    varying = sum((1 for r in ok for c, _, _, _ in CATEGORY_LABELS for item, _ in r['by_category'][c] if has_time_variation(item)))
     payload['ScriptedModelQuality'].append({'check_id': 'time_variation', 'check_name': 'Time variation', 'status': 'PASS' if varying else 'WARNING', 'message': '{} of {} series change over the simulation period.'.format(varying, total_series) if varying else 'All {} series are constant; check QDS profiles and result recording.'.format(total_series), 'affected_element': ''})
     reference = find_reference(results)
-    payload['ScriptedModelQuality'].append({'check_id': 'reference_comparison', 'check_name': 'Reference comparison', 'status': 'PASS' if reference is not None else 'WARNING', 'message': 'Reference case {} evaluated; deltas compare against the unchanged initial network state.'.format(reference['name']) if reference is not None else 'No converged reference case; reference columns remain empty.', 'affected_element': ''})
-    payload['ScriptedModelQuality'].extend(({'check_id': 'security_scope', 'check_name': 'Assessment scope', 'status': 'WARNING', 'message': 'N-1 security, security of supply, protection coordination and safe isolation are not assessed.', 'affected_element': ''}, {'check_id': 'limit_loading', 'check_name': 'Loading limit', 'status': 'INFO', 'message': 'Limit violation when loading > {} %.'.format(format_limit(LOADING_MAX)), 'affected_element': ''}, {'check_id': 'limit_voltage', 'check_name': 'Voltage limits', 'status': 'INFO', 'message': 'Limit violation when voltage < {} p.u. or > {} p.u.'.format(format_limit(VOLTAGE_MIN), format_limit(VOLTAGE_MAX)), 'affected_element': ''}))
+    payload['ScriptedModelQuality'].append({'check_id': 'reference_comparison', 'check_name': 'Reference comparison', 'status': 'PASS' if reference is not None else 'WARNING', 'message': 'REF evaluated; deltas compare every element with itself in REF.' if reference is not None else 'No converged reference case; violations cannot be split into new and pre-existing.', 'affected_element': ''})
+    payload['ScriptedModelQuality'].extend(({'check_id': 'security_scope', 'check_name': 'Assessment scope', 'status': 'WARNING', 'message': 'N-1 security, security of supply, protection coordination and safe isolation are not assessed.', 'affected_element': ''}, {'check_id': 'limit_loading', 'check_name': 'Loading limit', 'status': 'INFO', 'message': 'Limit violation when loading > {} %.'.format(format_limit(LOADING_MAX)), 'affected_element': ''}, {'check_id': 'limit_voltage', 'check_name': 'Voltage limits', 'status': 'INFO', 'message': voltage_limits_text(), 'affected_element': ''}))
 
 def _key_discriminator(key):
     digest = hashlib.sha256(str(key).encode('utf-8')).hexdigest()
     return digest[:6]
 
-def _window_worst(result, categories, index, key, reverse):
-    """The item with the most severe value of `key` inside one window."""
-    best = None
-    for category in categories:
-        for item, _ in result['by_category'].get(category, ()):
-            stats = item.get('windows', {}).get(index)
-            if stats is None:
-                continue
-            if best is None or (stats[key] > best[1][key] if reverse
-                                else stats[key] < best[1][key]):
-                best = (item, stats)
-    return best
-
 
 def assess_outage_window(results, index):
-    """Judge one planned outage by what happens inside its own time window."""
-    outage = next((item for item in converged(results)
-                   if item['id'] == OUTAGE_CASE_ID), None)
-    if outage is None:
+    """Judge one planned outage by what it changes inside its own time window."""
+    if not any(result['id'] == OUTAGE_CASE_ID for result in converged(results)):
         return None
-    loading = _window_worst(outage, LOADING_CATEGORIES, index, 'max', True)
-    low = _window_worst(outage, ('voltage',), index, 'min', False)
-    high = _window_worst(outage, ('voltage',), index, 'max', True)
-    if loading is None and low is None:
+    loading = [record for category in LOADING_CATEGORIES for record in paired(results, category, index)]
+    voltage = paired(results, 'voltage', index)
+    in_outage = [record for record in loading if record['outage'] is not None]
+    nodes = [record for record in voltage if record['outage'] is not None]
+    if not in_outage and not nodes:
         return None
-    reference = next((item for item in converged(results)
-                      if item['id'] == REFERENCE_ID), None)
-    reference_loading = (_window_worst(reference, LOADING_CATEGORIES, index,
-                                       'max', True)
-                         if reference is not None else None)
-    over = loading is not None and loading[1]['max'] > LOADING_MAX
-    under_voltage = low is not None and low[1]['min'] < VOLTAGE_MIN
-    over_voltage = high is not None and high[1]['max'] > VOLTAGE_MAX
-    if over and (under_voltage or over_voltage):
+    loading_statuses = [limit_status(record) for record in loading]
+    voltage_statuses = [limit_status(record) for record in voltage]
+    over = any(status in CAUSED_STATUSES for status in loading_statuses)
+    band = any(status in CAUSED_STATUSES for status in voltage_statuses)
+    if over and band:
         verdict = ASSESSMENT_BOTH
     elif over:
         verdict = ASSESSMENT_LOADING
-    elif under_voltage or over_voltage:
+    elif band:
         verdict = ASSESSMENT_VOLTAGE
+    elif STATUS_PREEXISTING in loading_statuses + voltage_statuses:
+        verdict = ASSESSMENT_PREEXISTING
     else:
         verdict = ASSESSMENT_OK
+    # Name the element the outages push over the limit, not one that was
+    # already overloaded in REF; fall back to the most loaded element.
+    caused = [record for record, status in zip(loading, loading_statuses)
+              if status in CAUSED_STATUSES and record['outage'] is not None]
+    worst = max(caused or in_outage, key=lambda record: record['outage']['max'], default=None)
+    low = min(nodes, key=lambda record: record['outage']['min'], default=None)
+    high = max(nodes, key=lambda record: record['outage']['max'], default=None)
     return {
         'assessment': verdict,
-        'violation': 1 if verdict != ASSESSMENT_OK else 0,
-        'max_loading': loading[1]['max'] if loading else None,
-        'max_loading_element': loading[0]['element_name'] if loading else '',
-        'max_loading_time': loading[1]['time_max'] if loading else '',
-        'reference_max_loading': (reference_loading[1]['max']
-                                  if reference_loading else None),
-        'min_voltage': low[1]['min'] if low else None,
-        'max_voltage': high[1]['max'] if high else None,
+        'violation': 1 if verdict in (ASSESSMENT_LOADING, ASSESSMENT_VOLTAGE, ASSESSMENT_BOTH) else 0,
+        'max_loading': worst['outage']['max'] if worst else None,
+        'max_loading_element': worst['item']['element_name'] if worst else '',
+        'max_loading_time': worst['outage']['time_max'] if worst else '',
+        'reference_max_loading': worst['ref']['max'] if worst and worst['ref'] else None,
+        'min_voltage': low['outage']['min'] if low else None,
+        'max_voltage': high['outage']['max'] if high else None,
+        'loading_statuses': loading_statuses,
+        'voltage_statuses': voltage_statuses,
+        'both_cases': _both_cases(results),
     }
 
 
+def _violation_text(statuses, singular, plural, both):
+    exceeded = [status for status in statuses if status in EXCEEDED_STATUSES]
+    if not exceeded:
+        return 'no {}'.format(singular)
+    return _counted(len(exceeded), singular, plural) + _status_breakdown(statuses, both)
+
+
 def assessment_detail(values):
-    """One readable sentence with the numbers behind the verdict."""
+    """Readable sentences with the numbers behind the verdict, loading first."""
     parts = []
+    both = values.get('both_cases', False)
     if values.get('max_loading') is not None:
-        text = "max {:.1f} % on {} at {}".format(
+        text = "Loading max {:.1f} % on {} at {}".format(
             values['max_loading'], values['max_loading_element'],
             values['max_loading_time'])
         if values.get('reference_max_loading') is not None:
-            text += " (reference {:.1f} %)".format(
-                values['reference_max_loading'])
+            text += " (REF {:.1f} %)".format(values['reference_max_loading'])
+        text += "; " + _violation_text(values.get('loading_statuses', []), 'overload', 'overloads', both)
         parts.append(text)
     if values.get('min_voltage') is not None and values.get('max_voltage') is not None:
-        parts.append("voltage {:.3f} to {:.3f} p.u.".format(
-            values['min_voltage'], values['max_voltage']))
-    return "; ".join(parts)
-
-
-def outage_identity(results):
-    keys_by_name = {}
-    for result in results:
-        for outage in result['out_of_service']:
-            name = outage[1]
-            key = outage[2] if len(outage) > 2 else name
-            bucket = keys_by_name.setdefault(name, [])
-            if key not in bucket:
-                bucket.append(key)
-    identity = {}
-    for name, keys in keys_by_name.items():
-        for key in keys:
-            identity[key] = name if len(keys) == 1 else '{} ({})'.format(name, _key_discriminator(key))
-    return identity
-CHART_FLAGS = (('has_line_bars', 'ScriptedLineLoadingBars'), ('has_transformer_bars', 'ScriptedTransformerLoadingBars'), ('has_voltage_bars', 'ScriptedVoltageMagnitudeBars'), ('has_angle_bars', 'ScriptedVoltageAngleBars'))
+        parts.append("Voltage {:.3f} to {:.3f} p.u.; {}".format(
+            values['min_voltage'], values['max_voltage'],
+            _violation_text(values.get('voltage_statuses', []), 'node outside the band', 'nodes outside the band', both)))
+    return ". ".join(parts) + "." if parts else ""
+CHART_FLAGS = (('has_line_bars', 'ScriptedLineLoadingBars'), ('has_transformer_bars', 'ScriptedTransformerLoadingBars'))
 
 def _enforce_table_limits(payload):
     for name in sorted(payload):
@@ -851,15 +1047,9 @@ def build_cases_payload(study_case, results, project_name, result_name, planned_
     if len(plot_times) >= 2:
         time_step = format_time_step(plot_times[1] - plot_times[0])
     reference = find_reference(results)
-    payload['ScriptedReportMeta'].append({'study_id': object_name(study_case), 'study_name': object_name(study_case), 'study_description': object_description(study_case), 'model_name': project_name, 'model_version': 'PowerFactory 2026', 'simulation_start': start, 'simulation_end': end, 'simulation_time_step': time_step or 'ElmRes row interval', 'generation_date': datetime.now().astimezone().isoformat(timespec='seconds'), 'generated_by': generated_by, 'run_mode': run_mode, 'template_name': TEMPLATE_NAME, 'template_version': TEMPLATE_VERSION, 'data_contract_version': DATA_CONTRACT_VERSION, 'result_name': result_name, 'assessment_scope': '{} case(s); reference: {}; {}'.format(len(results), reference['id'] if reference else 'none', 'elements in grids named *{}*'.format(GRID_NAME_FILTER) if GRID_NAME_FILTER else 'all elements'), 'assessment_status': 'PRE-ASSESSMENT - NOT AN OPERATIONAL RELEASE', 'has_line_bars': '0', 'has_transformer_bars': '0', 'has_voltage_bars': '0', 'has_angle_bars': '0'})
-    identity = outage_identity(results)
+    payload['ScriptedReportMeta'].append({'study_id': object_name(study_case), 'study_name': object_name(study_case), 'study_description': object_description(study_case), 'model_name': project_name, 'model_version': 'PowerFactory 2026', 'simulation_start': start, 'simulation_end': end, 'simulation_time_step': time_step or 'ElmRes row interval', 'generation_date': datetime.now().astimezone().strftime('%Y-%m-%d %H:%M'), 'generated_by': generated_by, 'run_mode': run_mode, 'template_name': TEMPLATE_NAME, 'template_version': TEMPLATE_VERSION, 'data_contract_version': DATA_CONTRACT_VERSION, 'result_name': result_name, 'assessment_scope': '{} case(s); reference: {}; {}'.format(len(results), reference['id'] if reference else 'none', 'elements in grids named *{}*'.format(GRID_NAME_FILTER) if GRID_NAME_FILTER else 'all elements'), 'assessment_status': 'PRE-ASSESSMENT - NOT AN OPERATIONAL RELEASE', 'line_summary': loading_summary(results, 'line'), 'transformer_summary': loading_summary(results, 'transformer'), 'voltage_summary': voltage_summary(results), 'voltage_limits': voltage_limits_text(), 'has_line_bars': '0', 'has_transformer_bars': '0'})
     for result in results:
         payload['ScriptedCases'].append({'case_id': result['id'], 'case_name': result['name'], 'is_reference': result['is_reference'], 'description': result['description'], 'simulation_status': result['status'], 'simulation_start': result['labels'][0] if result['labels'] else '', 'simulation_end': result['labels'][-1] if result['labels'] else ''})
-        for outage in result['out_of_service']:
-            element_class, name = outage[:2]
-            key = outage[2] if len(outage) > 2 else name
-            label = identity.get(key, name)
-            payload['ScriptedCaseMatrix'].append({'element_id': label, 'element_name': label, 'element_type': _element_type(element_class), 'case_id': result['id'], 'is_out_of_service': 1, 'status_label': 'OFF'})
     for outage in planned_outages:
         considered = outage['status'] == OUTAGE_CONSIDERED
         values = {'assessment': ASSESSMENT_SKIPPED, 'violation': 0}
@@ -884,19 +1074,8 @@ def build_cases_payload(study_case, results, project_name, result_name, planned_
     outage_status = 'PASS' if considered and skipped == 0 else 'WARNING'
     payload['ScriptedModelQuality'].append({'check_id': 'planned_outages', 'check_name': 'Planned outage applicability', 'status': outage_status, 'message': '{} found; {} in scope; {} skipped.'.format(len(planned_outages), considered, skipped), 'affected_element': ''})
     _model_quality(payload, results)
-    _statistics_rows(payload, results, 'line', 'ScriptedLineStatistics', LINE_FIELDS)
-    _statistics_rows(payload, results, 'transformer', 'ScriptedTransformerStatistics', TRANSFORMER_FIELDS)
-    _statistics_rows(payload, results, 'voltage', 'ScriptedVoltageStatistics', VOLTAGE_FIELDS)
-    _loading_bars(payload, results, 'line', 'ScriptedLineLoadingBars')
-    _loading_bars(payload, results, 'transformer', 'ScriptedTransformerLoadingBars')
-    _voltage_bars(payload, results)
-    _angle_bars(payload, results)
-    _rankings(payload, results, 'highest_line_loading', 'line', 'Maximum loading', 'max', 'time_max', True)
-    _rankings(payload, results, 'highest_transformer_loading', 'transformer', 'Maximum loading', 'max', 'time_max', True)
-    _rankings(payload, results, 'lowest_voltage', 'voltage', 'Minimum voltage', 'min', 'time_min', False, predicate=lambda stats: stats['min'] < VOLTAGE_MIN)
-    _rankings(payload, results, 'highest_voltage', 'voltage', 'Maximum voltage', 'max', 'time_max', True, predicate=lambda stats: stats['max'] > VOLTAGE_MAX)
-    _case_comparison(payload, results)
-    _relevant_time_points(payload, results)
+    _loading_tables(payload, results)
+    _voltage_tables(payload, results)
     _trends(payload, results)
     _overview(payload, results, planned_outages)
     _enforce_table_limits(payload)
@@ -964,7 +1143,7 @@ def validate_payload(payload):
                     raise ValueError(where + ': required field is missing')
                 if kind == 'string' and (not str(value).strip()):
                     raise ValueError(where + ': required text is empty')
-    for table, _, _, _ in TREND_SLOTS:
+    for table, _ in TREND_SLOTS:
         if len({row.get('element_name') for row in payload[table]}) > 1:
             raise ValueError('{} mixes several elements in one chart.'.format(table))
 
@@ -1084,6 +1263,7 @@ OUTAGE_CLASSES = ("IntPlannedout", "IntOutage")
 PLANNED_OUTAGE_OPTION = "iopt_maint"
 OUTAGE_CONSIDERED = "CONSIDERED"
 ASSESSMENT_OK = "NO LIMIT EXCEEDED"
+ASSESSMENT_PREEXISTING = "NO ADDITIONAL VIOLATION"
 ASSESSMENT_LOADING = "OVERLOAD"
 ASSESSMENT_VOLTAGE = "VOLTAGE BAND"
 ASSESSMENT_BOTH = "OVERLOAD + VOLTAGE BAND"
@@ -1511,27 +1691,6 @@ def _temporary_result(study_case, template, case_id):
     return snapshot
 
 
-def _collect_out_of_service(app):
-    found = {}
-    for pattern in ("*.ElmLne", "*.ElmTr2", "*.ElmTr3", "*.ElmTerm"):
-        try:
-            objects = app.GetCalcRelevantObjects(pattern, 1) or []
-        except TypeError:
-            try:
-                objects = app.GetCalcRelevantObjects(pattern) or []
-            except Exception:
-                objects = []
-        except Exception:
-            objects = []
-        for item in objects:
-            if not element_in_scope(item):
-                continue
-            if finite_number(safe_attr(item, "outserv", 0)) == 1.0:
-                found[object_key(item)] = (
-                    class_name(item), object_name(item), object_key(item))
-    return [found[key] for key in sorted(found)]
-
-
 def _run_calculation(app, study_case, qds, case_id, name, description,
                      original_result, logger, temporary_results, windows=()):
     snapshot = _temporary_result(study_case, original_result, case_id)
@@ -1612,7 +1771,7 @@ def _run_calculation(app, study_case, qds, case_id, name, description,
         "status": CONVERGED,
         "error_code": 0,
         "message": "Completed in {:.1f}s.".format(elapsed),
-        "out_of_service": _collect_out_of_service(app),
+        "counters": counters,
     }
     result = case_result(case, series, labels, plot_times, unit)
     result["window"] = ((None, None) if origin is None else
