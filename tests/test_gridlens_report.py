@@ -1433,3 +1433,29 @@ def test_run_output_is_structured_in_steps_cases_and_tables(monkeypatch):
     assert "Grids in the result file" in text
     assert "SKIPPED" in text and "CONSIDERED" in text
     assert any("Line outage" in line or "LODF" in line for line in app.messages)
+
+
+class NanVoltageElmRes(VoltageElmRes):
+    """An outage cuts the bus off: PowerFactory writes NaN instead of 0."""
+
+    def __init__(self):
+        super().__init__()
+        self.columns = ([0.0, 1.0], [1.01, float("nan")], [0.0, 0.0], [-1.01, -1.0])
+
+
+def test_nan_voltage_is_a_de_energised_node_and_does_not_stop_the_case():
+    counters = {}
+
+    (bus,) = gl.collect_series(NanVoltageElmRes(), counters=counters)[0]
+
+    assert bus['element_name'] == 'Bus AC'
+    assert (bus['statistics']['min'], bus['statistics']['max']) == (1.01, 1.01)
+    assert counters['deenergized_steps'] == 3
+
+
+def test_nan_loading_still_stops_the_extraction():
+    result = ElmRes()
+    result.columns = ([0.0, 1.0], [90.0, float("nan")], [0.96, 0.94], [0.0, 2.0])
+
+    with pytest.raises(RuntimeError, match="Invalid result value"):
+        gl.collect_series(result)

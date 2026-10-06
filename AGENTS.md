@@ -161,7 +161,9 @@ Es ist eigenständig und enthält eine Kopie des Filters; wer den Filter in
   sind kein Messwert; Knoten ohne einen einzigen Wert und DC-Knoten
   (`ElmTerm.systype == 1`) werden nicht bewertet und in der QA gezählt.
 - NaN, Infinity, `None`, Booleans und unlesbare API-Rückgaben werden nicht als
-  Messwerte akzeptiert.
+  Messwerte akzeptiert. Eine Knotenspannung, die PowerFactory als NaN schreibt
+  (ein Knoten, den die Außerbetriebnahme abtrennt), gilt wie 0 als spannungslos
+  und ist kein Wert; eine Auslastung als NaN stoppt den Case weiterhin.
 - Vollständige PowerFactory-Pfade dienen nur als interne Identität; der Report
   zeigt kurze Namen.
 - Deltas entstehen nur für dasselbe Objekt in `REF` und `OUTAGE`.

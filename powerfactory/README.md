@@ -304,7 +304,8 @@ bereinigt.
 
   Diese Werte sind ein Vorschlag und vor dem Einsatz fachlich zu bestätigen.
 - Werte genau auf dem Grenzwert gelten nicht als Verletzung.
-- Spannungen unter 0.1 p.u. gelten als spannungslos und sind kein Messwert.
+- Spannungen unter 0.1 p.u. sowie NaN (ein von der Außerbetriebnahme abgetrennter Knoten) gelten als
+  spannungslos und sind kein Messwert.
   Knoten, die nie Spannung haben, und DC-Knoten (`systype = 1`) werden nicht
   bewertet; die QA nennt ihre Anzahl.
 - Nichtnumerische Werte, `None`, Booleans, NaN und Infinity werden abgelehnt.

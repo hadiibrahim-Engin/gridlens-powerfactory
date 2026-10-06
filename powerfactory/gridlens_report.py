@@ -495,10 +495,11 @@ def collect_series(elmres, windows=(), counters=None):
         category = result_category(obj, variable)
         dark = 0
         for row, value in enumerate(read_column(elmres, column, rows)):
-            if value is None:
+            if value is None and category != 'voltage':
                 raise RuntimeError('Invalid result value in ElmRes cell ({}, {}) for {} {}.'.format(row, column, object_name(obj), variable))
-            if category == 'voltage' and value < ENERGIZED_MIN_PU:
-                # PowerFactory reports 0 for a de-energised node: no value.
+            if category == 'voltage' and (value is None or value < ENERGIZED_MIN_PU):
+                # A node an outage cuts off is reported as 0 or as NaN: both mean
+                # de-energised, no value. A loading that is not a number still stops the run.
                 value = None
                 dark += 1
             points.append((labels[row], plot_times[row], value))
@@ -2603,8 +2604,13 @@ def _run_outage_case(app, study_case, qds, record, case_id, records,
         period_text(record.get("start_time", ""), record.get("end_time", "")) or "unknown",
         int(record.get("priority") or 0), record.get("equipment_name") or "none listed"))
     others = [item["name"] for item in records if item is not record]
-    logger.detail("Active in this case: only '{}'; set to 'Ignored' (outserv=1): {}".format(
-        record["name"], ", ".join(others) or "none"))
+    if getattr(logger, "ignored_listed", None) is None:
+        logger.ignored_listed = True
+        logger.detail("Active in this case: only '{}'; set to 'Ignored' (outserv=1): {}".format(
+            record["name"], ", ".join(others) or "none"))
+    else:
+        logger.detail("Active in this case: only '{}'; the other {} outage(s) are set to 'Ignored' "
+                      "(outserv=1) as listed for OUT01.".format(record["name"], len(others)))
     try:
         with StateGuard() as guard:
             _isolate_outage(guard, record["_object"], records)
