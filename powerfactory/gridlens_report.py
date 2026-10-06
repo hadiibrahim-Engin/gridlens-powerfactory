@@ -1888,10 +1888,15 @@ def classify_planned_outages(app, logger, period=(None, None)):
         record["window_index"] = len(candidates)
         candidates.append(record)
     logger.table(
-        ("#", "Planned outage", "Status", "Window", "Equipment"),
-        [(number, record["name"], record["status"],
+        ("#", "Planned outage", "Class", "Status", "Window", "Equipment"),
+        [(number, record["name"], record["source_class"], record["status"],
           period_text(record["start_time"], record["end_time"]) or "unknown",
           clip_text(record["equipment_name"] or "none listed", 60))
+         for number, record in enumerate(records, 1)])
+    logger.detail("Where each outage object is stored (project path):")
+    logger.table(
+        ("#", "Planned outage", "Location"),
+        [(number, record["name"], object_key(record["_object"]))
          for number, record in enumerate(records, 1)])
     return records, candidates
 
