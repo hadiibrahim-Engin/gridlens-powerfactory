@@ -135,7 +135,7 @@ Fallpräfix, Pfad, Hash oder Kürzel. Zu lange Texte enden mit „…“. Der Be
 trägt keinen Hinweis auf „synthetische Daten“; Fußzeile und Banner lauten
 `PRE-ASSESSMENT | NOT FOR OPERATIONAL USE`.
 
-`GRID_NAME_FILTER` (Standard `'D7'`) begrenzt die Bewertung auf Elemente,
+`GRID_NAME_FILTER` ist **optional** (Standard `''`: alle Elemente werden bewertet). Mit einem Text, z. B. `'D7'` für das Europa-Modell, begrenzt er die Bewertung auf Elemente,
 deren Grid den Text im Namen trägt; der übrige Modellteil ist Auslandsnetz.
 Das Grid kommt aus dem Attribut `cpGrid` („Grid“), ersatzweise aus dem
 `ElmNet` im Ablagepfad des Elements. `cpGrid` hat Vorrang, weil Elemente aus

@@ -176,11 +176,11 @@ Jedes Betriebsmittel erscheint nur mit seinem Namen aus PowerFactory
 Am Anfang von `gridlens_report.py` steht:
 
 ```python
-GRID_NAME_FILTER = 'D7'
+GRID_NAME_FILTER = ''   # optional; z. B. 'D7' für das Europa-Modell
 ```
 
-Bewertet werden nur Elemente, deren Grid (Attribut „Grid“, `cpGrid`) diesen
-Text im Namen trägt. Alle übrigen
+Ohne Text (Standard) werden alle Elemente bewertet. Mit einem Text werden nur Elemente
+bewertet, deren Grid (Attribut „Grid“, `cpGrid`) diesen Text im Namen trägt. Alle übrigen
 Reihen im `ElmRes` werden weder gelesen noch berichtet. Das Log nennt je Fall,
 wie viele Reihen bewertet und wie viele ausgelassen wurden; der Bericht nennt
 den Filter im Feld „Assessment scope“. Ein leerer Text bewertet alle Elemente.
@@ -222,9 +222,8 @@ die gelesenen Reihen mit Extremwert und Verletzungen, die Grids im Ergebnisobjek
 Tabellen. Die Zeilen im Format `[GridLens][NN/7][LEVEL][PHASE]` bleiben als Fortschrittsmeldungen
 erhalten. Die Schritte 4 und 5 laufen je Case ineinander und stehen im Abschnitt 4.
 
-Findet sich kein Element im Grid-Filter (`GRID_NAME_FILTER`, Standard `'D7'` für das Europa-Modell),
-bricht der Lauf nach `REF` ab und nennt die Grids des Ergebnisobjekts. In einem anderen Modell
-(z. B. New England) den Filter auf einen Teil eines dieser Namen oder auf `''` setzen.
+Der Filter `GRID_NAME_FILTER` ist optional und standardmäßig aus. Ist er gesetzt und findet sich kein
+Element in einem passenden Grid, bricht der Lauf nach `REF` ab und nennt die Grids des Ergebnisobjekts.
 
 Jede Meldung enthält Schritt, Level, Phase und verstrichene Zeit, zum Beispiel:
 

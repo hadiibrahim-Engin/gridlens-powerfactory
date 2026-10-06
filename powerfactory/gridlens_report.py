@@ -37,10 +37,11 @@ TEMPLATE_NAME = 'MASTER_GRIDLENS'
 TEMPLATE_VERSION = '5.0.0'
 DATA_CONTRACT_VERSION = '5.0'
 RUN_REFERENCE_CASE = True
-# Only elements whose grid (PowerFactory attribute "Grid", cpGrid) has a name
-# containing this text are assessed; every other element in the model is
-# foreign network and ignored. An empty string assesses every element.
-GRID_NAME_FILTER = 'D7'
+# Optional. An empty string (the default) assesses every element. With a text,
+# only elements whose grid (PowerFactory attribute "Grid", cpGrid) has a name
+# containing it are assessed and every other element is ignored as foreign
+# network, e.g. 'D7' for the Europe model.
+GRID_NAME_FILTER = ''
 VARIABLES = {'line': ('c:loading', 'm:loading'), 'transformer': ('c:loading', 'm:loading'), 'voltage': ('m:u', 'm:u1')}
 CLASS_CATEGORIES = {'ElmLne': ('line',), 'ElmTr2': ('transformer',), 'ElmTr3': ('transformer',), 'ElmTerm': ('voltage',)}
 MAX_RESULT_ROWS = 35040

@@ -39,7 +39,7 @@ def emit(app, message=""):
 # --- The grid filter, kept identical to gridlens_report.py ------------------
 # tests/test_probe_grid_filter.py fails if the two ever behave differently.
 
-GRID_NAME_FILTER = 'D7'
+GRID_NAME_FILTER = ''  # type a grid name part here to preview what it would select
 VARIABLES = {'line': ('c:loading', 'm:loading'), 'transformer': ('c:loading', 'm:loading'), 'voltage': ('m:u', 'm:u1')}
 CLASS_CATEGORIES = {'ElmLne': ('line',), 'ElmTr2': ('transformer',), 'ElmTr3': ('transformer',), 'ElmTerm': ('voltage',)}
 
