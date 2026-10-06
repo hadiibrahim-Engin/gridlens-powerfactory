@@ -1300,8 +1300,10 @@ def test_foreign_elements_are_neither_assessed_nor_read(monkeypatch):
 def test_no_element_in_scope_names_the_filter(monkeypatch):
     monkeypatch.setattr(gl, "GRID_NAME_FILTER", "D9")
 
-    with pytest.raises(RuntimeError, match="GRID_NAME_FILTER"):
+    with pytest.raises(RuntimeError, match="GRID_NAME_FILTER") as failure:
         gl.collect_series(ScopedElmRes())
+    # The message says which grids the result file does hold.
+    assert "Grids in the result:" in str(failure.value)
 
 
 def test_report_states_which_elements_were_assessed(monkeypatch):
@@ -1405,3 +1407,29 @@ def test_zero_and_dc_voltages_are_not_counted_as_violations():
     assert counters['dc_nodes'] == 1
     assert counters['deenergized_nodes'] == 1
     assert counters['deenergized_steps'] == 3
+
+
+def test_run_output_is_structured_in_steps_cases_and_tables(monkeypatch):
+    outages = (PlannedOutage("Outage A", equipment=[PFObject("Line A", "ElmLne")]),
+               PlannedOutage("Outage B", disabled=True))
+    app = App(outages)
+    monkeypatch.setattr(gl, "RUN_REFERENCE_CASE", True)
+
+    gl.execute_gridlens(app)
+
+    text = "\n".join(app.messages)
+    for step in ("STEP 1/7 \u00b7 Startup and context", "STEP 2/7 \u00b7 ComStatsim settings",
+                 "STEP 3/7 \u00b7 Planned outages and LODF", "STEP 4/7 \u00b7 Calculation and extraction",
+                 "STEP 6/7 \u00b7 Restore and clean-up",
+                 "STEP 7/7 \u00b7 Results and report publication"):
+        assert step in text
+    assert text.index("STEP 3/7") < text.index("STEP 4/7") < text.index("STEP 6/7") < text.index("STEP 7/7")
+    assert ".. Case REF \u00b7 Reference" in text
+    assert ".. Case OUT01 \u00b7 Outage A" in text
+    assert "Active in this case: only 'Outage A'; set to 'Ignored' (outserv=1): Outage B" in text
+    # Tables: outages, series per case, results per case, published tables.
+    for heading in ("Planned outage  Status", "Result series  Count", "Case   Name", "Table  Rows"):
+        assert heading.split("  ")[0] in text
+    assert "Grids in the result file" in text
+    assert "SKIPPED" in text and "CONSIDERED" in text
+    assert any("Line outage" in line or "LODF" in line for line in app.messages)

@@ -41,6 +41,13 @@ class Logger:
     def write(self, stage, message, step=None, level="INFO"):
         self.lines.append((stage, level, message))
 
+    def detail(self, message, level="INFO"):
+        self.lines.append(("DETAIL", level, message))
+
+    def table(self, header, rows, level="INFO"):
+        for row in rows:
+            self.lines.append(("TABLE", level, "  ".join(str(cell) for cell in row)))
+
 
 # ---------------------------------------------------------------------------
 # State guard

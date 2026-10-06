@@ -224,8 +224,11 @@ def element_grid_name(obj):
             return part[:-len('.ElmNet')]
     return ''
 
+def grid_in_scope(grid_name):
+    return not GRID_NAME_FILTER or GRID_NAME_FILTER in grid_name
+
 def element_in_scope(obj):
-    return not GRID_NAME_FILTER or GRID_NAME_FILTER in element_grid_name(obj)
+    return grid_in_scope(element_grid_name(obj))
 
 def result_category(obj, variable):
     for category in CLASS_CATEGORIES.get(class_name(obj), ()):
@@ -443,6 +446,7 @@ def collect_series(elmres, windows=(), counters=None):
     bounds = window_bounds(hours, windows) if absolute and windows else []
     chosen = {}
     out_of_scope = 0
+    grids = {}
     dc_nodes = set()
     for column in range(columns):
         try:
@@ -454,7 +458,11 @@ def collect_series(elmres, windows=(), counters=None):
         if not category or variable not in VARIABLES[category]:
             continue
         # Before the full path is fetched and before any value is read.
-        if not element_in_scope(obj):
+        grid_name = element_grid_name(obj)
+        in_scope = grid_in_scope(grid_name)
+        counted = grids.setdefault(grid_name or '(no grid)', [0, in_scope])
+        counted[0] += 1
+        if not in_scope:
             out_of_scope += 1
             continue
         if category == 'voltage' and is_dc_terminal(obj):
@@ -466,15 +474,17 @@ def collect_series(elmres, windows=(), counters=None):
             chosen[key] = (priority, column, obj, variable)
     if counters is not None:
         counters['out_of_scope'] = out_of_scope
+        counters['grids'] = {name: tuple(value) for name, value in grids.items()}
         counters['dc_nodes'] = len(dc_nodes)
         counters['deenergized_nodes'] = 0
         counters['deenergized_steps'] = 0
     if not chosen and out_of_scope:
         raise RuntimeError(
             'No result series belongs to an element whose grid name contains '
-            '{!r} ({} series were out of scope). Set GRID_NAME_FILTER at the top '
-            'of gridlens_report.py, or to an empty string to assess every '
-            'element.'.format(GRID_NAME_FILTER, out_of_scope))
+            '{!r} ({} series were out of scope). Grids in the result: {}. Set '
+            'GRID_NAME_FILTER at the top of gridlens_report.py to part of one of '
+            'these names, or to an empty string to assess every element.'.format(
+                GRID_NAME_FILTER, out_of_scope, _grid_listing(grids)))
     cells = rows * len(chosen)
     if cells > MAX_RESULT_CELLS:
         raise RuntimeError('ElmRes contains {} evaluated cells ({} rows x {} series) and exceeds the limit of {} (MAX_RESULT_CELLS).'.format(cells, rows, len(chosen), MAX_RESULT_CELLS))
@@ -513,6 +523,10 @@ def collect_series(elmres, windows=(), counters=None):
     if not series:
         raise RuntimeError('ElmRes contains no completely readable supported result series.')
     return (series, labels, plot_times, time_unit, absolute, origin)
+
+def _grid_listing(grids):
+    ordered = sorted(grids.items(), key=lambda entry: (-entry[1][0], entry[0]))
+    return '; '.join('{!r} ({} series)'.format(name, value[0]) for name, value in ordered[:8]) or 'none'
 
 def check_run_budget(results):
     cells = 0
@@ -1480,19 +1494,24 @@ class GridLensError(RuntimeError):
 
 
 class RunLogger:
-    """Structured progress output for the PowerFactory output window."""
+    """Structured progress output for the PowerFactory output window.
+
+    Three levels keep a long run readable:
+
+        ====================================  section: one step of the run
+         STEP 4/7 · Calculation
+        ====================================
+        .. Case OUT01 · NE_L1 ..............  case: one QDS run
+            indented lines                     details of the current block
+    """
+
+    WIDTH = 78
 
     def __init__(self, app):
         self.app = app
         self.started = time.monotonic()
 
-    def write(self, stage, message, step=None, level="INFO"):
-        position = "--/{}".format(TOTAL_STEPS)
-        if step is not None:
-            position = "{:02d}/{}".format(step, TOTAL_STEPS)
-        elapsed = time.monotonic() - self.started
-        line = "[GridLens][{}][{}][{}][{:7.1f}s] {}".format(
-            position, level, stage, elapsed, message)
+    def _emit(self, line):
         printer = getattr(self.app, "PrintPlain", None)
         if callable(printer):
             try:
@@ -1501,6 +1520,50 @@ class RunLogger:
             except Exception:
                 pass
         print(line, flush=True)
+
+    def write(self, stage, message, step=None, level="INFO"):
+        position = "--/{}".format(TOTAL_STEPS)
+        if step is not None:
+            position = "{:02d}/{}".format(step, TOTAL_STEPS)
+        elapsed = time.monotonic() - self.started
+        self._emit("[GridLens][{}][{}][{}][{:7.1f}s] {}".format(
+            position, level, stage, elapsed, message))
+
+    def _plain(self, text, level="INFO"):
+        self._emit("[GridLens]{} {}".format(
+            "" if level == "INFO" else "[" + level + "]", text))
+
+    def section(self, title):
+        self._emit("")
+        self._plain("=" * self.WIDTH)
+        self._plain(" " + title)
+        self._plain("=" * self.WIDTH)
+
+    def step(self, number, title):
+        self.section("STEP {}/{} \u00b7 {}".format(number, TOTAL_STEPS, title))
+
+    def case(self, title):
+        head = ".. " + title + " "
+        self._plain(head + "." * max(3, self.WIDTH - len(head)))
+
+    def detail(self, message, level="INFO"):
+        self._plain("    " + message, level)
+
+    def table(self, header, rows, level="INFO"):
+        """Rows of strings in aligned columns; the last column is not padded."""
+        lines = ([tuple(header)] if header else []) + [
+            tuple(str(cell) for cell in row) for row in rows]
+        if not lines:
+            return
+        widths = [max(len(line[i]) for line in lines) for i in range(len(lines[0]))]
+        for number, line in enumerate(lines):
+            self.detail("  ".join(
+                cell.ljust(widths[i]) if i < len(line) - 1 else cell
+                for i, cell in enumerate(line)), level)
+            if header and number == 0:
+                self.detail("  ".join(
+                    "-" * widths[i] if i < len(line) - 1 else "-" * min(widths[i], 40)
+                    for i in range(len(line))))
 
 
 def _call_without_or_with_zero(method):
@@ -1823,6 +1886,12 @@ def classify_planned_outages(app, logger, period=(None, None)):
                 "DIAGNOSTIC", prefix + describe_object_api(outage), 3, "WARNING")
         record["window_index"] = len(candidates)
         candidates.append(record)
+    logger.table(
+        ("#", "Planned outage", "Status", "Window", "Equipment"),
+        [(number, record["name"], record["status"],
+          period_text(record["start_time"], record["end_time"]) or "unknown",
+          clip_text(record["equipment_name"] or "none listed", 60))
+         for number, record in enumerate(records, 1)])
     return records, candidates
 
 
@@ -1895,7 +1964,9 @@ def _temporary_result(study_case, template, case_id):
 
 def _run_calculation(app, study_case, qds, case_id, name, description,
                      original_result, logger, temporary_results, windows=(),
-                     outage=None):
+                     outage=None, announce=True):
+    if announce:
+        logger.case("Case {} \u00b7 {}".format(case_id, name))
     snapshot = _temporary_result(study_case, original_result, case_id)
     temporary_results.append(snapshot)
     if not _set_attribute(qds, "results", snapshot):
@@ -1957,6 +2028,7 @@ def _run_calculation(app, study_case, qds, case_id, name, description,
             .format("absolute" if absolute else "relative",
                     unit, labels[0], labels[-1],
                     '{:g} h'.format(plot_times[-1] - plot_times[0])), 5)
+        _log_extraction_detail(logger, series, counters)
     except Exception as exc:
         raise GridLensError(
             "{} completed, but its ElmRes could not be evaluated: {}".format(
@@ -1978,6 +2050,7 @@ def _run_calculation(app, study_case, qds, case_id, name, description,
         "outage": outage,
     }
     result = case_result(case, series, labels, plot_times, unit)
+    result["elapsed"] = elapsed
     result["window"] = ((None, None) if origin is None else
                         (origin * 3600.0, (origin + plot_times[-1]) * 3600.0))
     return result
@@ -2488,6 +2561,16 @@ def calculate_lodf(app, study_case, records, logger):
             _clean_up_lodf(created, logger)
     with_values = sum(1 for item in info.values() if item["values"])
     logger.write("LODF", "LODF available for {} of {} outage(s).".format(with_values, len(info)), 3)
+    rows = []
+    for record in records:
+        item = info[record["id"]]
+        if item["values"]:
+            ranked = sorted(item["values"].values(), key=lambda entry: -abs(entry[1]))
+            rows.append((record["name"], "{} line(s)".format(len(ranked)),
+                         ", ".join("{} {:+.1f} %".format(name, fraction * 100.0) for name, fraction in ranked[:3])))
+        else:
+            rows.append((record["name"], "no LODF", clip_text(item["reason"], 100)))
+    logger.table(("Outage", "LODF", "Strongest lines / reason"), rows)
     return info
 
 
@@ -2509,14 +2592,20 @@ def _run_outage_case(app, study_case, qds, record, case_id, records,
     case = {"id": case_id, "name": record["name"], "kind": "planned_outage",
             "description": "Only outage '{}' applied by PowerFactory.".format(record["name"]),
             "outage": record}
-    logger.write("CALCULATION", "Case {} of {}: outage '{}'.".format(
-        case_id, len(records), record["name"]), 4)
+    logger.case("Case {} \u00b7 {}".format(case_id, record["name"]))
+    logger.detail("Window: {} | priority {} | equipment: {}".format(
+        period_text(record.get("start_time", ""), record.get("end_time", "")) or "unknown",
+        int(record.get("priority") or 0), record.get("equipment_name") or "none listed"))
+    others = [item["name"] for item in records if item is not record]
+    logger.detail("Active in this case: only '{}'; set to 'Ignored' (outserv=1): {}".format(
+        record["name"], ", ".join(others) or "none"))
     try:
         with StateGuard() as guard:
             _isolate_outage(guard, record["_object"], records)
             result = _run_calculation(
                 app, study_case, qds, case_id, record["name"], case["description"],
-                original_result, logger, temporary_results, windows, record)
+                original_result, logger, temporary_results, windows, record,
+                announce=False)
     except StateRestoreError:
         raise
     except GridLensError as exc:
@@ -2530,8 +2619,116 @@ def _run_outage_case(app, study_case, qds, record, case_id, records,
     return result
 
 
+def _log_context(app, study_case, qds, original_result, logger):
+    try:
+        project = object_name(app.GetActiveProject())
+    except Exception:
+        project = "unknown"
+    logger.detail("Project: {} | Study case: {} | ComStatsim: {}".format(
+        project, object_name(study_case), object_name(qds)))
+    logger.detail("Result object: {} ({})".format(
+        object_name(original_result), class_name(original_result) or "ElmRes"))
+    logger.detail("Grid scope: {}".format(
+        "grids whose name contains {!r}".format(GRID_NAME_FILTER)
+        if GRID_NAME_FILTER else "every element"))
+    logger.detail("Reference case: {} | LODF: {} | one case per planned outage".format(
+        "on" if RUN_REFERENCE_CASE else "off",
+        "on" if CALCULATE_LODF else "off"))
+
+
+def _series_overview(series):
+    """Rows (category, series, highest value, element, limit violations) of one case."""
+    rows = []
+    for category, label, _, _ in CATEGORY_LABELS:
+        items = [item for item in series if item["category"] == category]
+        if not items:
+            rows.append((label, "0", "-", "-", "-"))
+            continue
+        if category == "voltage":
+            lowest = min(items, key=lambda item: item["statistics"]["min"] if item.get("statistics") else 9)
+            stats = lowest.get("statistics")
+            rows.append((label, str(len(items)),
+                         "min {:.3f} p.u.".format(stats["min"]) if stats else "-",
+                         lowest["element_name"],
+                         str(sum(1 for item in items if is_critical(item, item.get("statistics"))))))
+            continue
+        top = max(items, key=lambda item: item["statistics"]["max"] if item.get("statistics") else -1)
+        stats = top.get("statistics")
+        rows.append((label, str(len(items)),
+                     "max {:.1f} %".format(stats["max"]) if stats else "-",
+                     top["element_name"],
+                     str(sum(1 for item in items if is_critical(item, item.get("statistics"))))))
+    return rows
+
+
+def _log_extraction_detail(logger, series, counters):
+    logger.table(("Result series", "Count", "Extreme", "Element", "Violating"),
+                 _series_overview(series))
+    grids = counters.get("grids") or {}
+    if grids and not getattr(logger, "grids_shown", False):
+        logger.grids_shown = True
+        ordered = sorted(grids.items(), key=lambda entry: (-entry[1][0], entry[0]))
+        logger.detail("Grids in the result file (series per grid):")
+        logger.table(("Grid", "Series", "Scope"),
+                     [(name, count, "assessed" if inside else "ignored")
+                      for name, (count, inside) in ordered[:12]])
+        if len(ordered) > 12:
+            logger.detail("... and {} more grid(s).".format(len(ordered) - 12))
+    skipped = []
+    if counters.get("dc_nodes"):
+        skipped.append("{} DC node(s)".format(counters["dc_nodes"]))
+    if counters.get("deenergized_nodes"):
+        skipped.append("{} node(s) without voltage".format(counters["deenergized_nodes"]))
+    if skipped:
+        logger.detail("Not assessed: {}.".format(", ".join(skipped)))
+
+
+def _log_results(logger, results, records):
+    rows = []
+    for result in results:
+        outage = result.get("outage")
+        if result["id"] == REFERENCE_ID:
+            verdict = "BASELINE" if result["status"] == CONVERGED else result["status"]
+        elif result["status"] != CONVERGED:
+            verdict = result["status"]
+        else:
+            judged = assess_case(results, result)
+            verdict = judged["assessment"] if judged else ASSESSMENT_NO_DATA
+        lines, transformers, nodes = _violation_counts(result) if result["status"] == CONVERGED else (0, 0, 0)
+        rows.append((result["id"], result["name"], result["status"],
+                     "{:.1f}s".format(result["elapsed"]) if result.get("elapsed") is not None else "-",
+                     verdict, lines, transformers, nodes))
+    logger.table(("Case", "Name", "Status", "Time", "Assessment", "Lines>100", "Trafos>100", "Nodes out"), rows)
+    for result in results:
+        if result["status"] != CONVERGED:
+            logger.detail("{}: {}".format(result["id"], result["message"]), "WARNING")
+    skipped = [record for record in records if record["status"] != OUTAGE_CONSIDERED]
+    for record in skipped:
+        logger.detail("Skipped '{}': {}".format(record["name"], record.get("skip_reason", "")), "WARNING")
+
+
+def _log_findings(logger, payload):
+    ranking = payload["ScriptedLodfRanking"]
+    if ranking:
+        logger.detail("Line impact ranking, strongest lines per outage:")
+        rows = []
+        for row in ranking:
+            if row["rank"] <= 3:
+                rows.append((row["case_name"], row["rank"], row["element_name"],
+                             row["lodf_text"], row["ref_text"], row["outage_text"],
+                             row["delta_text"], row["status_label"]))
+        logger.table(("Outage", "#", "Line", "LODF", "REF max", "Case max", "Delta", "Status"), rows)
+    checks = [row for row in payload["ScriptedModelQuality"] if row["status"] in ("FAIL", "WARNING")]
+    if checks:
+        logger.detail("Model quality findings:")
+        logger.table(("Status", "Check", "Details"),
+                     [(row["status"], row["check_name"], clip_text(row["message"], 90)) for row in checks],
+                     "WARNING" if any(row["status"] == "FAIL" for row in checks) else "INFO")
+
+
 def execute_gridlens(app):
     logger = RunLogger(app)
+    logger.step(1, "Startup and context")
     logger.write(
         "STARTUP", "GridLens publisher {} started.".format(PUBLISHER_VERSION), 1)
     script = app.GetCurrentScript()
@@ -2580,6 +2777,8 @@ def execute_gridlens(app):
         "Study case '{}'; QDS '{}'; result '{}'; reference flag {}."
         .format(object_name(study_case), object_name(qds),
                 object_name(original_result), RUN_REFERENCE_CASE), 2)
+    _log_context(app, study_case, qds, original_result, logger)
+    logger.step(2, "ComStatsim settings")
     _log_qds_settings(qds, original_result, study_time_state, logger)
     results = []
     records = []
@@ -2587,11 +2786,13 @@ def execute_gridlens(app):
     temporary_results = []
     state_errors = []
     period = qds_period(qds)
+    logger.step(3, "Planned outages and LODF")
     records, candidates = classify_planned_outages(app, logger, period)
     windows = tuple(record["window"] for record in candidates)
     lodf = None
     if CALCULATE_LODF and candidates:
         lodf = calculate_lodf(app, study_case, candidates, logger)
+    logger.step(4, "Calculation and extraction (log steps 4 and 5)")
     try:
         if RUN_REFERENCE_CASE:
             if not _set_scalar_attribute(qds, PLANNED_OUTAGE_OPTION, 0):
@@ -2635,6 +2836,7 @@ def execute_gridlens(app):
                 "No planned outage applies to the simulated period; the outage "
                 "runs were skipped.", 4, "WARNING")
     finally:
+        logger.step(6, "Restore and clean-up")
         logger.write("RESTORE", "Restoring the original PowerFactory state.", 6)
         state_errors.extend(_restore_study_time(study_time_state, logger))
         state_errors.extend(
@@ -2649,6 +2851,8 @@ def execute_gridlens(app):
     logger.write("RESTORE", "Original PowerFactory state restored and verified.", 6)
     check_run_budget(results)
     apply_reference(results)
+    logger.step(7, "Results and report publication")
+    _log_results(logger, results, records)
     try:
         project = app.GetActiveProject()
     except Exception:
@@ -2667,6 +2871,7 @@ def execute_gridlens(app):
         "Temporary QDS results removed after validated extraction"
         if temporary_results else "No calculation executed",
         records, _generated_by(), run_mode, lodf)
+    _log_findings(logger, payload)
     logger.write(
         "REPORT", "Preparing publication of {} report tables.".format(len(TABLES)), 7)
     counts = publish_report(report, payload, log=lambda message: logger.write(
@@ -2676,6 +2881,9 @@ def execute_gridlens(app):
         "Report published successfully: {} table(s), {} planned outage(s) in "
         "scope, {} calculated case(s).".format(
             len(counts), len(candidates), len(results)), 7)
+    logger.table(
+        ("Table", "Rows"),
+        [(name, count) for name, count in counts.items() if count])
     return counts
 
 
